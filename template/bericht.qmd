@@ -1,0 +1,20 @@
+---
+title: "Quartalsbericht"
+---
+
+## Zusammenfassung
+
+Dieser Absatz wurde von Quarto gerendert und soll nach dem Post-Render-Schritt von
+`officequarto` in den Body von `original.docx` zurückgeschrieben werden, während Kopf- und
+Fußzeile des Originals erhalten bleiben.
+
+## Kennzahlen
+
+- Umsatz: 1.234.000 €
+- Wachstum: 8,4 %
+- Neukunden: 57
+
+## Ausblick
+
+**Wichtig:** Dieser Text muss im zurückgeschriebenen Dokument auffindbar sein, um den
+End-to-End-Test zu bestehen.

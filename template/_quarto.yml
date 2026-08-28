@@ -1,0 +1,6 @@
+project:
+  type: officequarto
+
+format:
+  docx:
+    reference-doc: original.docx
