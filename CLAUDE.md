@@ -262,12 +262,32 @@ empirically — see `dev/spike-notes.md` for the full trail), not a real Word fi
 live number to reformat around; `officequarto` has to locate and text-parse the already-rendered
 caption instead.
 
-- **Detection**: `oq_find_table_caption_paragraphs()` finds paragraphs with `pStyle="ImageCaption"`
-  (Pandoc's single, fixed style ID shared by table *and* figure captions) whose **parent** element
-  also has a `w:tbl` child — Pandoc wraps every captioned table in a synthetic 1×1 "wrapper" table
-  whose single cell holds the caption paragraph followed by the real, nested table, so this
-  structurally distinguishes table captions from figure captions (which have no such sibling
-  table) without relying on style name alone.
+- **Detection**: Pandoc actually has **two** structurally different representations for a
+  captioned table, depending on whether the table carries a Quarto crossref ID (verified
+  empirically against a real external consumer project, `../hello-wordto`, whose plain — non-
+  crossref — captions were silently unstyled until this was found and fixed; see `dev/spike-
+  notes.md` Spike L for the full trail): with a `{#tbl-xyz}` ID, Pandoc wraps caption+table in a
+  synthetic 1×1 "wrapper" table (single cell holding the caption paragraph, styled
+  `ImageCaption`, immediately followed by the real, nested table); *without* a crossref ID (plain
+  `: My caption` markdown syntax), there is **no wrapper at all** — the caption paragraph (styled
+  `TableCaption`, a different, dedicated ID — not shared with figures in this case) sits as a
+  plain sibling immediately before the real `w:tbl`, both direct children of `w:body`.
+  `oq_find_table_caption_paragraphs()` therefore matches a paragraph styled `TableCaption` *or*
+  `ImageCaption` whose **immediately following sibling** is a `w:tbl` — adjacency, not "parent has
+  a `w:tbl` child anywhere", which was the original (and, for the non-wrapped case, broken)
+  design: `w:body` almost always contains *some* `w:tbl` somewhere, so that looser check matched
+  every `ImageCaption` paragraph in the whole document, including figure captions elsewhere in the
+  body — table and figure captions ended up silently swapped. `oq_table_caption_content()` (used
+  by `$above`, see "Caption position" below) was fixed the same way: it now returns the caption
+  paragraph's immediately-following-sibling `w:tbl` directly, instead of searching the parent for
+  *a* `w:tbl` child (which, in the non-wrapped case, could return an unrelated table elsewhere in
+  the body). Plain (non-crossref) captions are also never numbered by Quarto at all — the caption
+  text is the user's own, with no generated "Table N:" prefix — which matters for
+  `oq_split_caption_text()`'s digit-anchoring below: a plain caption's text could in principle
+  contain a digit that accidentally matches officequarto's own running caption count, causing a
+  spurious (harmless but semantically meaningless) split; documented as a known edge case, not
+  fixed, since it doesn't misapply anything when `prefix`/`separator`/`number-bold` aren't
+  configured for that caption.
 - **The wrapper table itself is a trap for Gruppe 1/2**: `oq_apply_table_options()`'s table
   selector is `//w:tbl[not(.//w:tbl)]` (excludes any `w:tbl` containing a nested `w:tbl`) —
   discovered as a real bug during Gruppe 3 testing: without this filter, `style`/`layout`/`width`/
@@ -344,10 +364,14 @@ was generalized into `oq_apply_captions(document_doc, captions, caption_options)
 (`table_caption_mapping.R`), which now takes an already-found paragraph node-set instead of finding
 it itself, so the identical text-rewriting logic (`oq_split_caption_text()`/
 `oq_write_caption_run()`, all still in `table_caption_mapping.R`) serves both groups. Only the
-paragraph-finding differs: `oq_find_plot_caption_paragraphs()` (`plot_caption_mapping.R`) is the
-mirror image of `oq_find_table_caption_paragraphs()` — same `pStyle="ImageCaption"` check, but
-`[not(../w:tbl)]` instead of `[../w:tbl]`, since a figure's caption-wrapper cell (see Gruppe 4)
-holds an image paragraph, not a nested table. `writeback.R` calls `oq_apply_captions()` twice, once
+paragraph-finding differs: `oq_find_plot_caption_paragraphs()` (`plot_caption_mapping.R`) mirrors
+`oq_find_table_caption_paragraphs()` — same `pStyle="ImageCaption"` check (figures, unlike tables,
+use this one ID regardless of crossref ID — see Gruppe 3's Detection note and `dev/spike-notes.md`
+Spike L), but adjacency in the other direction: the caption's **immediately preceding sibling**
+must contain a `w:drawing` (an image paragraph), matching Pandoc's default "caption below figure"
+position in both the wrapped and non-wrapped case alike. `oq_plot_caption_content()` returns that
+preceding sibling directly, for the same reason `oq_table_caption_content()` does (see above).
+`writeback.R` calls `oq_apply_captions()` twice, once
 per finder, each with its own independent 1-based numbering counter — table and figure captions
 have separate number sequences in Quarto ("Table 1"/"Figure 1" independently), so they must not
 share a single running count.

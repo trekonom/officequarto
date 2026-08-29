@@ -214,6 +214,32 @@ if (is.na(plot_caption_before_img)) {
 }
 ok("Abbildungs-Beschriftung steht vor der Abbildung (officequarto-plots.caption.above: true via officedown-Alias plots_topcaption, gegen Pandocs Default)")
 
+## Regressionstest: Beschriftung OHNE Crossref-ID ({#tbl-...}/{#fig-...}) -
+## Pandoc erzeugt hierfuer eine andere Struktur (kein Wrapper-Table, Style
+## 'TableCaption' statt 'ImageCaption' bei Tabellen) als fuer Crossref-
+## verwaltete Beschriftungen; eine frueherer Versionsstand erkannte diesen
+## Fall gar nicht (Tabellen-/Abbildungs-Beschriftungen wurden sogar
+## vertauscht), siehe dev/spike-notes.md und ../hello-wordto.
+plain_table_caption_p <- xml_find_first(
+  document_doc, "//w:p[w:r/w:t='Regionale Verteilung']", ns
+)
+if (is.na(plain_table_caption_p)) fail("keine Tabellen-Beschriftung ohne Crossref-ID ('Regionale Verteilung') im Ergebnis-Dokument gefunden")
+plain_table_caption_style <- xml_attr(xml_find_first(plain_table_caption_p, "./w:pPr/w:pStyle", ns), "val")
+if (!identical(plain_table_caption_style, "BeschriftungACME")) {
+  fail("Tabellen-Beschriftung ohne Crossref-ID sollte ebenfalls den konfigurierten Style 'BeschriftungACME' tragen, gefunden: '%s'", plain_table_caption_style)
+}
+ok("Tabellen-Beschriftung ohne Crossref-ID (kein {#tbl-...}, Pandoc-Style 'TableCaption') traegt ebenfalls den konfigurierten Style 'BeschriftungACME'")
+
+plain_plot_caption_p <- xml_find_first(
+  document_doc, "//w:p[w:r/w:t='Verteilungsdiagramm']", ns
+)
+if (is.na(plain_plot_caption_p)) fail("keine Abbildungs-Beschriftung ohne Crossref-ID ('Verteilungsdiagramm') im Ergebnis-Dokument gefunden")
+plain_plot_caption_style <- xml_attr(xml_find_first(plain_plot_caption_p, "./w:pPr/w:pStyle", ns), "val")
+if (!identical(plain_plot_caption_style, "AbbildungsbeschriftungACME")) {
+  fail("Abbildungs-Beschriftung ohne Crossref-ID sollte ebenfalls den konfigurierten Style 'AbbildungsbeschriftungACME' tragen, gefunden: '%s'", plain_plot_caption_style)
+}
+ok("Abbildungs-Beschriftung ohne Crossref-ID (kein {#fig-...}) traegt ebenfalls den konfigurierten Style 'AbbildungsbeschriftungACME'")
+
 sect_pr <- xml_find_first(document_doc, "//w:sectPr", ns)
 if (is.na(sect_pr)) fail("keine w:sectPr im Ergebnis-Dokument gefunden")
 

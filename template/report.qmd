@@ -33,6 +33,22 @@ Fußzeile des Originals erhalten bleiben.
 
 ![Umsatzentwicklung](plot.png){#fig-umsatz}
 
+## Beschriftung ohne Crossref-ID
+
+Testfall für Beschriftungen ohne `{#tbl-...}`/`{#fig-...}`-ID (schlichte Pandoc-Beschriftung,
+ohne Quartos Crossref-Nummerierung) — Pandoc erzeugt dafür eine andere Struktur (kein
+Wrapper-Table, anderer Pandoc-Style für Tabellen: `TableCaption` statt `ImageCaption`) als für
+Crossref-verwaltete Tabellen/Abbildungen, siehe `dev/spike-notes.md`.
+
+| Region | Wert |
+|---|---|
+| Nord | 100 |
+| Süd | 200 |
+
+: Regionale Verteilung
+
+![Verteilungsdiagramm](plot.png)
+
 ## Varianten
 
 a. Basisszenario

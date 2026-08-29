@@ -14,23 +14,31 @@
 ## Abbildungen ausschliesslich global/fortlaufend.
 
 ## Findet alle Abbildungs-Beschriftungsabsaetze in Dokumentreihenfolge.
-## Erkannt als Absatz mit pStyle "ImageCaption", dessen Elternelement KEIN
-## w:tbl-Kind hat - Gegenstueck zu oq_find_table_caption_paragraphs()
-## (table_caption_mapping.R): eine Abbildungs-Wrapper-Zelle (siehe
-## plot_mapping.R) enthaelt nur den Bild-Absatz und den Beschriftungsabsatz,
-## keine verschachtelte Tabelle.
+## Erkannt als Absatz mit pStyle "ImageCaption" (Pandocs Style fuer
+## Abbildungs-Beschriftungen - im Gegensatz zu Tabellen nutzt Pandoc hierfuer
+## immer "ImageCaption", ob mit oder ohne Quarto-Crossref-ID, siehe
+## oq_find_table_caption_paragraphs()), dessen UNMITTELBAR VORANGEHENDES
+## Geschwisterelement einen Bild-Absatz (w:drawing) enthaelt - Pandocs
+## Standardposition ist in beiden Faellen (Wrapper-Zelle bei Crossref-IDs,
+## schlichte Geschwister im Dokumentkoerper sonst) "Beschriftung nach der
+## Abbildung". Positionsnaehe statt der frueheren "Elternelement hat kein
+## w:tbl-Kind"-Pruefung (siehe oq_find_table_caption_paragraphs() fuer den
+## dadurch entstandenen realen Bug, wenn Abbildungs- und Tabellen-
+## Beschriftungen im selben Dokumentkoerper als Geschwister neben
+## unabhaengigen Tabellen liegen).
 oq_find_plot_caption_paragraphs <- function(document_doc, ns) {
   xml2::xml_find_all(
     document_doc,
-    "//w:p[w:pPr/w:pStyle/@w:val='ImageCaption'][not(../w:tbl)]",
+    "//w:p[w:pPr/w:pStyle/@w:val='ImageCaption'][preceding-sibling::*[1][.//w:drawing]]",
     ns
   )
 }
 
 ## Findet den zu einer Abbildungs-Beschriftung gehoerenden Inhaltsknoten (den
-## Bild-Absatz innerhalb derselben Wrapper-Zelle) - fuer oq_apply_captions()s
+## unmittelbar vorangehenden Bild-Absatz, siehe
+## oq_find_plot_caption_paragraphs()) - fuer oq_apply_captions()s
 ## $above-Handling (siehe table_caption_mapping.R). NA, falls kein
-## Bild-Absatz gefunden wird.
+## unmittelbar vorangehender Bild-Absatz existiert.
 oq_plot_caption_content <- function(caption_p, ns) {
-  xml2::xml_find_first(xml2::xml_parent(caption_p), "./w:p[.//w:drawing]", ns)
+  xml2::xml_find_first(caption_p, "./preceding-sibling::*[1][.//w:drawing]", ns)
 }

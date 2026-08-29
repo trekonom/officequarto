@@ -30,27 +30,49 @@
 ## Dokumentreihenfolge mit - identisch zu Pandocs eigener Zaehlung, da nur
 ## Tabellen MIT Beschriftung ueberhaupt einen Beschriftungsabsatz erzeugen.
 
-## Findet alle Tabellen-Beschriftungsabsaetze in Dokumentreihenfolge. Erkannt
-## als Absatz mit pStyle "ImageCaption" (Pandocs gemeinsamer
-## Beschriftungs-Style fuer Tabellen UND Abbildungen), dessen Elternelement
-## zusaetzlich ein w:tbl-Kind hat (= die eigentliche Tabelle, in Pandocs
-## Wrapper-Struktur ein Geschwisterelement der Beschriftung innerhalb
-## derselben Zelle) - grenzt Tabellen- von Abbildungs-Beschriftungen ab, die
-## kein w:tbl-Geschwister haben.
+## Findet alle Tabellen-Beschriftungsabsaetze in Dokumentreihenfolge.
+##
+## Pandoc verwendet fuer Tabellen-Beschriftungen NICHT immer denselben
+## Style: bei einer Quarto-Crossref-verwalteten Tabelle (`{#tbl-xyz}`) nutzt
+## es "ImageCaption" (denselben Style wie fuer Abbildungen, siehe
+## oq_find_plot_caption_paragraphs()) und wickelt Beschriftung+Tabelle in
+## eine synthetische 1x1-Wrapper-Tabelle; bei einer schlichten Pandoc-
+## Beschriftung ohne Crossref-ID (`: Meine Beschriftung`, kein `{#tbl-...}`)
+## nutzt es stattdessen "TableCaption" und erzeugt GAR KEINE Wrapper-Tabelle
+## - Beschriftungsabsatz und `w:tbl` stehen dann als schlichte Geschwister
+## direkt im Dokumentkoerper (empirisch verifiziert gegen ../hello-wordto,
+## siehe dev/spike-notes.md).
+##
+## Der Style allein reicht deshalb nicht zur Erkennung aus (v.a. weil
+## "ImageCaption" mehrdeutig ist), UND die urspruengliche Heuristik "Eltern-
+## element hat irgendein w:tbl-Kind" ist im Nicht-Wrapper-Fall unbrauchbar:
+## im Dokumentkoerper (w:body) liegen Beschriftung UND (ggf. voellig
+## unabhaengige) Tabellen als direkte Geschwister nebeneinander, sodass
+## diese Pruefung auch bei einer Abbildungs-Beschriftung faelschlich
+## anschlaegt, sobald irgendwo im Dokument ueberhaupt eine Tabelle existiert
+## (realer Bug, der Tabellen- und Abbildungs-Beschriftungen in
+## ../hello-wordto vertauscht hat). Stattdessen wird direkt auf
+## Positionsnaehe geprueft: der Beschriftungsabsatz muss UNMITTELBAR (nicht
+## nur irgendwo im selben Elternelement) von einer w:tbl gefolgt werden -
+## das gilt gleichermassen fuer den Wrapper- wie den Nicht-Wrapper-Fall
+## (Pandocs Standardposition ist in beiden Faellen "Beschriftung vor der
+## Tabelle").
 oq_find_table_caption_paragraphs <- function(document_doc, ns) {
   xml2::xml_find_all(
     document_doc,
-    "//w:p[w:pPr/w:pStyle/@w:val='ImageCaption'][../w:tbl]",
+    "//w:p[w:pPr/w:pStyle/@w:val='TableCaption' or w:pPr/w:pStyle/@w:val='ImageCaption'][following-sibling::*[1][self::w:tbl]]",
     ns
   )
 }
 
 ## Findet den zu einer Tabellen-Beschriftung gehoerenden Inhaltsknoten (die
-## verschachtelte, echte w:tbl innerhalb derselben Wrapper-Zelle) - fuer
-## oq_apply_captions()s $above-Handling (siehe dort). NA, falls keine
-## verschachtelte Tabelle existiert (z.B. bei einem atypischen Dokument).
+## unmittelbar folgende w:tbl - verschachtelt in derselben Wrapper-Zelle im
+## Crossref-Fall, oder ein schlichtes Geschwisterelement im Nicht-Wrapper-
+## Fall, siehe oq_find_table_caption_paragraphs()) - fuer
+## oq_apply_captions()s $above-Handling (siehe dort). NA, falls keine direkt
+## folgende Tabelle existiert (z.B. bei einem atypischen Dokument).
 oq_table_caption_content <- function(caption_p, ns) {
-  xml2::xml_find_first(xml2::xml_parent(caption_p), "./w:tbl", ns)
+  xml2::xml_find_first(caption_p, "./following-sibling::*[1][self::w:tbl]", ns)
 }
 
 ## Zerlegt den Text eines Beschriftungs-Laufs in [Text vor der Zahl] [Zahl]

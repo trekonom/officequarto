@@ -368,6 +368,70 @@ false}` (officedown-Alias) zeigen beide Hyperlinks korrekt den reinen Beschriftu
 gleichzeitig konfigurierten `prefix`/`separator` der Beschriftungen selbst (die nur den
 Beschriftungsabsatz betreffen, nicht den in `anchor_text` gesammelten reinen `rest`-Text).
 
+## Spike L — Beschriftungen ohne Crossref-ID (`TableCaption` vs. `ImageCaption`), verifiziert am 2026-08-29
+
+Fehlerbericht des Nutzers gegen `../hello-wordto` (ein echtes externes Konsumenten-Projekt, kein
+Dev-Symlink-Setup): `officequarto-tables.caption.style` wurde dort trotz Konfiguration NICHT auf
+die Tabellen-Beschriftung angewendet. `hello-wordto.qmd` nutzt schlichte Pandoc-Beschriftungen
+ohne Crossref-ID (`: Table 1 Caption` bzw. `![Figure 1 ...](img){fig-alt=...}`, kein `{#tbl-...}`/
+`{#fig-...}`) — anders als `template/report.qmd` in diesem Repo, das ausschliesslich
+Crossref-verwaltete Beschriftungen (`{#tbl-kennzahlen}`/`{#fig-umsatz}`) testete. Root-Cause-Analyse
+per direktem Vergleich des rohen (`officequarto-keep-rendered`) gegen den fertig gepatchten
+Pandoc-Output ergab zwei bis dahin unbekannte, empirisch verifizierte Tatsachen:
+
+**1. Zwei strukturell verschiedene Pandoc-Repraesentationen fuer Beschriftungen**, abhaengig davon,
+ob eine Crossref-ID vergeben wurde:
+
+- *Mit* `{#tbl-...}`/`{#fig-...}` (der bisher einzige getestete Fall): Beschriftung+Inhalt werden
+  in eine synthetische 1×1-Wrapper-Tabelle gepackt, beide Beschriftungsarten teilen sich den
+  Pandoc-Style `ImageCaption` (bereits dokumentiert, siehe Gruppe 3 oben).
+- *Ohne* Crossref-ID (schlichte Markdown-Beschriftung): KEINE Wrapper-Tabelle — Beschriftungs-
+  Absatz und Inhalt (`w:tbl` bzw. Bild-Absatz) stehen als schlichte Geschwister direkt im
+  Dokumentkoerper (`w:body`). UND: Tabellen-Beschriftungen nutzen hier einen ANDEREN, bisher
+  unbekannten Style — `TableCaption`, nicht `ImageCaption` — waehrend Abbildungs-Beschriftungen
+  weiterhin `ImageCaption` nutzen (Bild-Absatz selbst traegt zusaetzlich `CaptionedFigure`). Die
+  reale Tabelle bekommt in diesem Fall zusaetzlich ein eigenes `<w:tblCaption w:val="..." />` in
+  ihrer `w:tblPr` spendiert (ein Accessibility-Attribut, von officequarto nicht angefasst).
+
+  Ausserdem: schlichte (Crossref-lose) Beschriftungen werden von Quarto ueberhaupt NICHT
+  nummeriert — der Beschriftungstext ist reiner, unveraenderter Nutzertext ohne generiertes
+  "Table N:"/"Figure N:"-Praefix. `oq_split_caption_text()`s Ziffern-Verankerung kann deshalb in
+  seltenen Faellen (Beschriftungstext enthaelt zufaellig genau die von officequarto intern
+  mitgezaehlte laufende Nummer als eigenstaendige Ziffer) einen Treffer liefern, obwohl semantisch
+  gar keine generierte Nummer vorliegt — bleibt als dokumentierte Grenzfall-Einschraenkung
+  bestehen (kein Bugfix noetig fuer den gemeldeten Fehler, aber im Hinterkopf zu behalten).
+
+**2. Die bisherige Erkennungsheuristik (`[../w:tbl]` bzw. `[not(../w:tbl)]` — "Elternelement hat
+irgendein `w:tbl`-Kind") war nur im Wrapper-Fall zufaellig korrekt.** Im Nicht-Wrapper-Fall ist das
+Elternelement `w:body` selbst, und `w:body` enthaelt so gut wie immer IRGENDEINE Tabelle
+irgendwo im Dokument — die Pruefung schlug dadurch auf JEDE `ImageCaption`-Beschriftung im ganzen
+Dokument an, unabhaengig von tatsaechlicher struktureller Naehe. Ergebnis in `hello-wordto`: die 3
+Abbildungs-Beschriftungen (Style `ImageCaption`, Geschwister von `w:body`, das anderswo eine
+Tabelle enthaelt) wurden faelschlich vom TABELLEN-Beschriftungs-Finder eingesammelt (Log zeigte "3
+gefunden" statt der erwarteten 1), waehrend die echte Tabellen-Beschriftung (Style `TableCaption`)
+von KEINEM der beiden Finder erkannt wurde (Style-Mismatch) — Tabellen- und Abbildungs-
+Beschriftungen wurden also nicht nur uebersehen, sondern teilweise regelrecht vertauscht.
+
+**Fix**: beide Finder (`oq_find_table_caption_paragraphs()`/`oq_find_plot_caption_paragraphs()`,
+`table_caption_mapping.R`/`plot_caption_mapping.R`) sowie die zugehoerigen Inhaltsknoten-Finder
+(`oq_table_caption_content()`/`oq_plot_caption_content()`, fuer `$above`) wurden von der
+"Elternelement hat ein `w:tbl`-Kind"-Heuristik auf direkte Positionsnaehe umgestellt: eine
+Tabellen-Beschriftung ist ein Absatz mit Style `TableCaption` ODER `ImageCaption`, dessen
+UNMITTELBAR folgendes Geschwisterelement eine `w:tbl` ist; eine Abbildungs-Beschriftung ist ein
+Absatz mit Style `ImageCaption`, dessen UNMITTELBAR vorangehendes Geschwisterelement einen
+Bild-Absatz (`w:drawing`) enthaelt. Das gilt nachweislich einheitlich fuer beide Pandoc-
+Repraesentationen (verifiziert: Pandocs Default-Reihenfolge ist in BEIDEN Faellen "Beschriftung vor
+der Tabelle" / "Beschriftung nach der Abbildung") und ist zugleich praeziser als die alte Heuristik
+selbst im bereits funktionierenden Wrapper-Fall.
+
+Regressionsabdeckung: `template/report.qmd` bekam einen zweiten, Crossref-losen Tabellen- und
+Abbildungs-Testfall ("Beschriftung ohne Crossref-ID"-Abschnitt, Beschriftungstexte bewusst OHNE
+Ziffern, um Punkt 1 oben nicht versehentlich mitzutesten); `check_writeback.R` prueft, dass beide
+ebenfalls den konfigurierten Style bekommen. Gegen `../hello-wordto` (der urspruengliche
+Fehlerbericht) End-to-End nachgerendert und verifiziert: Tabellen- UND alle drei Abbildungs-
+Beschriftungen tragen jetzt korrekt den konfigurierten `"caption"`-Style (`Bijschrift` als
+resolvter Style-ID im dortigen, niederlaendisch lokalisierten `reference-doc`).
+
 ## Offene Fragen aus Abschnitt 3 des Konzepts — Status
 
 | Frage | Status |
