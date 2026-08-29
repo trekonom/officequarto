@@ -19,19 +19,19 @@ Render the example project and verify the hook end-to-end:
 
 ```bash
 cd template
-quarto render bericht.qmd
+quarto render report.qmd
 Rscript ../dev/check_writeback.R   # checks header/footer/body/metadata/style-mapping of the result
 ```
 
 `template/_extensions` is a symlink to `../_extensions` — this is how the extension is exercised
 during development without a separate `quarto add` install. `template/_quarto.yml` sets
-`officequarto-keep-rendered: true`, so rendering produces `bericht.docx` (final, in-place
-overwritten) and `bericht.quarto-rendered.docx` (the pre-write-back debug copy) in `template/`
+`officequarto-keep-rendered: true`, so rendering produces `report.docx` (final, in-place
+overwritten) and `report.quarto-rendered.docx` (the pre-write-back debug copy) in `template/`
 (both gitignored); clean up with:
 
 ```bash
-rm -f template/bericht.docx template/bericht.quarto-rendered.docx
-rm -rf template/.quarto template/bericht_files
+rm -f template/report.docx template/report.quarto-rendered.docx
+rm -rf template/.quarto template/report_files
 ```
 
 Regenerate the sample template (`template/original.docx`), including the three ACME custom
@@ -62,7 +62,7 @@ template/                     example/dev project
 ├── _quarto.yml                project: type: officequarto; format.docx.reference-doc +
 │                               format.docx.officequarto-styles + officequarto-keep-rendered
 ├── original.docx              sample reference-doc (custom header/footer/properties/styles)
-└── bericht.qmd                 the .qmd rendered against original.docx
+└── report.qmd                 the .qmd rendered against original.docx
 ```
 
 ### Render/write-back flow

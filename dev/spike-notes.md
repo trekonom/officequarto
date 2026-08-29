@@ -13,7 +13,7 @@ Referenzdokument als Vorlage für `styles.xml`, `header*.xml`, `footer*.xml` und
 **Überraschender Zusatzfund, der Phase 3 grundlegend verändert hat:** Ein per `reference-doc`
 gerendertes `.docx` enthält Header/Footer/Section-Properties des Originals bereits *vollständig
 und unverändert* — verifiziert per `unzip`-Diff zwischen `original.docx` und dem reinen
-Pandoc-Ergebnis `bericht.docx`, noch bevor irgendein eigener Post-Render-Code lief. Das
+Pandoc-Ergebnis `report.docx`, noch bevor irgendein eigener Post-Render-Code lief. Das
 ursprünglich geplante "Body des Originals manuell entfernen und Rendering-Body einfügen, dabei
 Header/Footer erhalten" (Phase-3-Spezifikation) ist damit für den Kern-Anwendungsfall bereits
 durch Pandoc selbst erledigt — ein zusätzlicher XML-Merge-Schritt bringt hier keinen Mehrwert.
@@ -55,7 +55,7 @@ Funktioniert wie erwartet, **ist aber kein Zero-Config-Mechanismus**: `quarto ad
 nur die Extension-Dateien. Der Post-Render-Hook wird erst aktiv, wenn das Nutzerprojekt in seiner
 eigenen `_quarto.yml` `project: { type: officequarto }` setzt. Verifiziert per Gegenprobe: mit
 `project: type: default` (kein `officequarto`) läuft `writeback.R` nachweislich **nicht** —
-`bericht.written-back.docx` wird nicht erzeugt. Mit `project: type: officequarto` läuft der Hook
+`report.written-back.docx` wird nicht erzeugt. Mit `project: type: officequarto` läuft der Hook
 zuverlässig bei jedem `quarto render`.
 
 ## Spike C — Umgebungsvariablen im Post-Render-Skript
@@ -63,7 +63,7 @@ zuverlässig bei jedem `quarto render`.
 Zuverlässig verfügbar (per `Sys.getenv()` bestätigt):
 
 - `QUARTO_PROJECT_OUTPUT_FILES` — newline-separierte Liste der Output-Dateien, **relativ** zu
-  `QUARTO_PROJECT_OUTPUT_DIR` (im Test: `bericht.docx`)
+  `QUARTO_PROJECT_OUTPUT_DIR` (im Test: `report.docx`)
 - `QUARTO_PROJECT_OUTPUT_DIR` — absoluter Pfad (im Test: `.../template`)
 - `QUARTO_PROJECT_RENDER_ALL` — `"1"` bei Full-Render
 - `QUARTO_PROJECT_DIR` — absoluter Projekt-Root, wird u. a. genutzt, um `original.docx` und die
@@ -87,7 +87,7 @@ die im `reference-doc` existieren:
 - `Normal`/`ListParagraph` kommen nur in anderen Konstellationen vor (z. B. "loose" Listen,
   Body-Absätze ohne vorausgehende Überschrift)
 
-Verifiziert per `unzip`+Python-Regex-Diff am realen `bericht.docx`: alle 9 Absätze trugen explizite
+Verifiziert per `unzip`+Python-Regex-Diff am realen `report.docx`: alle 9 Absätze trugen explizite
 `pStyle`-Werte aus `{Title, Titre2, FirstParagraph, Compact}`, `ListParagraph` kam gar nicht vor.
 **Konsequenz:** Listen-Absätze werden nicht am Style-Namen erkannt, sondern an der Präsenz von
 `<w:numPr>` (zuverlässig, unabhängig vom gewählten Style-Namen); Body-Absätze werden über eine

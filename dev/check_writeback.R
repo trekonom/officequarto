@@ -1,8 +1,8 @@
 ## End-to-End-Check fuer den officequarto-Workflow.
-## Erwartet, dass zuvor `quarto render bericht.qmd` im template/-Projekt lief
+## Erwartet, dass zuvor `quarto render report.qmd` im template/-Projekt lief
 ## (mit der officequarto-styles- und officequarto-keep-rendered-Konfiguration
 ## aus template/_quarto.yml).
-## Prueft: bericht.docx wurde vom Hook in-place ueberschrieben (kein separates
+## Prueft: report.docx wurde vom Hook in-place ueberschrieben (kein separates
 ## written-back.docx mehr), Header/Footer aus original.docx sind erhalten, der
 ## neu gerenderte Body-Text ist auffindbar, die aus dem Original
 ## zurueckgeschriebenen Metadaten (Subject/Custom-Property) sind vorhanden,
@@ -18,14 +18,14 @@ fail <- function(...) {
 }
 ok <- function(...) cat("OK:", sprintf(...), "\n")
 
-target <- "bericht.docx"
+target <- "report.docx"
 if (!file.exists(target)) fail("%s wurde nicht erzeugt", target)
 ok("%s existiert", target)
 
-if (file.exists("bericht.written-back.docx")) {
-  fail("bericht.written-back.docx sollte nicht mehr erzeugt werden (in-place-Ueberschreiben)")
+if (file.exists("report.written-back.docx")) {
+  fail("report.written-back.docx sollte nicht mehr erzeugt werden (in-place-Ueberschreiben)")
 }
-ok("kein separates bericht.written-back.docx mehr vorhanden")
+ok("kein separates report.written-back.docx mehr vorhanden")
 
 tmp <- tempfile("check_")
 dir.create(tmp)
@@ -80,7 +80,7 @@ ok("keine unumgemappten Pandoc-Standard-Styles (Normal/Compact/FirstParagraph) m
 
 unlink(tmp, recursive = TRUE)
 
-debug_target <- "bericht.quarto-rendered.docx"
+debug_target <- "report.quarto-rendered.docx"
 if (!file.exists(debug_target)) {
   fail("%s wurde nicht erzeugt (officequarto-keep-rendered: true in _quarto.yml erwartet)", debug_target)
 }

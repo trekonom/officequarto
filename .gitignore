@@ -5,5 +5,5 @@
 .DS_Store
 README.html
 README_files/
-template/bericht.docx
-template/bericht.quarto-rendered.docx
+template/report.docx
+template/report.quarto-rendered.docx
