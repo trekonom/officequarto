@@ -107,6 +107,83 @@ benötigte Styles (z. B. Syntax-Highlighting-Token-Styles) — keine zweite Extr
 hinzugefügten verschachtelten Key `format.docx.officequarto-styles` genauso zuverlässig wie
 `reference-doc` (per Gegenprobe mit einem Testwert bestätigt).
 
+## Spike E — Style-Pruning, verifiziert am 2026-08-29
+
+Auf den ersten Blick harmlos formulierter Befund in Spike D ("plus von Pandoc zusätzlich benötigte
+Styles, z. B. Syntax-Highlighting-Token-Styles") stellte sich als groesser heraus als gedacht:
+`original.docx` definiert 27 Styles; das rohe Pandoc-Ergebnis (`report.quarto-rendered.docx`, vor
+jeglichem officequarto-Post-Processing) enthaelt 59 — 32 zusaetzliche, ausschliesslich
+Syntax-Highlighting-Styles (`SourceCode`, `KeywordTok`, `StringTok`, ...), obwohl `report.qmd` zum
+Testzeitpunkt gar keinen Codeblock enthielt. Verifiziert per Style-ID-Diff (`w:styleId` in
+`word/styles.xml`): alle 27 Original-Styles sind unveraendert vorhanden, die 32 Extras kommen
+ausschliesslich von Pandoc hinzu — nichts geht verloren. Laut Nutzer zeigt {officedown} dasselbe
+Verhalten; es ist also eine generelle Eigenschaft von Pandocs docx-Writer, nicht spezifisch fuer
+den `reference-doc`-Mechanismus.
+
+Auf expliziten Wunsch entfernt `writeback.R` diese Extras seitdem wieder (per Default): `word/
+styles.xml` des reference-doc wird zusaetzlich zu `core.xml`/`custom.xml` aus dem Original
+extrahiert, und jeder `<w:style>` im gerenderten `word/styles.xml`, dessen `styleId` dort nicht
+vorkommt, wird entfernt (`scripts/style_pruning.R`).
+
+Getestet auch der Grenzfall "Style wird noch verwendet": Ein Testabsatz mit echtem Codeblock in
+`report.qmd` sorgt dafuer, dass `SourceCode`/`KeywordTok`/... tatsaechlich per `w:pStyle`/`w:rStyle`
+referenziert werden. Bewusste Entscheidung (vom Nutzer bestaetigt): auch dann wird der Style
+entfernt statt behalten — der betroffene Absatz/Run faellt auf Words Default-Formatierung zurueck,
+`writeback.R` loggt dafuer eine Warnung mit der Liste der betroffenen Style-IDs. Verifiziert: das
+resultierende `document.xml`/`styles.xml` bleibt wohlgeformtes XML (kein Crash, keine defekte
+Datei), der `pStyle`-Wert `SourceCode` existiert im Absatz weiter, obwohl die Style-Definition
+fehlt — genau das von Word tolerierte Verhalten (stiller Fallback auf Default-Formatierung, kein
+Reparatur-Dialog).
+
+Gegenprobe an einem echten externen Projekt (`../hello-wordto`, UU-Word-Template mit 476 Styles,
+`hello-wordto.qmd` ohne jeglichen Code): rohes Pandoc-Ergebnis hatte 508 Styles (476 + dieselben 32
+Extras), nach Pruning wieder exakt 476 — identisch mit dem Template. Bestaetigt, dass das
+Verhalten nicht spezifisch fuer die kleine ACME-Testvorlage ist, sondern generell fuer beliebige
+reference-docs greift, auch sehr grosse.
+
+## Spike F — Code-Block-Ausnahme (`officequarto-pandoc-styles.code-block`), verifiziert am 2026-08-29
+
+Vor dem ersten Commit von Spike E kam der Wunsch nach einer Opt-in-Ausnahme fuer genau diesen
+Codeblock-Fall: entweder Pandocs eigene Codeblock-Formatierung vollstaendig behalten, oder die
+Codeblock-Absaetze auf einen eigenen reference-doc-Style ummappen (analog zu `body`/`list-bullet`/
+`list-number`), waehrend der Default (kein Codeblock-Konfig) unveraendert bleibt.
+
+`SourceCode` erwies sich (anders als `Normal`/`FirstParagraph`/`Compact` in Spike D) als stabile,
+kontextunabhaengige Pandoc-Style-ID fuer den Codeblock-Absatz selbst — ein einfacher
+Gleichheitscheck in `oq_apply_style_mapping` genuegt, keine Allowlist noetig. Fuer
+`code-block: true` reicht es, die Menge der "zu behaltenden" Style-IDs vor dem Pruning-Aufruf um
+alle `SourceCode`/`*Tok`-IDs zu erweitern (`oq_is_pandoc_code_style_id()`) — `oq_prune_foreign_styles`
+selbst brauchte dafuer keine Aenderung, da es ohnehin nur eine beliebige "keep set"-Menge entgegennimmt.
+
+Nachtraeglicher Wunsch (noch vor dem ersten Commit dieser Funktion): `code-block` nicht verschachtelt
+unter `officequarto-styles`, sondern in einem eigenen, gleichrangigen Abschnitt
+`officequarto-pandoc-styles` (Begruendung: es geht um von Pandoc hinzugefuegte Styles, nicht um das
+Ummappen eigener reference-doc-Styles — inhaltlich ein anderer Konfigurationsbereich). Dabei musste
+die Gate-Bedingung fuer den Style-Mapping-Block in `writeback.R` von `!is.null(style_config)` auf
+`!is.null(style_config) || !is.null(code_block_config)` erweitert werden, sonst haette
+`code-block` ohne gleichzeitig gesetztes `officequarto-styles` (body/list-bullet/list-number) gar
+nicht gegriffen — verifiziert per Testfall mit *nur* `officequarto-pandoc-styles.code-block`
+gesetzt (kein `officequarto-styles` in der Config): Codeblock-Absatz wird trotzdem korrekt auf den
+konfigurierten Style umgemappt, Body-Absaetze bleiben unangetastet bei Pandocs Rollennamen. Auch
+`oq_resolve_style_id()` musste angepasst werden: der volle Konfigurationspfad fuer Fehlermeldungen
+wird jetzt vom Aufrufer uebergeben (`"officequarto-styles.body"` vs.
+`"officequarto-pandoc-styles.code-block"`), statt den Praefix `officequarto-styles.` hart zu
+kodieren.
+
+Verifiziert (`template/_quarto.yml` nutzt jetzt dauerhaft `officequarto-pandoc-styles:
+{code-block: "Code ACME"}` als String-Mapping-Testfall, ein vierter ACME-Custom-Style in
+`dev/make_sample_docx.R`):
+- `code-block` unset (Default): unveraendert wie Spike E (32 entfernt, inkl. `SourceCode`).
+- `code-block: "Code ACME"`: `SourceCode`-Absatz wird auf `CodeACME` umgemappt (kein
+  `SourceCode`-Verweis mehr, keine Warnung dafuer), die `*Tok`-Laufstile im Codeblock bleiben aber
+  weiterhin referenziert-aber-entfernt (Warnung wie gehabt) — bewusst getrennte Zustaendigkeit
+  Block-Style vs. Syntax-Highlighting-Farben.
+- `code-block: true` (manuell in einem Scratch-Projekt getestet, nicht Teil der dauerhaften
+  Testvorlage): 0 entfernt, alle 32 `SourceCode`/`*Tok`-Styles bleiben unveraendert erhalten, keine
+  Warnung, volle Syntax-Highlighting-Farbgebung im Ergebnis.
+- Ungueltiger Wert (z. B. eine Zahl): bricht sofort mit klarer Fehlermeldung ab, noch vor der
+  Pro-Datei-Schleife.
+
 ## Offene Fragen aus Abschnitt 3 des Konzepts — Status
 
 | Frage | Status |

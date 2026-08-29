@@ -23,14 +23,16 @@ oq_style_name_to_id <- function(styles_doc) {
 }
 
 ## Loest einen vom Nutzer angegebenen Anzeigenamen zu einer styleId auf.
-## Bricht mit einer Liste verfuegbarer Namen ab, wenn nicht gefunden.
-oq_resolve_style_id <- function(name_to_id, display_name, role, fail_fn) {
+## Bricht mit einer Liste verfuegbarer Namen ab, wenn nicht gefunden. `key` ist
+## der volle Konfigurationspfad fuer die Fehlermeldung (z.B.
+## "officequarto-styles.body" oder "officequarto-pandoc-styles.code-block").
+oq_resolve_style_id <- function(name_to_id, display_name, key, fail_fn) {
   if (display_name %in% names(name_to_id)) {
     return(unname(name_to_id[[display_name]]))
   }
   fail_fn(
-    "Style '%s' (officequarto-styles.%s) wurde im reference-doc nicht gefunden. Verfuegbare Paragraph-Styles: %s",
-    display_name, role, paste(sort(names(name_to_id)), collapse = ", ")
+    "Style '%s' (%s) wurde im reference-doc nicht gefunden. Verfuegbare Paragraph-Styles: %s",
+    display_name, key, paste(sort(names(name_to_id)), collapse = ", ")
   )
 }
 
@@ -69,15 +71,16 @@ oq_num_fmt_map <- function(numbering_doc) {
 
 ## Wendet das Style-Mapping direkt auf ein geparstes document.xml an (in-place
 ## via xml2-Referenzsemantik). style_ids ist eine Liste mit optionalen
-## Eintraegen $body/$list_bullet/$list_number (jeweils eine styleId oder NULL).
-## style_num_id (siehe oq_style_num_id) sagt, welche Ziel-Styles selbst eine
-## Nummerierung mitbringen.
+## Eintraegen $body/$list_bullet/$list_number/$code (jeweils eine styleId oder
+## NULL). style_num_id (siehe oq_style_num_id) sagt, welche Ziel-Styles selbst
+## eine Nummerierung mitbringen.
 oq_apply_style_mapping <- function(document_doc, num_fmt_map, style_ids, style_num_id) {
   ns <- xml2::xml_ns(document_doc)
   paragraphs <- xml2::xml_find_all(document_doc, "//w:body/w:p | //w:body//w:tbl//w:p", ns)
 
   n_body <- 0L
   n_list <- 0L
+  n_code <- 0L
 
   for (p in paragraphs) {
     num_id_node <- xml2::xml_find_first(p, "./w:pPr/w:numPr/w:numId", ns)
@@ -103,16 +106,26 @@ oq_apply_style_mapping <- function(document_doc, num_fmt_map, style_ids, style_n
       next
     }
 
-    if (is.null(style_ids$body)) next
     pstyle_node <- xml2::xml_find_first(p, "./w:pPr/w:pStyle", ns)
     current <- if (is.na(pstyle_node)) "Normal" else xml2::xml_attr(pstyle_node, "val")
+
+    ## SourceCode ist - anders als Normal/FirstParagraph/Compact - eine
+    ## stabile, feste Pandoc-Style-ID (kein Kontext-abhaengiger Rollenname),
+    ## daher genuegt ein direkter Gleichheitscheck statt einer Allowlist.
+    if (identical(current, "SourceCode") && !is.null(style_ids$code)) {
+      oq_set_pstyle(p, ns, style_ids$code)
+      n_code <- n_code + 1L
+      next
+    }
+
+    if (is.null(style_ids$body)) next
     if (current %in% officequarto_body_role_styles) {
       oq_set_pstyle(p, ns, style_ids$body)
       n_body <- n_body + 1L
     }
   }
 
-  list(n_body = n_body, n_list = n_list)
+  list(n_body = n_body, n_list = n_list, n_code = n_code)
 }
 
 ## Setzt (oder erzeugt) das w:pStyle-Element eines Absatzes auf die gegebene styleId.

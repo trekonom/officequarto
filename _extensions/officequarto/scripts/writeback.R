@@ -23,6 +23,18 @@
 ## `format.docx.officequarto-keep-rendered: true` aktivieren (analog zu
 ## Quartos eigenem `keep-md`); es wird dann zusaetzlich als
 ## `<name>.quarto-rendered.docx` abgelegt.
+##
+## Zusaetzlich, immer aktiv: Pandocs docx-Writer fuegt beim Rendern eigene
+## Style-Definitionen hinzu, die im reference-doc gar nicht existieren (z.B.
+## Syntax-Highlighting-Styles fuer Codebloecke, unabhaengig davon, ob welche
+## vorkommen). Diese werden standardmaessig wieder entfernt, das Ergebnis-docx
+## enthaelt dann ausschliesslich Styles aus dem reference-doc (siehe
+## scripts/style_pruning.R fuer die Kernlogik). Per `format.docx.
+## officequarto-pandoc-styles.code-block` (eigener Abschnitt, unabhaengig von
+## officequarto-styles) lassen sich Pandocs Codeblock-Styles davon ausnehmen:
+## `true` behaelt sie unveraendert (volles Syntax-Highlighting), ein
+## Style-Name mappt nur die SourceCode-Absatzrolle auf einen eigenen
+## reference-doc-Style (Syntax-Highlighting-Farben bleiben dabei entfernt).
 
 log_msg <- function(fmt, ...) cat(sprintf(paste0("[officequarto] ", fmt, "\n"), ...))
 fail <- function(fmt, ...) stop(sprintf(paste0("officequarto: ", fmt), ...), call. = FALSE)
@@ -37,6 +49,7 @@ get_script_dir <- function() {
   "."
 }
 source(file.path(get_script_dir(), "style_mapping.R"))
+source(file.path(get_script_dir(), "style_pruning.R"))
 
 output_files <- Sys.getenv("QUARTO_PROJECT_OUTPUT_FILES", unset = "")
 output_dir <- Sys.getenv("QUARTO_PROJECT_OUTPUT_DIR", unset = ".")
@@ -87,8 +100,16 @@ if (!file.exists(reference_doc_path)) {
 }
 
 style_config <- tryCatch(inspect$config$format$docx$`officequarto-styles`, error = function(e) NULL)
+pandoc_style_config <- tryCatch(inspect$config$format$docx$`officequarto-pandoc-styles`, error = function(e) NULL)
 keep_rendered <- tryCatch(inspect$config$format$docx$`officequarto-keep-rendered`, error = function(e) NULL)
 if (is.null(keep_rendered)) keep_rendered <- FALSE
+
+code_block_config <- tryCatch(pandoc_style_config$`code-block`, error = function(e) NULL)
+code_block_valid <- is.null(code_block_config) || identical(code_block_config, FALSE) ||
+  isTRUE(code_block_config) || (is.character(code_block_config) && length(code_block_config) == 1 && nzchar(code_block_config))
+if (!code_block_valid) {
+  fail("officequarto-pandoc-styles.code-block muss entweder true oder ein Style-Name (String) sein.")
+}
 
 ## Uebertraegt dc:subject, cp:keywords, cp:category aus core_from in core_to und
 ## gibt den (ggf. veraenderten) core_to xml2-Doc zurueck.
@@ -123,7 +144,7 @@ for (rel_path in docx_outputs) {
   orig_dir <- file.path(work_dir, "__original__")
   dir.create(orig_dir)
   system2("unzip", c("-oq", shQuote(reference_doc_path), "docProps/core.xml", "docProps/custom.xml",
-                      "-d", shQuote(orig_dir)))
+                      "word/styles.xml", "-d", shQuote(orig_dir)))
 
   core_to_path <- file.path(work_dir, "docProps", "core.xml")
   core_from_path <- file.path(orig_dir, "docProps", "core.xml")
@@ -139,7 +160,7 @@ for (rel_path in docx_outputs) {
     file.copy(custom_from_path, file.path(work_dir, "docProps", "custom.xml"), overwrite = TRUE)
   }
 
-  if (!is.null(style_config)) {
+  if (!is.null(style_config) || !is.null(code_block_config)) {
     styles_path <- file.path(work_dir, "word", "styles.xml")
     document_path <- file.path(work_dir, "word", "document.xml")
     numbering_path <- file.path(work_dir, "word", "numbering.xml")
@@ -150,13 +171,16 @@ for (rel_path in docx_outputs) {
 
     style_ids <- list()
     if (!is.null(style_config$body)) {
-      style_ids$body <- oq_resolve_style_id(name_to_id, style_config$body, "body", fail)
+      style_ids$body <- oq_resolve_style_id(name_to_id, style_config$body, "officequarto-styles.body", fail)
     }
     if (!is.null(style_config$`list-bullet`)) {
-      style_ids$list_bullet <- oq_resolve_style_id(name_to_id, style_config$`list-bullet`, "list-bullet", fail)
+      style_ids$list_bullet <- oq_resolve_style_id(name_to_id, style_config$`list-bullet`, "officequarto-styles.list-bullet", fail)
     }
     if (!is.null(style_config$`list-number`)) {
-      style_ids$list_number <- oq_resolve_style_id(name_to_id, style_config$`list-number`, "list-number", fail)
+      style_ids$list_number <- oq_resolve_style_id(name_to_id, style_config$`list-number`, "officequarto-styles.list-number", fail)
+    }
+    if (is.character(code_block_config) && nzchar(code_block_config)) {
+      style_ids$code <- oq_resolve_style_id(name_to_id, code_block_config, "officequarto-pandoc-styles.code-block", fail)
     }
 
     num_fmt_map <- if (file.exists(numbering_path)) {
@@ -168,7 +192,48 @@ for (rel_path in docx_outputs) {
     document_doc <- xml2::read_xml(document_path)
     result <- oq_apply_style_mapping(document_doc, num_fmt_map, style_ids, style_num_id)
     xml2::write_xml(document_doc, document_path)
-    log_msg("Style-Mapping angewendet: %d Body-Absaetze, %d Listen-Absaetze.", result$n_body, result$n_list)
+    log_msg("Style-Mapping angewendet: %d Body-Absaetze, %d Listen-Absaetze, %d Codeblock-Absaetze.",
+             result$n_body, result$n_list, result$n_code)
+  }
+
+  ref_styles_path <- file.path(orig_dir, "word", "styles.xml")
+  if (file.exists(ref_styles_path)) {
+    ref_style_ids <- oq_all_style_ids(xml2::read_xml(ref_styles_path))
+
+    content_paths <- file.path(
+      work_dir, "word",
+      c("document.xml", "footnotes.xml", "endnotes.xml", "comments.xml")
+    )
+    content_docs <- lapply(content_paths[file.exists(content_paths)], xml2::read_xml)
+    referenced_ids <- oq_referenced_style_ids(content_docs)
+
+    rendered_styles_path <- file.path(work_dir, "word", "styles.xml")
+    rendered_styles_doc <- xml2::read_xml(rendered_styles_path)
+
+    keep_style_ids <- ref_style_ids
+    if (isTRUE(code_block_config)) {
+      rendered_ids_all <- oq_all_style_ids(rendered_styles_doc)
+      code_style_ids <- rendered_ids_all[oq_is_pandoc_code_style_id(rendered_ids_all)]
+      keep_style_ids <- union(keep_style_ids, code_style_ids)
+      if (length(code_style_ids) > 0) {
+        log_msg("Pandocs Codeblock-Styles behalten (officequarto-pandoc-styles.code-block: true): %s",
+                 paste(code_style_ids, collapse = ", "))
+      }
+    }
+
+    prune_result <- oq_prune_foreign_styles(rendered_styles_doc, keep_style_ids, referenced_ids)
+    xml2::write_xml(rendered_styles_doc, rendered_styles_path)
+
+    log_msg("Styles bereinigt: %d entfernt, %d behalten.",
+             length(prune_result$removed), length(keep_style_ids))
+    if (length(prune_result$removed_but_referenced) > 0) {
+      log_msg(paste0(
+        "Warnung: folgende entfernte Styles werden im Dokument noch referenziert und fallen auf ",
+        "Words Standard-Formatierung zurueck: %s (im reference-doc ergaenzen, ueber ",
+        "officequarto-styles auf einen vorhandenen Style umleiten, oder fuer Codeblock-Styles ",
+        "officequarto-pandoc-styles.code-block setzen)."
+      ), paste(prune_result$removed_but_referenced, collapse = ", "))
+    }
   }
 
   if (isTRUE(keep_rendered)) {

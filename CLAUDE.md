@@ -20,8 +20,12 @@ Render the example project and verify the hook end-to-end:
 ```bash
 cd template
 quarto render report.qmd
-Rscript ../dev/check_writeback.R   # checks header/footer/body/metadata/style-mapping of the result
+Rscript ../dev/check_writeback.R   # checks header/footer/body/metadata/style-mapping/style-pruning of the result
 ```
+
+`template/report.qmd` includes a small fenced code block specifically so the style-pruning
+"removed but still referenced" warning path (see below) has real coverage, not just the
+always-safe unused-style case.
 
 `template/_extensions` is a symlink to `../_extensions` — this is how the extension is exercised
 during development without a separate `quarto add` install. `template/_quarto.yml` sets
@@ -34,8 +38,8 @@ rm -f template/report.docx template/report.quarto-rendered.docx
 rm -rf template/.quarto template/report_files
 ```
 
-Regenerate the sample template (`template/original.docx`), including the three ACME custom
-paragraph styles used to test style-mapping:
+Regenerate the sample template (`template/original.docx`), including the four ACME custom
+paragraph styles used to test style-mapping (body/bullet/number/code-block):
 
 ```bash
 Rscript dev/make_sample_docx.R   # needs R packages: officer, xml2
@@ -54,13 +58,16 @@ _extensions/officequarto/
 │                                                       post-render: [scripts/writeback.R] } }
 └── scripts/
     ├── writeback.R           post-render hook: orchestration (env vars, quarto inspect,
-    │                         metadata merge, zip/unzip), sources style_mapping.R
-    └── style_mapping.R       style-mapping core logic (pure functions, no side effects of
+    │                         metadata merge, zip/unzip), sources style_mapping.R + style_pruning.R
+    ├── style_mapping.R       style-mapping core logic (pure functions, no side effects of
+    │                          its own — called from writeback.R)
+    └── style_pruning.R       style-pruning core logic (pure functions, no side effects of
                                its own — called from writeback.R)
 
 template/                     example/dev project
 ├── _quarto.yml                project: type: officequarto; format.docx.reference-doc +
-│                               format.docx.officequarto-styles + officequarto-keep-rendered
+│                               format.docx.officequarto-styles + officequarto-pandoc-styles
+│                               + officequarto-keep-rendered
 ├── original.docx              sample reference-doc (custom header/footer/properties/styles)
 └── report.qmd                 the .qmd rendered against original.docx
 ```
@@ -72,15 +79,18 @@ template/                     example/dev project
    behavior, no custom code involved.
 2. `scripts/writeback.R` runs automatically as a post-render hook. For each rendered `.docx`
    output it:
-   - Resolves `reference-doc` and the optional `officequarto-styles`/`officequarto-keep-rendered`
-     config via `quarto inspect <project_dir>` (parsed JSON) rather than hand-parsing `_quarto.yml`
-     — this correctly reflects resolved/merged config.
+   - Resolves `reference-doc` and the optional `officequarto-styles`/`officequarto-pandoc-styles`/
+     `officequarto-keep-rendered` config via `quarto inspect <project_dir>` (parsed JSON) rather
+     than hand-parsing `_quarto.yml` — this correctly reflects resolved/merged config.
    - Unzips the rendered docx into a temp `work_dir`.
    - Merges `docProps/core.xml` fields (`dc:subject`, `cp:keywords`, `dc:description`,
      `cp:category`) and copies `docProps/custom.xml` from the original — these are the properties
      Pandoc does *not* carry over from `reference-doc` (it writes fresh, largely empty ones).
    - If `officequarto-styles` is configured, applies style-mapping to `word/document.xml` (see
      below) via `style_mapping.R`.
+   - Always (unconditionally, no config): removes every style definition in the rendered
+     `word/styles.xml` whose ID isn't present in `reference-doc`'s own `word/styles.xml` (see
+     "Style pruning" below).
    - If `officequarto-keep-rendered` is `true`, copies the still-untouched rendered docx to
      `<name>.quarto-rendered.docx` before it gets overwritten (debug artifact, analogous to
      Quarto's own `keep-md`).
@@ -123,6 +133,52 @@ detection logic in `style_mapping.R`:
   `Compact`, `BodyText`, `Body Text`). A reference-doc that makes Pandoc pick a body role outside
   this list will not be recognized — documented limitation.
 - Only `word/document.xml` (main body) is patched — not footnotes/comments.
+
+### Style pruning (always on by default)
+
+Pandoc's docx writer unconditionally adds its own style definitions on top of whatever
+`reference-doc` defines — most visibly a full set of syntax-highlighting styles (`SourceCode`,
+`*Tok`) for code blocks, even when the rendered document has none (verified empirically:
+`original.docx` has 27 styles, the raw Pandoc output has 59 — all 32 extras, nothing from the
+original lost; also verified against `../hello-wordto`'s real 476-style UU template: 508 raw →
+476 pruned, exact match). {officedown} has the same behavior; it's Pandoc's docx writer, not
+something specific to `reference-doc`. `style_pruning.R` removes every style in the rendered
+`word/styles.xml` whose ID isn't in `reference-doc`'s own `word/styles.xml`. If a to-be-removed
+style is still referenced somewhere in the rendered content
+(`w:pStyle`/`w:rStyle`/`w:tblStyle` in `document.xml`/`footnotes.xml`/`endnotes.xml`/`comments.xml`
+— e.g. a real code block, or Pandoc's own body/list role names like `FirstParagraph`/`Compact` when
+`officequarto-styles` isn't configured for that role and `reference-doc` doesn't happen to define
+them), it is still removed and `writeback.R` logs a warning; the affected content falls back to
+Word's default formatting rather than erroring out. Runs independently of whether
+`officequarto-styles` is configured, always after the style-mapping step (so it prunes against the
+final, already-remapped `document.xml`).
+
+`oq_is_pandoc_code_style_id(id)` in `style_pruning.R` identifies Pandoc's fixed syntax-highlighting
+style-ID family (`id == "SourceCode" | grepl("Tok$", id)` — a stable naming convention of Pandoc's
+docx writer). `dev/check_writeback.R` sources `style_pruning.R` directly to reuse this helper
+rather than duplicating the pattern.
+
+**Escape hatch: `officequarto-pandoc-styles.code-block`** (optional, default unset → prune as
+above). Deliberately a separate top-level section, sibling of `officequarto-styles` under
+`format.docx` (not nested inside `officequarto-styles`) — it's about Pandoc-added styles, not about
+remapping reference-doc styles, and is independent of whether `officequarto-styles` is configured
+at all (`writeback.R` gates the whole style-mapping block on `!is.null(style_config) ||
+!is.null(code_block_config)`, not on `style_config` alone, so `code-block` works standalone):
+- `true` — exempts `SourceCode` + all `*Tok` styles from pruning entirely (`writeback.R` computes
+  `union(ref_style_ids, code_style_ids)` as the keep-set passed to `oq_prune_foreign_styles`, which
+  needed no signature change for this). Pandoc's own code-block styling, including syntax-
+  highlighting colors, survives untouched.
+- a style name (string) — resolved via the same `oq_resolve_style_id` used for `body`/
+  `list-bullet`/`list-number` (that function takes the fully-qualified config key, e.g.
+  `"officequarto-pandoc-styles.code-block"` vs. `"officequarto-styles.body"`, for its error
+  message), then `style_ids$code` is applied in `oq_apply_style_mapping`'s paragraph loop via a
+  direct `current == "SourceCode"` equality check (not an allowlist — unlike
+  `Normal`/`FirstParagraph`/`Compact`, `SourceCode` is a stable, non-context-dependent Pandoc ID).
+  Only the paragraph role is remapped; the `*Tok` character styles are deliberately **not**
+  exempted from pruning in this case — block formatting and syntax-highlighting colors are treated
+  as independent concerns (explicit design decision, not an oversight).
+- Anything else (e.g. a number) fails loudly at the top of `writeback.R`, before the per-output-file
+  loop, consistent with this project's fail-loud philosophy elsewhere.
 
 ### Key constraints/gotchas
 

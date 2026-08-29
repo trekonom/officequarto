@@ -24,3 +24,14 @@ Fußzeile des Originals erhalten bleiben.
 
 **Wichtig:** Dieser Text muss im zurückgeschriebenen Dokument auffindbar sein, um den
 End-to-End-Test zu bestehen.
+
+## Anhang: Beispielcode
+
+Dieser Codeblock existiert, damit Pandocs Syntax-Highlighting-Styles (z. B. `SourceCode`,
+`KeywordTok`) tatsächlich referenziert werden — als Testfall für das Entfernen von Styles, die
+nicht im `reference-doc` enthalten sind, obwohl sie noch verwendet werden.
+
+```python
+def hello():
+    return "world"
+```

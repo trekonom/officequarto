@@ -52,7 +52,8 @@ _extensions/officequarto/
 │                                                       post-render: [scripts/writeback.R] } }
 └── scripts/
     ├── writeback.R           post-render hook (orchestration)
-    └── style_mapping.R       style-mapping core logic, sourced by writeback.R
+    ├── style_mapping.R       style-mapping core logic, sourced by writeback.R
+    └── style_pruning.R       style-pruning core logic, sourced by writeback.R
 
 template/                     example project (quarto use template)
 ├── _quarto.yml                project: type: officequarto, format.docx.officequarto-styles
@@ -74,6 +75,9 @@ What happens on `quarto render`:
    is left untouched. With `officequarto-keep-rendered: true`, the plain, unpatched Pandoc output
    is additionally saved beforehand as `<name>.quarto-rendered.docx` (analogous to Quarto's own
    `keep-md` — handy for debugging, to see what Pandoc would have produced without the hook).
+   It also strips any style definitions from `word/styles.xml` that Pandoc added but that aren't
+   present in `reference-doc` (see [Style pruning](#style-pruning-keeping-only-reference-doc-styles)
+   below).
 
 Why no manual body replacement? That was the original plan (strip the original's body, insert the
 rendered content). A spike showed that `reference-doc` already handles this completely for the
@@ -111,6 +115,60 @@ lists). Bullet vs. numbered is distinguished via `word/numbering.xml` (`w:numFmt
 anything else) — exactly as in {officedown}, there is **one style per list type, not per nesting
 level**. If a configured style name doesn't exist in `reference-doc`, the hook aborts with a list
 of the available paragraph styles instead of silently ignoring the misconfiguration.
+
+## Style pruning: keeping only reference-doc styles
+
+Pandoc's docx writer unconditionally adds its own style definitions on top of whatever
+`reference-doc` already defines — most notably a full set of syntax-highlighting styles
+(`SourceCode`, `KeywordTok`, `StringTok`, ...) for code blocks, regardless of whether the rendered
+document actually contains any. `reference-doc` itself is never affected (Pandoc copies its styles
+unchanged), but the rendered output ends up with extra style definitions that were never part of
+your template. {officedown} has the same behavior, since it's a general property of Pandoc's
+docx writer, not something specific to how `reference-doc` is used.
+
+`officequarto` removes these again — **always, no configuration needed**: after the metadata merge
+and style-mapping step, the hook compares every style ID in the rendered `word/styles.xml` against
+`reference-doc`'s own style IDs and deletes anything that isn't there. The result contains
+*exactly* the styles defined in `reference-doc`, nothing added by Pandoc.
+
+If a style that gets removed this way is still actually used somewhere in the rendered content
+(e.g. a real code block using a syntax-highlighting style your `reference-doc` doesn't define, or
+— if you're not using `officequarto-styles` — Pandoc's own body/list role names like
+`FirstParagraph`/`Compact` if your `reference-doc` happens not to define them), it is still
+removed; the affected paragraph or run just falls back to Word's default formatting for that spot.
+The hook logs a warning listing exactly which still-used styles got stripped, so you know to either
+add that style to `reference-doc` or map the paragraphs to an existing style via
+`officequarto-styles`.
+
+### Opting back in for code blocks: `officequarto-pandoc-styles.code-block`
+
+Since code-block styling is the most common reason to hit the warning above, there's a dedicated,
+optional escape hatch. It lives in its own section, `officequarto-pandoc-styles`, a sibling of
+`officequarto-styles` — since it's about Pandoc-added styles, not about remapping your own
+reference-doc styles:
+
+```yaml
+format:
+  docx:
+    officequarto-styles:
+      body: "Fließtext ACME"
+      # ...
+    officequarto-pandoc-styles:
+      code-block: true                # keep Pandoc's own code-block styling as-is
+      # code-block: "My Code Style"   # ...or map the code-block paragraphs to your own style
+```
+
+- Unset (the default): unchanged behavior — code-block styles are dropped like any other
+  Pandoc-added extra.
+- `true`: `SourceCode` and all `*Tok` syntax-highlighting character styles are exempted from
+  pruning and kept exactly as Pandoc generated them — code blocks render with full syntax
+  highlighting.
+- a style name (string): only the `SourceCode` paragraph role is remapped to that style (must
+  exist in `reference-doc`, same fail-loud resolution as `body`/`list-bullet`/`list-number`) — you
+  get your own block formatting (font/indentation/shading), but the `*Tok` character styles are
+  still pruned, so syntax-highlighting colors are still dropped. Block formatting and
+  syntax-highlighting colors are deliberately independent concerns; there's no option to combine a
+  custom block style with kept highlighting colors.
 
 ## Keeping a debug artifact: `officequarto-keep-rendered`
 
@@ -160,6 +218,11 @@ the unmodified Pandoc output (no metadata merge, no style-mapping).
   offers one style per list type (bullet/numbered) rather than per nesting level. Body detection
   relies on an allowlist of known Pandoc role names — a reference-doc that makes Pandoc render body
   text under a not-yet-listed role name won't be recognized.
+- Style pruning is unconditional: if content actually uses a Pandoc-added style your `reference-doc`
+  doesn't define (typically syntax-highlighted code blocks, or Pandoc's own body/list role names
+  when `officequarto-styles` isn't configured for that role), that style definition is still
+  removed and the content falls back to Word's default formatting — see
+  [Style pruning](#style-pruning-keeping-only-reference-doc-styles).
 
 ## Development / tests
 

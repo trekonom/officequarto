@@ -9,3 +9,5 @@ format:
       body: "Fließtext ACME"
       list-bullet: "Aufzählung ACME"
       list-number: "Nummerierung ACME"
+    officequarto-pandoc-styles:
+      code-block: "Code ACME"

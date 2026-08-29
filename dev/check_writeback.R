@@ -1,16 +1,21 @@
 ## End-to-End-Check fuer den officequarto-Workflow.
 ## Erwartet, dass zuvor `quarto render report.qmd` im template/-Projekt lief
-## (mit der officequarto-styles- und officequarto-keep-rendered-Konfiguration
-## aus template/_quarto.yml).
+## (mit der officequarto-styles-, officequarto-pandoc-styles- und
+## officequarto-keep-rendered-Konfiguration aus template/_quarto.yml).
 ## Prueft: report.docx wurde vom Hook in-place ueberschrieben (kein separates
 ## written-back.docx mehr), Header/Footer aus original.docx sind erhalten, der
 ## neu gerenderte Body-Text ist auffindbar, die aus dem Original
 ## zurueckgeschriebenen Metadaten (Subject/Custom-Property) sind vorhanden,
-## Body-/Bullet-/Nummerierungs-Absaetze tragen die konfigurierten
-## ACME-Custom-Styles statt Pandocs Standard-Styles, und das per
-## officequarto-keep-rendered behaltene Debug-Artefakt zeigt den ungepatchten
-## Zustand.
+## Body-/Bullet-/Nummerierungs-/Codeblock-Absaetze tragen die konfigurierten
+## ACME-Custom-Styles statt Pandocs Standard-Styles, dass word/styles.xml im
+## Ergebnis exakt die Styles aus original.docx enthaelt (Pandocs
+## Syntax-Highlighting-Laufstile fuer den Codeblock in report.qmd wurden trotz
+## Verwendung entfernt - officequarto-pandoc-styles.code-block mappt hier nur die
+## SourceCode-Absatzrolle, nicht die *Tok-Laufstile), und dass das per
+## officequarto-keep-rendered behaltene Debug-Artefakt den ungepatchten
+## Zustand zeigt.
 library(xml2)
+source("_extensions/officequarto/scripts/style_pruning.R")  # fuer oq_is_pandoc_code_style_id
 
 fail <- function(...) {
   cat("FAIL:", sprintf(...), "\n")
@@ -77,6 +82,45 @@ if (any(pstyles == "Normal") || any(pstyles == "Compact") || any(pstyles == "Fir
        paste(unique(pstyles), collapse = ", "))
 }
 ok("keine unumgemappten Pandoc-Standard-Styles (Normal/Compact/FirstParagraph) mehr vorhanden")
+
+rendered_styles_doc <- read_xml(file.path(tmp, "word", "styles.xml"))
+rendered_style_ids <- xml_attr(xml_find_all(rendered_styles_doc, "//w:style", ns), "styleId")
+
+orig_tmp <- tempfile("check_orig_")
+dir.create(orig_tmp)
+utils::unzip("original.docx", exdir = orig_tmp)
+orig_styles_doc <- read_xml(file.path(orig_tmp, "word", "styles.xml"))
+orig_style_ids <- xml_attr(xml_find_all(orig_styles_doc, "//w:style", xml_ns(orig_styles_doc)), "styleId")
+unlink(orig_tmp, recursive = TRUE)
+
+if (!setequal(rendered_style_ids, orig_style_ids)) {
+  fail("word/styles.xml von %s sollte exakt die Styles aus original.docx enthalten (nur: %s, fehlt: %s)",
+       target,
+       paste(setdiff(rendered_style_ids, orig_style_ids), collapse = ", "),
+       paste(setdiff(orig_style_ids, rendered_style_ids), collapse = ", "))
+}
+ok("word/styles.xml enthaelt exakt die %d Styles aus original.docx (keine Pandoc-Extras)", length(orig_style_ids))
+
+if (any(oq_is_pandoc_code_style_id(rendered_style_ids))) {
+  fail("Pandocs Syntax-Highlighting-Styles (*Tok/SourceCode) haetten entfernt werden muessen")
+}
+ok("Pandocs Syntax-Highlighting-Styles (*Tok/SourceCode) wurden entfernt")
+
+code_pstyles <- xml_attr(xml_find_all(document_doc, "//w:p/w:pPr/w:pStyle", ns), "val")
+if (!("CodeACME" %in% code_pstyles)) {
+  fail("Codeblock-Absatz sollte auf den konfigurierten Style 'CodeACME' umgemappt sein (officequarto-pandoc-styles.code-block), gefunden: %s",
+       paste(unique(code_pstyles), collapse = ", "))
+}
+if ("SourceCode" %in% code_pstyles) {
+  fail("Codeblock-Absatz sollte nicht mehr 'SourceCode' referenzieren (haette auf 'CodeACME' umgemappt werden muessen)")
+}
+ok("Codeblock-Absatz traegt den konfigurierten Style 'CodeACME' (officequarto-pandoc-styles.code-block)")
+
+code_rstyles <- xml_attr(xml_find_all(document_doc, "//w:r/w:rPr/w:rStyle", ns), "val")
+if (!any(oq_is_pandoc_code_style_id(code_rstyles))) {
+  fail("erwartet, dass der Codeblock noch *Tok-Laufstile referenziert (Syntax-Highlighting-Warnpfad-Testfall)")
+}
+ok("Codeblock referenziert weiterhin entfernte *Tok-Laufstile (Syntax-Highlighting faellt auf Standard-Formatierung zurueck, wie vorgesehen - nur die Block-Rolle wird umgemappt)")
 
 unlink(tmp, recursive = TRUE)
 
