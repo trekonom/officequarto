@@ -34,6 +34,20 @@ oq_resolve_style_id <- function(name_to_id, display_name, role, fail_fn) {
   )
 }
 
+## styles.xml (xml2-Dokument) -> Named Character Vector: styleId -> numId, nur
+## fuer Styles, die selbst eine Nummerierung mitbringen (w:pPr/w:numPr in der
+## Style-Definition - typischerweise per w:numStyleLink an eine eigene
+## Nummerierungs-Style-Definition gekoppelt, siehe oq_apply_style_mapping).
+oq_style_num_id <- function(styles_doc) {
+  ns <- xml2::xml_ns(styles_doc)
+  nodes <- xml2::xml_find_all(
+    styles_doc, "//w:style[@w:type='paragraph'][./w:pPr/w:numPr/w:numId]", ns
+  )
+  ids <- xml2::xml_attr(nodes, "styleId")
+  num_ids <- xml2::xml_attr(xml2::xml_find_first(nodes, "./w:pPr/w:numPr/w:numId", ns), "val")
+  stats::setNames(num_ids, ids)
+}
+
 ## numbering.xml (xml2-Dokument) -> Named Character Vector: numId -> numFmt (Ebene 0)
 oq_num_fmt_map <- function(numbering_doc) {
   ns <- xml2::xml_ns(numbering_doc)
@@ -56,7 +70,9 @@ oq_num_fmt_map <- function(numbering_doc) {
 ## Wendet das Style-Mapping direkt auf ein geparstes document.xml an (in-place
 ## via xml2-Referenzsemantik). style_ids ist eine Liste mit optionalen
 ## Eintraegen $body/$list_bullet/$list_number (jeweils eine styleId oder NULL).
-oq_apply_style_mapping <- function(document_doc, num_fmt_map, style_ids) {
+## style_num_id (siehe oq_style_num_id) sagt, welche Ziel-Styles selbst eine
+## Nummerierung mitbringen.
+oq_apply_style_mapping <- function(document_doc, num_fmt_map, style_ids, style_num_id) {
   ns <- xml2::xml_ns(document_doc)
   paragraphs <- xml2::xml_find_all(document_doc, "//w:body/w:p | //w:body//w:tbl//w:p", ns)
 
@@ -72,6 +88,16 @@ oq_apply_style_mapping <- function(document_doc, num_fmt_map, style_ids) {
       target <- if (identical(fmt, "bullet")) style_ids$list_bullet else style_ids$list_number
       if (!is.null(target)) {
         oq_set_pstyle(p, ns, target)
+        ## Eine direkte w:numPr am Absatz (von Pandoc gesetzt, zeigt auf
+        ## Pandocs eigene generische Bullet-/Decimal-Nummerierung) hat in Word
+        ## IMMER Vorrang vor der im Ziel-Style selbst hinterlegten
+        ## Nummerierung. Bringt der Ziel-Style eine eigene Nummerierung mit,
+        ## muss die Absatz-Override deshalb entfernt werden, sonst bleibt
+        ## Pandocs Nummerierung optisch sichtbar, obwohl der pStyle korrekt
+        ## umgemappt wurde.
+        if (target %in% names(style_num_id)) {
+          xml2::xml_remove(xml2::xml_parent(num_id_node))
+        }
         n_list <- n_list + 1L
       }
       next

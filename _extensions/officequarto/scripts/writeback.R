@@ -142,6 +142,7 @@ for (rel_path in docx_outputs) {
 
     styles_doc <- xml2::read_xml(styles_path)
     name_to_id <- oq_style_name_to_id(styles_doc)
+    style_num_id <- oq_style_num_id(styles_doc)
 
     style_ids <- list()
     if (!is.null(style_config$body)) {
@@ -161,7 +162,7 @@ for (rel_path in docx_outputs) {
     }
 
     document_doc <- xml2::read_xml(document_path)
-    result <- oq_apply_style_mapping(document_doc, num_fmt_map, style_ids)
+    result <- oq_apply_style_mapping(document_doc, num_fmt_map, style_ids, style_num_id)
     xml2::write_xml(document_doc, document_path)
     log_msg("Style-Mapping angewendet: %d Body-Absaetze, %d Listen-Absaetze.", result$n_body, result$n_list)
   }
