@@ -157,6 +157,19 @@ if (!identical(caption_second_text, " -- Quartalskennzahlen")) {
 }
 ok("Tabellen-Beschriftungstext korrekt umformatiert: fett 'Tab. 1' + ' -- Quartalskennzahlen' (prefix/separator via officequarto-tables.caption, separator ueber officedown-Alias)")
 
+plot_p <- xml_find_first(document_doc, "//w:p[.//w:drawing]", ns)
+if (is.na(plot_p)) fail("kein Abbildungs-Absatz (w:p mit w:drawing) im Ergebnis-Dokument gefunden (erwartet: die Abbildung aus report.qmd)")
+plot_pstyle <- xml_attr(xml_find_first(plot_p, "./w:pPr/w:pStyle", ns), "val")
+if (!identical(plot_pstyle, "AbbildungACME")) {
+  fail("Abbildungs-Absatz sollte den konfigurierten Style 'AbbildungACME' tragen (officequarto-plots.style), gefunden: '%s'", plot_pstyle)
+}
+ok("Abbildungs-Absatz traegt den konfigurierten Style 'AbbildungACME' (officequarto-plots.style)")
+plot_align <- xml_attr(xml_find_first(plot_p, "./w:pPr/w:jc", ns), "val")
+if (!identical(plot_align, "right")) {
+  fail("Abbildungs-Absatz sollte rechtsbuendig sein (officequarto-plots.align via Alias plots_align), gefunden: '%s'", plot_align)
+}
+ok("Abbildungs-Absatz ist rechtsbuendig ausgerichtet (officequarto-plots.align via officedown-Alias plots_align)")
+
 rendered_styles_doc <- read_xml(file.path(tmp, "word", "styles.xml"))
 rendered_style_ids <- xml_attr(xml_find_all(rendered_styles_doc, "//w:style", ns), "styleId")
 

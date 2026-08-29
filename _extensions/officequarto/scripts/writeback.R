@@ -66,6 +66,7 @@ source(file.path(get_script_dir(), "style_pruning.R"))
 source(file.path(get_script_dir(), "option_aliases.R"))
 source(file.path(get_script_dir(), "table_mapping.R"))
 source(file.path(get_script_dir(), "table_caption_mapping.R"))
+source(file.path(get_script_dir(), "plot_mapping.R"))
 
 warn_msg <- function(fmt, ...) log_msg(paste0("Warnung: ", fmt), ...)
 
@@ -185,6 +186,19 @@ if (!is.null(table_caption_bold_val) && (!is.logical(table_caption_bold_val) || 
   fail("officequarto-tables.caption.number-bold muss true oder false sein (erhalten: '%s').", table_caption_bold_val)
 }
 
+## Gruppe 4 (officequarto-plots.style/align) - fig.lp bewusst nicht portiert
+## (siehe plot_mapping.R), topcaption zurueckgestellt (siehe oben).
+plot_config <- tryCatch(inspect$config$format$docx$`officequarto-plots`, error = function(e) NULL)
+plot_style_val <- if (!is.null(plot_config)) {
+  oq_resolve_aliased(plot_config, "style", "plots_style", "officequarto-plots", warn_msg)
+} else NULL
+plot_align_val <- if (!is.null(plot_config)) {
+  oq_resolve_aliased(plot_config, "align", "plots_align", "officequarto-plots", warn_msg)
+} else NULL
+if (!is.null(plot_align_val) && !(plot_align_val %in% c("left", "center", "right"))) {
+  fail("officequarto-plots.align muss 'left', 'center' oder 'right' sein (erhalten: '%s').", plot_align_val)
+}
+
 ## Uebertraegt dc:subject, cp:keywords, cp:category aus core_from in core_to und
 ## gibt den (ggf. veraenderten) core_to xml2-Doc zurueck.
 merge_core_properties <- function(core_to, core_from) {
@@ -234,7 +248,7 @@ for (rel_path in docx_outputs) {
     file.copy(custom_from_path, file.path(work_dir, "docProps", "custom.xml"), overwrite = TRUE)
   }
 
-  if (!is.null(style_config) || !is.null(code_block_config) || !is.null(table_config)) {
+  if (!is.null(style_config) || !is.null(code_block_config) || !is.null(table_config) || !is.null(plot_config)) {
     styles_path <- file.path(work_dir, "word", "styles.xml")
     document_path <- file.path(work_dir, "word", "document.xml")
     numbering_path <- file.path(work_dir, "word", "numbering.xml")
@@ -297,6 +311,15 @@ for (rel_path in docx_outputs) {
       caption_result <- oq_apply_table_captions(document_doc, caption_options)
       log_msg("Tabellen-Beschriftungen: %d gefunden, %d Text umformatiert.",
                caption_result$n_found, caption_result$n_text_rewritten)
+    }
+
+    if (!is.null(plot_config)) {
+      plot_options <- list(align = plot_align_val)
+      if (!is.null(plot_style_val)) {
+        plot_options$style <- oq_resolve_style_id(name_to_id, plot_style_val, "officequarto-plots.style", fail)
+      }
+      n_plots <- oq_apply_plot_options(document_doc, plot_options)
+      log_msg("Abbildungs-Optionen angewendet: %d Abbildung(en).", n_plots)
     }
 
     xml2::write_xml(document_doc, document_path)

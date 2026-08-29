@@ -26,3 +26,6 @@ format:
         prefix: "Tab. "
         tables_caption_sep: " -- "          # officedown-Alias fuer separator
         number-bold: true
+    officequarto-plots:
+      style: "Abbildung ACME"
+      plots_align: right                    # officedown-Alias fuer align

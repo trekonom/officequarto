@@ -28,7 +28,7 @@ doc <- doc |> set_doc_properties(
 print(doc, target = "template/original.docx")
 
 ## officer bietet keine High-Level-API zum Definieren neuer Paragraph-/
-## Tabellen-Styles, daher werden die sechs ACME-Custom-Paragraph-Styles plus
+## Tabellen-Styles, daher werden die sieben ACME-Custom-Paragraph-Styles plus
 ## ein ACME-Custom-Tabellen-Style (fuer den Style-Mapping-Test) direkt in
 ## word/styles.xml nachgetragen - gleiche unzip/xml2/zip-Technik wie in
 ## scripts/writeback.R. Jeder Style hat eine deutlich abweichende Formatierung,
@@ -79,6 +79,13 @@ custom_styles <- c(
      <w:rPr><w:i/><w:color w:val="00695C"/></w:rPr>
    </w:style>',
   '<w:style xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+     w:type="paragraph" w:customStyle="1" w:styleId="AbbildungACME">
+     <w:name w:val="Abbildung ACME"/>
+     <w:basedOn w:val="Normal"/>
+     <w:qFormat/>
+     <w:pPr><w:pBdr><w:top w:val="single" w:sz="8" w:space="4" w:color="4A148C"/><w:bottom w:val="single" w:sz="8" w:space="4" w:color="4A148C"/></w:pBdr></w:pPr>
+   </w:style>',
+  '<w:style xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
      w:type="table" w:customStyle="1" w:styleId="TabelleACME">
      <w:name w:val="Tabelle ACME"/>
      <w:basedOn w:val="TableauNormal"/>
@@ -114,4 +121,4 @@ system2("zip", c("-rq", shQuote(target_path), "."))
 setwd(old_wd)
 unlink(work_dir, recursive = TRUE)
 
-cat("Beispiel-Dokument geschrieben: template/original.docx (inkl. sechs ACME-Paragraph-Styles und einem ACME-Tabellen-Style)\n")
+cat("Beispiel-Dokument geschrieben: template/original.docx (inkl. sieben ACME-Paragraph-Styles und einem ACME-Tabellen-Style)\n")

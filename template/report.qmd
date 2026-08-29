@@ -29,6 +29,10 @@ Fußzeile des Originals erhalten bleiben.
 
 : Quartalskennzahlen {#tbl-kennzahlen}
 
+## Abbildung
+
+![Umsatzentwicklung](plot.png){#fig-umsatz}
+
 ## Varianten
 
 a. Basisszenario

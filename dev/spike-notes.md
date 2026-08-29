@@ -296,6 +296,38 @@ einen Beschriftungsabsatz erzeugen) und sucht die erwartete Zahl per Wortgrenzen
 gegen den Grenzfall, dass die gesuchte Zahl zufaellig auch als Teil einer anderen Zahl im
 eigentlichen Beschriftungstext vorkommt (z.B. "1" in "1990"), siehe `dev/check_caption_parsing.R`.
 
+## Spike J — Abbildungen-Basisoptionen (Gruppe 4), verifiziert am 2026-08-29
+
+Vor der Implementierung von `officequarto-plots` empirisch geprueft (Testrender: `#fig-example`-
+Abbildung mit Beschriftung, unabhaengig von officequarto, direkt per `quarto render`), wie Pandoc
+eine Abbildung im docx-Output strukturiert.
+
+**Fund 1 — Abbildungs-Absaetze tragen denselben Rollennamen wie Body-Absaetze:** der Absatz, der
+das `w:drawing` traegt, hat `pStyle="Compact"` - denselben kontextabhaengigen Pandoc-Rollennamen,
+den `officequarto_body_role_styles` (Spike D) bereits als "Body-Text" behandelt. Ohne Gegenmassnahme
+haette `officequarto-styles.body` (falls konfiguriert) also faelschlich auch Abbildungs-Absaetze
+umgemappt. Behoben durch eine explizite Ausnahme in `oq_apply_style_mapping()`
+(`style_mapping.R`): Absaetze mit einem `w:drawing`-Nachfahren werden von der Body-Rollen-Pruefung
+ausgenommen und stattdessen dediziert von `oq_apply_plot_options()` (`plot_mapping.R`) behandelt -
+Abbildungs-Absaetze werden ueber die Praesenz von `w:drawing` erkannt, nicht ueber den Style-Namen
+(analoges Prinzip wie Listen-Absaetze ueber `w:numPr`, nicht ueber den Style-Namen, Spike D).
+
+**Fund 2 — auch Abbildungen werden in Pandocs 1x1-Wrapper-Tabelle eingebettet:** identische
+Struktur wie bei beschrifteten Tabellen (Spike I), nur mit Bild- statt Tabellen-Inhalt in der
+Zelle. Das bedeutete einen zweiten echten Bug, der erst beim eigenen Testrender dieser Gruppe
+auffiel: `oq_apply_table_options()`s Filter aus Gruppe 3 (`[not(.//w:tbl)]`, schliesst Tabellen mit
+verschachtelter Tabelle aus) erkannte zwar korrekt den Tabellen-Wrapper-Fall, NICHT aber den
+Abbildungs-Wrapper-Fall (dessen Zelle keine verschachtelte Tabelle enthaelt, nur Bild- und
+Beschriftungsabsatz) - Log zeigte faelschlich "Tabellen-Optionen angewendet: 2 Tabelle(n)." statt
+der erwarteten 1, sobald die Test-Abbildung eine Beschriftung bekam. Behoben durch ein praeziseres,
+direktes Erkennungsmerkmal statt der indirekten Ableitung ueber verschachtelte Tabellen:
+`//w:tbl[not(./w:tr/w:tc/w:p/w:pPr/w:pStyle/@w:val='ImageCaption')]` - schliesst jede Tabelle aus,
+deren eigene direkte Zelle einen `ImageCaption`-Absatz enthaelt, unabhaengig davon, ob diese
+Zelle eine Tabelle oder eine Abbildung umschliesst. Setzt voraus, dass
+`oq_apply_table_options()` VOR `oq_apply_table_captions()` laeuft (aktuelle Reihenfolge in
+`writeback.R`) - danach waere `ImageCaption` ggf. schon auf einen Nutzer-Style umgemappt und das
+Merkmal wuerde nicht mehr greifen.
+
 ## Offene Fragen aus Abschnitt 3 des Konzepts — Status
 
 | Frage | Status |

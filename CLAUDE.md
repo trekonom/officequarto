@@ -40,8 +40,8 @@ rm -f template/report.docx template/report.quarto-rendered.docx
 rm -rf template/.quarto template/report_files
 ```
 
-Regenerate the sample template (`template/original.docx`), including the five ACME custom
-paragraph styles used to test style-mapping (body/bullet/number/letter/code-block):
+Regenerate the sample template (`template/original.docx`), including the seven ACME custom
+paragraph styles used to test style-mapping (body/bullet/number/letter/code-block/caption/plot):
 
 ```bash
 Rscript dev/make_sample_docx.R   # needs R packages: officer, xml2
@@ -76,9 +76,11 @@ _extensions/officequarto/
     ├── table_mapping.R       table style/layout/width/conditional-formatting core logic
     │                          (pure functions, no side effects of its own — called from
     │                          writeback.R)
-    └── table_caption_mapping.R  table caption style/prefix/separator/bold core logic
-                               (pure functions, no side effects of its own — called from
-                               writeback.R)
+    ├── table_caption_mapping.R  table caption style/prefix/separator/bold core logic
+    │                          (pure functions, no side effects of its own — called from
+    │                          writeback.R)
+    └── plot_mapping.R        figure style/align core logic (pure functions, no side
+                               effects of its own — called from writeback.R)
 
 template/                     example/dev project
 ├── _quarto.yml                project: type: officequarto; format.docx.reference-doc +
@@ -286,17 +288,51 @@ caption instead.
   replicating this would mean officequarto independently tracking heading boundaries and
   maintaining its own numbering scheme, substantially bigger than anything else in this port.
 
+### Figure options (`officequarto-plots`, `plot_mapping.R`, Gruppe 4)
+
+Mirrors Gruppe 1's `style` for the paragraph holding a figure, plus `align` (maps to `w:jc`, find-
+or-create like `w:tblLayout`/`w:tblW` in Gruppe 1). Figure paragraphs are detected via presence of
+a `w:drawing` descendant (`oq_find_plot_paragraphs()`) rather than by style name — verified
+empirically (rendering a minimal figure) that Pandoc assigns the SAME context-dependent role name
+to image paragraphs as to body-text paragraphs (e.g. `Compact`), meaning `officequarto-styles.body`
+would otherwise silently also remap image paragraphs. Fixed by excluding any paragraph containing
+a `w:drawing` from the body-role check in `oq_apply_style_mapping()` (`style_mapping.R`) — the two
+features now cleanly own disjoint sets of paragraphs.
+
+Figures are ALSO wrapped in Pandoc's synthetic 1×1 caption-wrapper table (same mechanism as
+Gruppe 3's captioned tables) whenever they have a caption — this surfaced a second real bug in
+`oq_apply_table_options()`'s table selector, found via this group's own test render (`"Tabellen-
+Optionen angewendet: 2 Tabelle(n)."` where 1 was expected, once the test figure got a caption): the
+Gruppe-3-era `[not(.//w:tbl)]` filter (excludes tables containing a nested table) correctly
+excluded a *table's* own wrapper, but not a *figure's* wrapper (which has no nested `w:tbl` at
+all, just an image paragraph + caption paragraph). Replaced with a more precise, direct signature:
+`//w:tbl[not(./w:tr/w:tc/w:p/w:pPr/w:pStyle/@w:val='ImageCaption')]` — excludes any table whose own
+direct cell contains an `ImageCaption`-styled paragraph, which identifies the wrapper itself
+(regardless of what it wraps) rather than inferring it from nested-table presence. This detection
+depends on `oq_apply_table_options()` running **before** `oq_apply_table_captions()` in
+`writeback.R`'s per-file block (current order) — by the time captions would have remapped
+`ImageCaption` to a user style, this signature would no longer match.
+
+officedown's `fig.lp` was dropped for the identical reason as `tab.lp` (see above) — no
+Quarto/post-render equivalent. `topcaption` (caption position, tables *and* figures) is
+deliberately deferred rather than implemented per-group: it's a structural paragraph-reorder
+operation (move the caption paragraph before/after its table or image within the wrapper cell),
+conceptually identical for both, and is planned as one combined follow-up once figure captions
+(a future group, analogous to Gruppe 3) exist — implementing it once for `officequarto-tables.
+caption-above` alone would mean redoing the same reordering logic again for
+`officequarto-plots.caption-above` shortly after.
+
 officedown's `tab.lp`/`fig.lp` (bookdown cross-reference label-prefix options) were deliberately
 **not** ported — researched explicitly before implementing Gruppe 1: they're a source-syntax
 concept for bookdown's `\@ref(tab:xyz)` parser, not a rendering option, and have no integration
 point in officequarto's post-render architecture (Quarto's own `#tbl-xyz`/`#fig-xyz` crossrefs are
 already resolved to static content before `writeback.R` ever sees the docx). The visible caption
 prefix text concern is already covered natively by Quarto's own `crossref.tbl-title`/`fig-title`
-YAML keys — no `officequarto` option needed for that. Tangential finding worth remembering for a
-future Gruppe 3 (table/figure captions): Quarto's docx crossref captions currently render as
-static baked-in text rather than real Word `SEQ` fields (open upstream gap) — `officequarto`'s
-post-render XML access is a plausible place to eventually bolt on real `SEQ`-field-based numbering,
-which is what officedown's own approach relies on.
+YAML keys — no `officequarto` option needed for that. Tangential finding that turned out to matter
+directly for Gruppe 3 (table captions, see above): Quarto's docx crossref captions currently render
+as static baked-in text rather than real Word `SEQ` fields (open upstream gap) — this is exactly
+why Gruppe 3's `prefix`/`separator`/`number-bold` had to be implemented as text-parsing rather than
+field manipulation.
 
 ### Style pruning (always on by default)
 

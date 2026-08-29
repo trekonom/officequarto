@@ -132,6 +132,14 @@ oq_apply_style_mapping <- function(document_doc, num_fmt_map, style_ids, style_n
       next
     }
 
+    ## Abbildungs-Absaetze (enthalten ein w:drawing) tragen bei Pandoc
+    ## denselben kontextabhaengigen Rollennamen wie echte Body-Absaetze (z.B.
+    ## "Compact", verifiziert empirisch) - waeren also sonst faelschlich vom
+    ## Body-Role-Mapping erfasst. Werden hier ausgenommen und stattdessen
+    ## dediziert von oq_apply_plot_options() (plot_mapping.R,
+    ## officequarto-plots.style) behandelt.
+    if (!is.na(xml2::xml_find_first(p, ".//w:drawing", ns))) next
+
     if (is.null(style_ids$body)) next
     if (current %in% officequarto_body_role_styles) {
       oq_set_pstyle(p, ns, style_ids$body)

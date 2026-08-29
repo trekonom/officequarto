@@ -56,7 +56,8 @@ _extensions/officequarto/
     ├── style_pruning.R       style-pruning core logic, sourced by writeback.R
     ├── option_aliases.R      canonical-name/officedown-alias resolution, sourced by writeback.R
     ├── table_mapping.R       table style/layout/width/conditional-formatting logic, sourced by writeback.R
-    └── table_caption_mapping.R  table caption style/prefix/separator/bold logic, sourced by writeback.R
+    ├── table_caption_mapping.R  table caption style/prefix/separator/bold logic, sourced by writeback.R
+    └── plot_mapping.R        figure style/align logic, sourced by writeback.R
 
 template/                     example project (quarto use template)
 ├── _quarto.yml                project: type: officequarto, format.docx.officequarto-styles
@@ -236,6 +237,30 @@ key off; replicating that would mean officequarto tracking heading boundaries an
 own numbering scheme, a substantially larger feature with no direct precedent elsewhere in this
 project.
 
+## Figure options: style, align
+
+`officequarto-plots` controls the paragraph holding each figure — analogous to {officedown}'s
+`plots` option:
+
+```yaml
+format:
+  docx:
+    officequarto-plots:
+      style: "Abbildung ACME"   # paragraph style for the image paragraph
+      align: right               # "left", "center", or "right"
+```
+
+Both fields independently optional, same per-field opt-in as everywhere else. Figure paragraphs
+are detected by the presence of a `w:drawing` (not by style name — Pandoc reuses the same
+context-dependent role names for image paragraphs as for body text, e.g. `Compact`, verified
+empirically; `officequarto-styles.body` explicitly excludes drawing-paragraphs so the two features
+don't compete for the same paragraph).
+
+officedown's `fig.lp` is dropped for the same reason as `tab.lp` (see above) — no Quarto/post-render
+equivalent. `topcaption` (caption position) is deferred: it's a structural paragraph-reorder
+operation, not a style tweak, and will be implemented together for both tables and figures once
+figure captions (a future group) exist, rather than doing the same structural work twice.
+
 ## Style pruning: keeping only reference-doc styles
 
 Pandoc's docx writer unconditionally adds its own style definitions on top of whatever
@@ -331,6 +356,8 @@ aren't implemented yet.
 | `officequarto-tables.caption.prefix` | `tables_caption_pre` | Text before the number | unset (Pandoc-generated text) |
 | `officequarto-tables.caption.separator` | `tables_caption_sep` | Text between number and caption | unset (Pandoc-generated text) |
 | `officequarto-tables.caption.number-bold` | `tables_caption_bold` | Bold the prefix+number portion | unset (Pandoc default, not bold) |
+| `officequarto-plots.style` | `plots_style` | Paragraph style for the image paragraph | unset (Pandoc default) |
+| `officequarto-plots.align` | `plots_align` | Image alignment, `left`/`center`/`right` | unset (Pandoc default) |
 
 ## Requirements
 
