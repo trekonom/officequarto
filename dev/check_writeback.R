@@ -6,8 +6,8 @@
 ## written-back.docx mehr), Header/Footer aus original.docx sind erhalten, der
 ## neu gerenderte Body-Text ist auffindbar, die aus dem Original
 ## zurueckgeschriebenen Metadaten (Subject/Custom-Property) sind vorhanden,
-## Body-/Bullet-/Nummerierungs-/Codeblock-Absaetze tragen die konfigurierten
-## ACME-Custom-Styles statt Pandocs Standard-Styles, dass word/styles.xml im
+## Body-/Bullet-/Nummerierungs-/Buchstaben-Listen-/Codeblock-Absaetze tragen
+## die konfigurierten ACME-Custom-Styles statt Pandocs Standard-Styles, dass word/styles.xml im
 ## Ergebnis exakt die Styles aus original.docx enthaelt (Pandocs
 ## Syntax-Highlighting-Laufstile fuer den Codeblock in report.qmd wurden trotz
 ## Verwendung entfernt - officequarto-pandoc-styles.code-block mappt hier nur die
@@ -76,6 +76,10 @@ ok("%d Bullet-Absaetze tragen den konfigurierten Style", n_bullet)
 n_number <- sum(pstyles == "NummerierungACME")
 if (n_number != 3) fail("erwartet 3 nummerierte Absaetze mit Style 'NummerierungACME', gefunden %d", n_number)
 ok("%d nummerierte Absaetze tragen den konfigurierten Style", n_number)
+
+n_letter <- sum(pstyles == "BuchstabierungACME")
+if (n_letter != 3) fail("erwartet 3 Buchstaben-Listen-Absaetze mit Style 'BuchstabierungACME', gefunden %d", n_letter)
+ok("%d Buchstaben-Listen-Absaetze tragen den konfigurierten Style", n_letter)
 
 if (any(pstyles == "Normal") || any(pstyles == "Compact") || any(pstyles == "FirstParagraph")) {
   fail("es sind noch unbenannte Pandoc-Standard-Styles im Ergebnis vorhanden: %s",

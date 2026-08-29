@@ -9,5 +9,6 @@ format:
       body: "Fließtext ACME"
       ul_style: "Aufzählung ACME"      # officedown-Alias fuer list-bullet, siehe README
       list-number: "Nummerierung ACME"
+      list-letter: "Buchstabierung ACME"
     officequarto-pandoc-styles:
       code-block: "Code ACME"

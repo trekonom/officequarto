@@ -184,6 +184,37 @@ Verifiziert (`template/_quarto.yml` nutzt jetzt dauerhaft `officequarto-pandoc-s
 - Ungueltiger Wert (z. B. eine Zahl): bricht sofort mit klarer Fehlermeldung ab, noch vor der
   Pro-Datei-Schleife.
 
+## Spike G — `list-letter` (Buchstaben-Listen), verifiziert am 2026-08-29
+
+Frage vor der Implementierung: erzeugt Pandocs docx-Writer fuer Buchstaben-Listen (`a.`/`b.`/`c.`
+bzw. `A.`/`B.`/`C.` in der Markdown-Quelle) ueberhaupt einen von `bullet`/`decimal` unterscheidbaren
+`w:numFmt`-Wert, oder faellt das unter Pandocs generische Nummerierung wie alles andere auch?
+
+Empirisch per direktem `pandoc test.md -o test.docx --standalone` (Test-Markdown mit je einer
+Buchstaben-, Zahlen- und Grossbuchstaben-Liste) geprueft, unabhaengig von officequarto:
+`word/numbering.xml` enthaelt danach `w:numFmt`-Werte `bullet`, `decimal` **und** `lowerLetter`
+(fuer `a.`/`b.`/`c.`) als eigene, unterscheidbare Werte — Grossbuchstaben-Marker (`A.`/`B.`) waeren
+analog `upperLetter` (nicht separat mitgetestet, aber laut OOXML-Spezifikation das erwartete
+Gegenstueck zu `lowerLetter`). Buchstaben-Listen sind damit genauso zuverlaessig ueber
+`word/numbering.xml` erkennbar wie Bullet- vs. Zahlen-Listen in Spike D — keine Sonderbehandlung
+noetig, nur ein zusaetzlicher Zweig in der bestehenden `numFmt`-Fallunterscheidung.
+
+Umgesetzt als eigener Bucket `list-letter` (`officequarto_letter_num_fmts <- c("lowerLetter",
+"upperLetter")` in `style_mapping.R`), getrennt von `list-number` (das weiterhin `decimal`,
+roemische Ziffern etc. abdeckt) — beide Faelle in einer Option zusammengefasst statt separater
+Optionen fuer Klein-/Grossbuchstaben, analog dazu, wie `list-number` bereits `decimal` und
+roemische Ziffern in einem Bucket zusammenfasst. Hat kein officedown-Vorbild (officedown kennt nur
+`ol.style`/`ul.style`), daher als officequarto-eigene Option ohne Alias eingefuehrt — kein
+Konflikt mit der [[officedown-Alias-Konvention]] (siehe `option_aliases.R`), da es schlicht keinen
+zu mappenden officedown-Namen gibt.
+
+Verifiziert am funktionierenden Testprojekt (fuenfter ACME-Custom-Style `BuchstabierungACME` in
+`dev/make_sample_docx.R`, dritte Liste `a./b./c.` in `template/report.qmd`,
+`officequarto-styles.list-letter: "Buchstabierung ACME"` in `template/_quarto.yml`): 3
+Buchstaben-Listen-Absaetze werden korrekt auf `BuchstabierungACME` umgemappt, `list-number`
+(separat auf `NummerierungACME` gemappt) bleibt bei weiterhin nur 3 Absaetzen unveraendert — keine
+Vermischung der beiden Buckets.
+
 ## Offene Fragen aus Abschnitt 3 des Konzepts — Status
 
 | Frage | Status |

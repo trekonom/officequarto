@@ -28,7 +28,7 @@ doc <- doc |> set_doc_properties(
 print(doc, target = "template/original.docx")
 
 ## officer bietet keine High-Level-API zum Definieren neuer Paragraph-Styles,
-## daher werden die vier ACME-Custom-Styles (fuer den Style-Mapping-Test)
+## daher werden die fuenf ACME-Custom-Styles (fuer den Style-Mapping-Test)
 ## direkt in word/styles.xml nachgetragen - gleiche unzip/xml2/zip-Technik wie
 ## in scripts/writeback.R. Jeder Style hat eine deutlich abweichende Formatierung,
 ## damit ein erfolgreiches Mapping auch visuell erkennbar ist.
@@ -62,6 +62,13 @@ custom_styles <- c(
      <w:basedOn w:val="Normal"/>
      <w:qFormat/>
      <w:rPr><w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/><w:color w:val="6A1B9A"/></w:rPr>
+   </w:style>',
+  '<w:style xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+     w:type="paragraph" w:customStyle="1" w:styleId="BuchstabierungACME">
+     <w:name w:val="Buchstabierung ACME"/>
+     <w:basedOn w:val="Normal"/>
+     <w:qFormat/>
+     <w:rPr><w:u w:val="single"/><w:color w:val="E65100"/></w:rPr>
    </w:style>'
 )
 
@@ -84,4 +91,4 @@ system2("zip", c("-rq", shQuote(target_path), "."))
 setwd(old_wd)
 unlink(work_dir, recursive = TRUE)
 
-cat("Beispiel-Dokument geschrieben: template/original.docx (inkl. vier ACME-Custom-Styles)\n")
+cat("Beispiel-Dokument geschrieben: template/original.docx (inkl. fuenf ACME-Custom-Styles)\n")

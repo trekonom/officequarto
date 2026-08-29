@@ -20,6 +20,12 @@ Fußzeile des Originals erhalten bleiben.
 2. Vertriebsteam aufstocken
 3. Marketingkampagne starten
 
+## Varianten
+
+a. Basisszenario
+b. Optimistisches Szenario
+c. Pessimistisches Szenario
+
 ## Ausblick
 
 **Wichtig:** Dieser Text muss im zurückgeschriebenen Dokument auffindbar sein, um den

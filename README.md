@@ -103,19 +103,22 @@ format:
       body: "Fließtext ACME"                # real style name from original.docx
       list-bullet: "Aufzählung ACME"
       list-number: "Nummerierung ACME"
+      list-letter: "Buchstabierung ACME"    # a/b/c or A/B/C lists - officequarto-only, no officedown equivalent
 ```
 
 You provide the style **name** visible in the Word UI (not the internal style ID) — the hook
-resolves that itself against `word/styles.xml` of `reference-doc`. All three fields are optional
+resolves that itself against `word/styles.xml` of `reference-doc`. All fields are optional
 and independent; roles that aren't configured stay on Pandoc's default styles.
 
 How it works: body paragraphs are detected via an allowlist of known Pandoc body roles (`Normal`,
 `FirstParagraph`, `Compact`, `BodyText`/`Body Text`); list paragraphs are detected via the presence
-of `<w:numPr>` (not by style name, since Pandoc uses the same style for both bullet and numbered
-lists). Bullet vs. numbered is distinguished via `word/numbering.xml` (`w:numFmt`: `bullet` vs.
-anything else) — exactly as in {officedown}, there is **one style per list type, not per nesting
-level**. If a configured style name doesn't exist in `reference-doc`, the hook aborts with a list
-of the available paragraph styles instead of silently ignoring the misconfiguration.
+of `<w:numPr>` (not by style name, since Pandoc uses the same style regardless of list type).
+List type is distinguished via `word/numbering.xml` (`w:numFmt`): `bullet` → `list-bullet`;
+`lowerLetter`/`upperLetter` (from markdown `a.`/`A.` markers) → `list-letter`; anything else
+(`decimal`, roman numerals, ...) → `list-number` — exactly as in {officedown}, there is **one
+style per list type, not per nesting level**. If a configured style name doesn't exist in
+`reference-doc`, the hook aborts with a list of the available paragraph styles instead of silently
+ignoring the misconfiguration.
 
 ### officedown aliases
 
@@ -215,7 +218,8 @@ aren't implemented yet.
 | New name | officedown alias | Meaning | Default |
 |---|---|---|---|
 | `officequarto-styles.list-bullet` | `ul_style` | Word style for bullet-list paragraphs | unset (Pandoc default) |
-| `officequarto-styles.list-number` | `ol_style` | Word style for numbered-list paragraphs | unset (Pandoc default) |
+| `officequarto-styles.list-number` | `ol_style` | Word style for numbered-list paragraphs (decimal, roman, ...) | unset (Pandoc default) |
+| `officequarto-styles.list-letter` | *(none — no officedown equivalent)* | Word style for lettered-list paragraphs (`a.`/`b.`/... or `A.`/`B.`/...) | unset (Pandoc default) |
 
 ## Requirements
 
@@ -266,5 +270,5 @@ Rscript ../dev/check_option_aliases.R  # unit-checks canonical-name/officedown-a
 ```
 
 `dev/make_sample_docx.R` regenerates the sample template `template/original.docx`, including the
-three ACME custom styles used for style-mapping (requires the R packages `officer` and `xml2`,
+five ACME custom styles used for style-mapping (requires the R packages `officer` and `xml2`,
 only for generating the sample template, not for the hook itself).

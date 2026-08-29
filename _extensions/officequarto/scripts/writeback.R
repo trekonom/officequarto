@@ -20,6 +20,8 @@
 ## die alten officedown-Namen (`ol_style`/`ul_style`) als Alias zu den neuen,
 ## sprechenderen Namen (`list-number`/`list-bullet`) - siehe
 ## scripts/option_aliases.R fuer die Aufloesungslogik inkl. Konfliktregel.
+## `list-letter` (Buchstaben-Listen, a/b/c bzw. A/B/C) ist eine
+## officequarto-eigene Ergaenzung ohne officedown-Vorbild, daher ohne Alias.
 ##
 ## Der Hook ueberschreibt die von Quarto/Pandoc erzeugte .docx direkt an Ort
 ## und Stelle - es entsteht keine zweite Ausgabedatei. Wer das reine,
@@ -187,6 +189,9 @@ for (rel_path in docx_outputs) {
     list_number_val <- oq_resolve_aliased(style_config, "list-number", "ol_style", "officequarto-styles", warn_msg)
     if (!is.null(list_number_val)) {
       style_ids$list_number <- oq_resolve_style_id(name_to_id, list_number_val, "officequarto-styles.list-number", fail)
+    }
+    if (!is.null(style_config$`list-letter`)) {
+      style_ids$list_letter <- oq_resolve_style_id(name_to_id, style_config$`list-letter`, "officequarto-styles.list-letter", fail)
     }
     if (is.character(code_block_config) && nzchar(code_block_config)) {
       style_ids$code <- oq_resolve_style_id(name_to_id, code_block_config, "officequarto-pandoc-styles.code-block", fail)

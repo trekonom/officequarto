@@ -69,11 +69,17 @@ oq_num_fmt_map <- function(numbering_doc) {
   stats::setNames(unname(fmt_by_abstract[abstract_refs]), num_ids)
 }
 
+## numFmt-Werte, die Word als Buchstaben-Listen behandelt (a/b/c bzw. A/B/C) -
+## eigener Bucket, getrennt von "alles andere, nicht Bullet" (= list_number:
+## decimal, roman etc.). Kein officedown-Aequivalent, officequarto-eigene
+## Option ohne Alias.
+officequarto_letter_num_fmts <- c("lowerLetter", "upperLetter")
+
 ## Wendet das Style-Mapping direkt auf ein geparstes document.xml an (in-place
 ## via xml2-Referenzsemantik). style_ids ist eine Liste mit optionalen
-## Eintraegen $body/$list_bullet/$list_number/$code (jeweils eine styleId oder
-## NULL). style_num_id (siehe oq_style_num_id) sagt, welche Ziel-Styles selbst
-## eine Nummerierung mitbringen.
+## Eintraegen $body/$list_bullet/$list_number/$list_letter/$code (jeweils eine
+## styleId oder NULL). style_num_id (siehe oq_style_num_id) sagt, welche
+## Ziel-Styles selbst eine Nummerierung mitbringen.
 oq_apply_style_mapping <- function(document_doc, num_fmt_map, style_ids, style_num_id) {
   ns <- xml2::xml_ns(document_doc)
   paragraphs <- xml2::xml_find_all(document_doc, "//w:body/w:p | //w:body//w:tbl//w:p", ns)
@@ -88,7 +94,13 @@ oq_apply_style_mapping <- function(document_doc, num_fmt_map, style_ids, style_n
     if (!is.na(num_id_node)) {
       num_id <- xml2::xml_attr(num_id_node, "val")
       fmt <- unname(num_fmt_map[num_id])
-      target <- if (identical(fmt, "bullet")) style_ids$list_bullet else style_ids$list_number
+      target <- if (identical(fmt, "bullet")) {
+        style_ids$list_bullet
+      } else if (fmt %in% officequarto_letter_num_fmts) {
+        style_ids$list_letter
+      } else {
+        style_ids$list_number
+      }
       if (!is.null(target)) {
         oq_set_pstyle(p, ns, target)
         ## Eine direkte w:numPr am Absatz (von Pandoc gesetzt, zeigt auf

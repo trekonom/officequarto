@@ -39,8 +39,8 @@ rm -f template/report.docx template/report.quarto-rendered.docx
 rm -rf template/.quarto template/report_files
 ```
 
-Regenerate the sample template (`template/original.docx`), including the four ACME custom
-paragraph styles used to test style-mapping (body/bullet/number/code-block):
+Regenerate the sample template (`template/original.docx`), including the five ACME custom
+paragraph styles used to test style-mapping (body/bullet/number/letter/code-block):
 
 ```bash
 Rscript dev/make_sample_docx.R   # needs R packages: officer, xml2
@@ -134,9 +134,13 @@ tight-list items — used for **both** bullet and numbered lists identically). C
 detection logic in `style_mapping.R`:
 
 - **List paragraphs** are detected by the presence of `<w:numPr>`, never by style name.
-- Bullet vs. numbered is resolved via `word/numbering.xml`: `numId` → `abstractNumId` → level-0
-  `w:numFmt` (`bullet` vs. anything else). One style per list *type*, not per nesting level —
-  matches {officedown}'s `ol.style`/`ul.style` design.
+- List type is resolved via `word/numbering.xml`: `numId` → `abstractNumId` → level-0
+  `w:numFmt`. `bullet` → `list-bullet`; `lowerLetter`/`upperLetter` (produced by Pandoc from
+  markdown `a.`/`A.` list markers — verified empirically, see `dev/spike-notes.md`) →
+  `list-letter` (`officequarto_letter_num_fmts` in `style_mapping.R`; officequarto-only, no
+  officedown equivalent); anything else (`decimal`, roman numerals, ...) → `list-number`. One
+  style per list *type*, not per nesting level — matches {officedown}'s `ol.style`/`ul.style`
+  design.
 - **Body paragraphs** (no `<w:numPr>`) are matched against an allowlist of known Pandoc body-role
   style names (`officequarto_body_role_styles` in `style_mapping.R`: `Normal`, `FirstParagraph`,
   `Compact`, `BodyText`, `Body Text`). A reference-doc that makes Pandoc pick a body role outside
