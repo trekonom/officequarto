@@ -16,6 +16,13 @@
 ## Zusaetzlich, optional per `format.docx.officequarto-styles` konfigurierbar:
 ## Body- und Listen-Absaetze werden auf vom Nutzer benannte, echte Styles des
 ## reference-doc umgemappt (siehe scripts/style_mapping.R fuer die Kernlogik).
+##
+## Der Hook ueberschreibt die von Quarto/Pandoc erzeugte .docx direkt an Ort
+## und Stelle - es entsteht keine zweite Ausgabedatei. Wer das reine,
+## ungepatchte Pandoc-Ergebnis zu Debug-Zwecken behalten will, kann das per
+## `format.docx.officequarto-keep-rendered: true` aktivieren (analog zu
+## Quartos eigenem `keep-md`); es wird dann zusaetzlich als
+## `<name>.quarto-rendered.docx` abgelegt.
 
 log_msg <- function(fmt, ...) cat(sprintf(paste0("[officequarto] ", fmt, "\n"), ...))
 fail <- function(fmt, ...) stop(sprintf(paste0("officequarto: ", fmt), ...), call. = FALSE)
@@ -80,6 +87,8 @@ if (!file.exists(reference_doc_path)) {
 }
 
 style_config <- tryCatch(inspect$config$format$docx$`officequarto-styles`, error = function(e) NULL)
+keep_rendered <- tryCatch(inspect$config$format$docx$`officequarto-keep-rendered`, error = function(e) NULL)
+if (is.null(keep_rendered)) keep_rendered <- FALSE
 
 ## Uebertraegt dc:subject, cp:keywords, cp:category aus core_from in core_to und
 ## gibt den (ggf. veraenderten) core_to xml2-Doc zurueck.
@@ -104,11 +113,6 @@ for (rel_path in docx_outputs) {
     log_msg("gerendertes Dokument '%s' nicht gefunden, ueberspringe.", rendered_path)
     next
   }
-
-  target_path <- file.path(
-    dirname(rendered_path),
-    paste0(tools::file_path_sans_ext(basename(rendered_path)), ".written-back.docx")
-  )
 
   work_dir <- tempfile("officequarto_")
   dir.create(work_dir)
@@ -167,10 +171,25 @@ for (rel_path in docx_outputs) {
     log_msg("Style-Mapping angewendet: %d Body-Absaetze, %d Listen-Absaetze.", result$n_body, result$n_list)
   }
 
-  if (file.exists(target_path)) file.remove(target_path)
-  old_wd <- setwd(work_dir)
-  system2("zip", c("-rq", shQuote(target_path), "."))
-  setwd(old_wd)
+  if (isTRUE(keep_rendered)) {
+    debug_path <- file.path(
+      dirname(rendered_path),
+      paste0(tools::file_path_sans_ext(basename(rendered_path)), ".quarto-rendered.docx")
+    )
+    file.copy(rendered_path, debug_path, overwrite = TRUE)
+    log_msg("reines Quarto/Pandoc-Ergebnis behalten (officequarto-keep-rendered): %s", debug_path)
+  }
 
-  log_msg("zurueckgeschrieben: %s", target_path)
+  ## In eine temporaere Datei zippen und erst danach ueber rendered_path
+  ## kopieren, statt direkt in rendered_path hinein zu zippen - schlaegt das
+  ## Zippen fehl, bleibt so die bisherige (gueltige) Ausgabedatei unangetastet
+  ## statt beschaedigt/leer zurueckzubleiben.
+  tmp_zip <- tempfile("officequarto_out_", fileext = ".docx")
+  old_wd <- setwd(work_dir)
+  system2("zip", c("-rq", shQuote(tmp_zip), "."))
+  setwd(old_wd)
+  file.copy(tmp_zip, rendered_path, overwrite = TRUE)
+  file.remove(tmp_zip)
+
+  log_msg("aktualisiert: %s", rendered_path)
 }

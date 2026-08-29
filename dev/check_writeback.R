@@ -1,11 +1,15 @@
 ## End-to-End-Check fuer den officequarto-Workflow.
 ## Erwartet, dass zuvor `quarto render bericht.qmd` im template/-Projekt lief
-## (mit der officequarto-styles-Konfiguration aus template/_quarto.yml).
-## Prueft: written-back.docx existiert, Header/Footer aus original.docx sind
-## erhalten, der neu gerenderte Body-Text ist auffindbar, die aus dem Original
+## (mit der officequarto-styles- und officequarto-keep-rendered-Konfiguration
+## aus template/_quarto.yml).
+## Prueft: bericht.docx wurde vom Hook in-place ueberschrieben (kein separates
+## written-back.docx mehr), Header/Footer aus original.docx sind erhalten, der
+## neu gerenderte Body-Text ist auffindbar, die aus dem Original
 ## zurueckgeschriebenen Metadaten (Subject/Custom-Property) sind vorhanden,
-## und Body-/Bullet-/Nummerierungs-Absaetze tragen die konfigurierten
-## ACME-Custom-Styles statt Pandocs Standard-Styles.
+## Body-/Bullet-/Nummerierungs-Absaetze tragen die konfigurierten
+## ACME-Custom-Styles statt Pandocs Standard-Styles, und das per
+## officequarto-keep-rendered behaltene Debug-Artefakt zeigt den ungepatchten
+## Zustand.
 library(xml2)
 
 fail <- function(...) {
@@ -14,9 +18,14 @@ fail <- function(...) {
 }
 ok <- function(...) cat("OK:", sprintf(...), "\n")
 
-target <- "bericht.written-back.docx"
+target <- "bericht.docx"
 if (!file.exists(target)) fail("%s wurde nicht erzeugt", target)
 ok("%s existiert", target)
+
+if (file.exists("bericht.written-back.docx")) {
+  fail("bericht.written-back.docx sollte nicht mehr erzeugt werden (in-place-Ueberschreiben)")
+}
+ok("kein separates bericht.written-back.docx mehr vorhanden")
 
 tmp <- tempfile("check_")
 dir.create(tmp)
@@ -70,4 +79,32 @@ if (any(pstyles == "Normal") || any(pstyles == "Compact") || any(pstyles == "Fir
 ok("keine unumgemappten Pandoc-Standard-Styles (Normal/Compact/FirstParagraph) mehr vorhanden")
 
 unlink(tmp, recursive = TRUE)
+
+debug_target <- "bericht.quarto-rendered.docx"
+if (!file.exists(debug_target)) {
+  fail("%s wurde nicht erzeugt (officequarto-keep-rendered: true in _quarto.yml erwartet)", debug_target)
+}
+ok("%s existiert (officequarto-keep-rendered)", debug_target)
+
+debug_tmp <- tempfile("check_debug_")
+dir.create(debug_tmp)
+utils::unzip(debug_target, exdir = debug_tmp)
+
+debug_custom_path <- file.path(debug_tmp, "docProps", "custom.xml")
+debug_has_property <- file.exists(debug_custom_path) &&
+  any(grepl("Vertraulichkeitsstufe", readLines(debug_custom_path, warn = FALSE), fixed = TRUE))
+if (debug_has_property) {
+  fail("%s sollte die ungepatchte Pandoc-Ausgabe sein, traegt aber schon die zurueckgeschriebene Custom-Property", debug_target)
+}
+ok("%s zeigt den ungepatchten Zustand (keine zurueckgeschriebene Custom-Property)", debug_target)
+
+debug_document_doc <- read_xml(file.path(debug_tmp, "word", "document.xml"))
+debug_pstyles <- xml_attr(xml_find_all(debug_document_doc, "//w:p/w:pPr/w:pStyle", xml_ns(debug_document_doc)), "val")
+if (!any(debug_pstyles %in% c("Normal", "Compact", "FirstParagraph"))) {
+  fail("%s sollte noch Pandocs Standard-Styles tragen (gefunden: %s)",
+       debug_target, paste(unique(debug_pstyles), collapse = ", "))
+}
+ok("%s zeigt noch Pandocs Standard-Styles (kein Style-Mapping angewendet)", debug_target)
+
+unlink(debug_tmp, recursive = TRUE)
 cat("\nAlle Checks bestanden.\n")

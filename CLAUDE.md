@@ -24,11 +24,13 @@ Rscript ../dev/check_writeback.R   # checks header/footer/body/metadata/style-ma
 ```
 
 `template/_extensions` is a symlink to `../_extensions` — this is how the extension is exercised
-during development without a separate `quarto add` install. Rendering produces `bericht.docx` and
-`bericht.written-back.docx` in `template/` (both gitignored); clean up with:
+during development without a separate `quarto add` install. `template/_quarto.yml` sets
+`officequarto-keep-rendered: true`, so rendering produces `bericht.docx` (final, in-place
+overwritten) and `bericht.quarto-rendered.docx` (the pre-write-back debug copy) in `template/`
+(both gitignored); clean up with:
 
 ```bash
-rm -f template/bericht.docx template/bericht.written-back.docx
+rm -f template/bericht.docx template/bericht.quarto-rendered.docx
 rm -rf template/.quarto template/bericht_files
 ```
 
@@ -58,7 +60,7 @@ _extensions/officequarto/
 
 template/                     example/dev project
 ├── _quarto.yml                project: type: officequarto; format.docx.reference-doc +
-│                               format.docx.officequarto-styles
+│                               format.docx.officequarto-styles + officequarto-keep-rendered
 ├── original.docx              sample reference-doc (custom header/footer/properties/styles)
 └── bericht.qmd                 the .qmd rendered against original.docx
 ```
@@ -70,16 +72,20 @@ template/                     example/dev project
    behavior, no custom code involved.
 2. `scripts/writeback.R` runs automatically as a post-render hook. For each rendered `.docx`
    output it:
-   - Resolves `reference-doc` and the optional `officequarto-styles` config via `quarto inspect
-     <project_dir>` (parsed JSON) rather than hand-parsing `_quarto.yml` — this correctly reflects
-     resolved/merged config.
+   - Resolves `reference-doc` and the optional `officequarto-styles`/`officequarto-keep-rendered`
+     config via `quarto inspect <project_dir>` (parsed JSON) rather than hand-parsing `_quarto.yml`
+     — this correctly reflects resolved/merged config.
    - Unzips the rendered docx into a temp `work_dir`.
    - Merges `docProps/core.xml` fields (`dc:subject`, `cp:keywords`, `dc:description`,
      `cp:category`) and copies `docProps/custom.xml` from the original — these are the properties
      Pandoc does *not* carry over from `reference-doc` (it writes fresh, largely empty ones).
    - If `officequarto-styles` is configured, applies style-mapping to `word/document.xml` (see
      below) via `style_mapping.R`.
-   - Re-zips `work_dir` into `<name>.written-back.docx`, leaving the original render untouched.
+   - If `officequarto-keep-rendered` is `true`, copies the still-untouched rendered docx to
+     `<name>.quarto-rendered.docx` before it gets overwritten (debug artifact, analogous to
+     Quarto's own `keep-md`).
+   - Re-zips `work_dir` into a temp file, then copies that over the original rendered path
+     in-place — there is no separate `<name>.written-back.docx` output file anymore.
 3. There is deliberately **no** manual body-splice step (originally planned, later dropped — see
    "Body write-back" below).
 
@@ -138,3 +144,9 @@ detection logic in `style_mapping.R`:
   — `officer` is only used in `dev/make_sample_docx.R` to build the base sample document (plus
   direct `xml2` XML injection there too, since `officer` has no high-level API to define new
   paragraph styles).
+- The final write step zips into a `tempfile()` first, then `file.copy()`s that over the rendered
+  path — never zips directly onto the file being overwritten, so a failed/partial zip can't corrupt
+  the only output file that exists.
+- Since the rendered `.docx` is overwritten in place, having it open in another app (e.g. Word) at
+  render time can make the overwrite fail or go unnoticed until the app reloads the file — verified
+  in practice against a real external consumer project.

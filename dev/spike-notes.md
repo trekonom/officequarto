@@ -36,10 +36,12 @@ tatsächlich noch beiträgt" unten).
 Was Pandoc **nicht** aus dem Original übernimmt: `docProps/core.xml` (Titel, Subject, Keywords,
 Description, Category) und `docProps/custom.xml` (frei definierte Custom-Properties, z. B.
 Vertraulichkeitsstufe, Dokumentennummer). Pandoc schreibt dafür ein neues, weitgehend leeres
-`core.xml` auf Basis der `.qmd`-Metadaten. Genau das übernimmt `scripts/writeback.R`: Es kopiert
-das bereits korrekte gerenderte `.docx`, überträgt `dc:subject`/`cp:keywords`/`dc:description`/
-`cp:category` sowie `docProps/custom.xml` aus dem Original hinein und speichert das Ergebnis als
-`<name>.written-back.docx`.
+`core.xml` auf Basis der `.qmd`-Metadaten. Genau das übernimmt `scripts/writeback.R`: Es arbeitet
+mit einer Kopie des bereits korrekten gerenderten `.docx` in einem temporären Verzeichnis,
+überträgt `dc:subject`/`cp:keywords`/`dc:description`/`cp:category` sowie `docProps/custom.xml`
+aus dem Original hinein und überschreibt damit die von Quarto erzeugte `.docx` direkt an Ort und
+Stelle (keine zweite Ausgabedatei; optional per `officequarto-keep-rendered: true` lässt sich das
+ungepatchte Pandoc-Ergebnis zusätzlich als `<name>.quarto-rendered.docx` behalten).
 
 **Bekannte Grenze:** Wenn das gerenderte Pandoc-Dokument den Part `docProps/custom.xml` selbst
 noch nicht kennt (in `[Content_Types].xml`/`_rels/.rels` registriert), würde ein reines

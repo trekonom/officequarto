@@ -2,9 +2,10 @@
 
 Prototyp einer Quarto-Extension, die ein beliebiges vorhandenes Word-Dokument als
 Ziel-/Vorlagenformat für Quarto nutzbar macht (Styles, Layout, Kopf-/Fußzeilen werden übernommen)
-und nach `quarto render` automatisch eine Kopie dieses Dokuments mit den daraus übernommenen
-Metadaten zurückschreibt — der Grundgedanke von [{officedown}](https://github.com/ardata-fr/officedown),
-aber als installierbare Quarto-Extension statt als R-Paket.
+und nach `quarto render` die erzeugte `.docx` automatisch an Ort und Stelle mit den aus dem
+Original übernommenen Metadaten überschreibt — der Grundgedanke von
+[{officedown}](https://github.com/ardata-fr/officedown), aber als installierbare Quarto-Extension
+statt als R-Paket.
 
 ## Nutzung in 3 Schritten
 
@@ -36,8 +37,10 @@ aber als installierbare Quarto-Extension statt als R-Paket.
    quarto render
    ```
 
-   Neben dem normalen Pandoc-Ergebnis (`*.docx`) entsteht automatisch `*.written-back.docx` —
-   euer Original mit reingerenderten Inhalten und zurückgeschriebenen Dokument-Metadaten.
+   Die von Quarto/Pandoc erzeugte `*.docx` wird danach automatisch an Ort und Stelle mit den aus
+   `original.docx` übernommenen Dokument-Metadaten überschrieben — es entsteht keine zweite Datei.
+   Wer das reine, ungepatchte Pandoc-Ergebnis zusätzlich zu Debug-Zwecken behalten möchte, kann das
+   per `officequarto-keep-rendered: true` aktivieren (siehe unten).
 
 Ein vollständiges Beispiel liegt in [`template/`](template/): `original.docx` (Beispielvorlage mit
 eigenem Header/Footer/Custom-Properties/Custom-Styles) + `bericht.qmd` + `_quarto.yml`.
@@ -64,12 +67,15 @@ Ablauf bei `quarto render`:
    bereits**, um Styles, Header, Footer und Section-Properties des Originals zu übernehmen — das
    ist natives Pandoc-Verhalten, kein eigener Code nötig.
 2. Der Post-Render-Hook `scripts/writeback.R` läuft automatisch danach: Er ermittelt über
-   `quarto inspect` den Pfad des `reference-doc`, nimmt eine Kopie des frisch gerenderten `.docx`
-   und überträgt daraus `docProps/core.xml` (Subject, Keywords, Description, Category) und
-   `docProps/custom.xml` (frei definierte Custom-Properties) des Originals hinein — Metadaten, die
-   Pandoc beim Rendern sonst durch neue, leere Werte ersetzt. Das Ergebnis wird als
-   `<name>.written-back.docx` gespeichert; Original und reines Pandoc-Ergebnis bleiben unverändert
-   erhalten.
+   `quarto inspect` den Pfad des `reference-doc`, arbeitet mit einer Kopie des frisch gerenderten
+   `.docx` in einem temporären Verzeichnis und überträgt daraus `docProps/core.xml` (Subject,
+   Keywords, Description, Category) und `docProps/custom.xml` (frei definierte Custom-Properties)
+   des Originals hinein — Metadaten, die Pandoc beim Rendern sonst durch neue, leere Werte ersetzt.
+   Das Ergebnis überschreibt anschließend die von Quarto erzeugte `.docx` an Ort und Stelle; das
+   Original (`reference-doc`) bleibt unverändert erhalten. Mit `officequarto-keep-rendered: true`
+   wird das reine, ungepatchte Pandoc-Ergebnis vorher zusätzlich als `<name>.quarto-rendered.docx`
+   abgelegt (analog zu Quartos eigenem `keep-md` — praktisch zum Debuggen, um zu sehen, was Pandoc
+   ohne den Hook erzeugt hätte).
 
 Warum kein manueller Body-Ersatz mehr? Das war der ursprüngliche Plan (Body des Originals
 entfernen, gerenderten Inhalt einfügen). Ein Spike hat gezeigt, dass `reference-doc` das für den
@@ -110,6 +116,22 @@ nummerierte Listen denselben Style verwendet). Bullet vs. nummeriert wird über 
 im `reference-doc` nicht vorhanden, bricht der Hook mit einer Liste der verfügbaren Paragraph-Styles
 ab, statt die Fehlkonfiguration still zu ignorieren.
 
+## Debug-Artefakt behalten: `officequarto-keep-rendered`
+
+Standardmäßig überschreibt der Hook die von Quarto erzeugte `.docx` direkt — es entsteht keine
+zweite Datei. Zum Vergleichen/Debuggen (z. B. "was hat Pandoc ohne officequarto erzeugt?") lässt
+sich das reine, ungepatchte Pandoc-Ergebnis zusätzlich behalten, analog zu Quartos eigenem
+`keep-md`:
+
+```yaml
+format:
+  docx:
+    officequarto-keep-rendered: true   # optional, Default: false
+```
+
+Damit entsteht neben der finalen `<name>.docx` zusätzlich `<name>.quarto-rendered.docx` mit dem
+unveränderten Pandoc-Ergebnis (kein Metadaten-Merge, kein Style-Mapping).
+
 ## Voraussetzungen
 
 - `quarto` (getestet mit 1.8.24) und `pandoc` (getestet mit 3.10.1) im `PATH`
@@ -136,6 +158,9 @@ ab, statt die Fehlkonfiguration still zu ignorieren.
 - Round-Trip-Treue ist grundsätzlich begrenzt: Wenn ein `docProps/custom.xml` im gerenderten
   Pandoc-Ergebnis noch nicht als Part registriert ist, wird das beim Überschreiben nicht
   automatisch nachgetragen (siehe `dev/spike-notes.md`).
+- Der Hook überschreibt die gerenderte `.docx` an Ort und Stelle. Ist die Datei zu diesem Zeitpunkt
+  in einem anderen Programm geöffnet (z. B. Word), kann das Überschreiben fehlschlagen oder das
+  Programm zeigt bis zum manuellen Neuladen noch den alten Stand.
 - Das Style-Mapping patcht nur `word/document.xml` (Haupttext), nicht Fußnoten/Kommentare, und
   bietet einen Style pro Listen-Typ (bullet/numbered) statt pro Verschachtelungsebene. Die
   Body-Erkennung basiert auf einer Allowlist bekannter Pandoc-Rollennamen — ein reference-doc, das
