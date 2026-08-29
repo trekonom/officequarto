@@ -51,3 +51,5 @@ format:
         header: 0.4
         footer: 0.4
         gutter: 0
+    officequarto-crossref:
+      reference_num: false   # officedown-Alias fuer numbered

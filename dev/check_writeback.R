@@ -237,6 +237,22 @@ for (attr_name in names(expected_pg_mar)) {
 }
 ok("Seitenraender korrekt gesetzt (officequarto-page.margins, bottom via officedown-Alias page_margins_bottom)")
 
+tbl_crossref <- xml_find_first(document_doc, "//w:hyperlink[@w:anchor='tbl-kennzahlen']", ns)
+if (is.na(tbl_crossref)) fail("kein Crossref-Hyperlink mit Anker 'tbl-kennzahlen' gefunden (erwartet: 'Siehe @tbl-kennzahlen' aus report.qmd)")
+tbl_crossref_text <- xml_text(tbl_crossref)
+if (!identical(tbl_crossref_text, "Quartalskennzahlen")) {
+  fail("Tabellen-Crossref sollte auf den Beschriftungstext 'Quartalskennzahlen' umgestellt sein (officequarto-crossref.numbered: false via Alias reference_num), gefunden: '%s'", tbl_crossref_text)
+}
+ok("Tabellen-Crossref zeigt den Beschriftungstext 'Quartalskennzahlen' statt der Nummer (officequarto-crossref.numbered: false via officedown-Alias reference_num)")
+
+fig_crossref <- xml_find_first(document_doc, "//w:hyperlink[@w:anchor='fig-umsatz']", ns)
+if (is.na(fig_crossref)) fail("kein Crossref-Hyperlink mit Anker 'fig-umsatz' gefunden (erwartet: 'Siehe @fig-umsatz' aus report.qmd)")
+fig_crossref_text <- xml_text(fig_crossref)
+if (!identical(fig_crossref_text, "Umsatzentwicklung")) {
+  fail("Abbildungs-Crossref sollte auf den Beschriftungstext 'Umsatzentwicklung' umgestellt sein (officequarto-crossref.numbered: false), gefunden: '%s'", fig_crossref_text)
+}
+ok("Abbildungs-Crossref zeigt den Beschriftungstext 'Umsatzentwicklung' statt der Nummer (officequarto-crossref.numbered: false)")
+
 rendered_styles_doc <- read_xml(file.path(tmp, "word", "styles.xml"))
 rendered_style_ids <- xml_attr(xml_find_all(rendered_styles_doc, "//w:style", ns), "styleId")
 

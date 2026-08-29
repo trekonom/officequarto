@@ -44,6 +44,8 @@ c. Pessimistisches Szenario
 **Wichtig:** Dieser Text muss im zurückgeschriebenen Dokument auffindbar sein, um den
 End-to-End-Test zu bestehen.
 
+Siehe @tbl-kennzahlen und @fig-umsatz.
+
 ## Anhang: Beispielcode
 
 Dieser Codeblock existiert, damit Pandocs Syntax-Highlighting-Styles (z. B. `SourceCode`,

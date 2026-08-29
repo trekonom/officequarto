@@ -70,6 +70,7 @@ source(file.path(get_script_dir(), "plot_mapping.R"))
 source(file.path(get_script_dir(), "plot_caption_mapping.R"))
 source(file.path(get_script_dir(), "style_map.R"))
 source(file.path(get_script_dir(), "page_mapping.R"))
+source(file.path(get_script_dir(), "crossref_mapping.R"))
 
 warn_msg <- function(fmt, ...) log_msg(paste0("Warnung: ", fmt), ...)
 
@@ -277,6 +278,22 @@ for (f in names(page_margin_fields)) {
   }
 }
 
+## Gruppe 9 (officequarto-crossref.numbered, officedown: reference_num) -
+## siehe crossref_mapping.R. Pandocs eigener Default entspricht bereits
+## "numbered" (Querverweise zeigen die Nummer) - nur explizites `false`
+## loest ueberhaupt eine Verarbeitung aus (siehe unten, wo dies zusaetzlich
+## dazu fuehrt, dass die Beschriftungs-Erkennung/-Textzerlegung aus Gruppe
+## 3/5 "still" mitlaeuft, auch wenn officequarto-tables.caption/
+## -plots.caption selbst nicht konfiguriert sind).
+crossref_config <- tryCatch(inspect$config$format$docx$`officequarto-crossref`, error = function(e) NULL)
+crossref_numbered_val <- if (!is.null(crossref_config)) {
+  oq_resolve_aliased(crossref_config, "numbered", "reference_num", "officequarto-crossref", warn_msg)
+} else NULL
+if (!is.null(crossref_numbered_val) && (!is.logical(crossref_numbered_val) || length(crossref_numbered_val) != 1 || is.na(crossref_numbered_val))) {
+  fail("officequarto-crossref.numbered muss true oder false sein (erhalten: '%s').", crossref_numbered_val)
+}
+crossref_rewrite_needed <- isFALSE(crossref_numbered_val)
+
 ## Uebertraegt dc:subject, cp:keywords, cp:category aus core_from in core_to und
 ## gibt den (ggf. veraenderten) core_to xml2-Doc zurueck.
 merge_core_properties <- function(core_to, core_from) {
@@ -326,7 +343,7 @@ for (rel_path in docx_outputs) {
     file.copy(custom_from_path, file.path(work_dir, "docProps", "custom.xml"), overwrite = TRUE)
   }
 
-  if (!is.null(style_config) || !is.null(code_block_config) || !is.null(table_config) || !is.null(plot_config) || !is.null(style_map_config) || !is.null(page_config)) {
+  if (!is.null(style_config) || !is.null(code_block_config) || !is.null(table_config) || !is.null(plot_config) || !is.null(style_map_config) || !is.null(page_config) || crossref_rewrite_needed) {
     styles_path <- file.path(work_dir, "word", "styles.xml")
     document_path <- file.path(work_dir, "word", "document.xml")
     numbering_path <- file.path(work_dir, "word", "numbering.xml")
@@ -381,7 +398,13 @@ for (rel_path in docx_outputs) {
       log_msg("Tabellen-Optionen angewendet: %d Tabelle(n).", n_tables)
     }
 
-    if (!is.null(table_caption_config)) {
+    ## Crossref_rewrite_needed (Gruppe 9) laesst diesen Block auch dann
+    ## mitlaufen, wenn officequarto-tables.caption selbst nicht konfiguriert
+    ## ist - caption_options bleibt dann leer (keine Style-/Text-Aenderung),
+    ## aber oq_apply_captions() liefert trotzdem das fuer Gruppe 9 benoetigte
+    ## anchor_text (siehe table_caption_mapping.R).
+    crossref_anchor_text <- character(0)
+    if (!is.null(table_caption_config) || crossref_rewrite_needed) {
       caption_options <- list(prefix = table_caption_prefix_val, separator = table_caption_separator_val, number_bold = table_caption_bold_val, above = table_caption_above_val)
       if (!is.null(table_caption_style_val)) {
         caption_options$style <- oq_resolve_style_id(name_to_id, table_caption_style_val, "officequarto-tables.caption.style", fail)
@@ -389,6 +412,7 @@ for (rel_path in docx_outputs) {
       caption_result <- oq_apply_captions(document_doc, oq_find_table_caption_paragraphs(document_doc, xml2::xml_ns(document_doc)), caption_options, oq_table_caption_content)
       log_msg("Tabellen-Beschriftungen: %d gefunden, %d Text umformatiert, %d verschoben.",
                caption_result$n_found, caption_result$n_text_rewritten, caption_result$n_moved)
+      crossref_anchor_text <- c(crossref_anchor_text, caption_result$anchor_text)
     }
 
     if (!is.null(plot_config)) {
@@ -400,7 +424,7 @@ for (rel_path in docx_outputs) {
       log_msg("Abbildungs-Optionen angewendet: %d Abbildung(en).", n_plots)
     }
 
-    if (!is.null(plot_caption_config)) {
+    if (!is.null(plot_caption_config) || crossref_rewrite_needed) {
       plot_caption_options <- list(prefix = plot_caption_prefix_val, separator = plot_caption_separator_val, number_bold = plot_caption_bold_val, above = plot_caption_above_val)
       if (!is.null(plot_caption_style_val)) {
         plot_caption_options$style <- oq_resolve_style_id(name_to_id, plot_caption_style_val, "officequarto-plots.caption.style", fail)
@@ -408,6 +432,12 @@ for (rel_path in docx_outputs) {
       plot_caption_result <- oq_apply_captions(document_doc, oq_find_plot_caption_paragraphs(document_doc, xml2::xml_ns(document_doc)), plot_caption_options, oq_plot_caption_content)
       log_msg("Abbildungs-Beschriftungen: %d gefunden, %d Text umformatiert, %d verschoben.",
                plot_caption_result$n_found, plot_caption_result$n_text_rewritten, plot_caption_result$n_moved)
+      crossref_anchor_text <- c(crossref_anchor_text, plot_caption_result$anchor_text)
+    }
+
+    if (crossref_rewrite_needed) {
+      n_crossref <- oq_apply_crossref_text(document_doc, crossref_anchor_text)
+      log_msg("Querverweise auf Beschriftungstext umgestellt (officequarto-crossref.numbered: false): %d.", n_crossref)
     }
 
     ## Bewusst als letzter Schritt (siehe style_map.R): trifft dadurch

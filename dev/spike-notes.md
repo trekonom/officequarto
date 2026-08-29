@@ -328,6 +328,46 @@ Zelle eine Tabelle oder eine Abbildung umschliesst. Setzt voraus, dass
 `writeback.R`) - danach waere `ImageCaption` ggf. schon auf einen Nutzer-Style umgemappt und das
 Merkmal wuerde nicht mehr greifen.
 
+## Spike K — Querverweis-Nummerierung (Gruppe 9), verifiziert am 2026-08-29
+
+Vor der Implementierung von `officequarto-crossref.numbered` zwei Dinge empirisch geprueft statt
+angenommen.
+
+**1. `w:anchor`/`w:name` beim Lesen unpraefigiert.** Die bestehende Dokumentation (siehe
+`CLAUDE.md`) haelt bereits fest, dass xml2-Attribut-SCHREIBZUGRIFFE auf OOXML-Knoten den
+Namespace-Praefix brauchen (`xml_attr(node, "w:val") <- x`, nicht `"val"`). Fuer den umgekehrten
+Fall - LESEN - war das noch nicht explizit verifiziert; Gruppe 9 braucht `w:anchor` (an
+`w:hyperlink`) und `w:name` (an `w:bookmarkStart`) zuverlaessig lesbar. Per kleinem xml2-Testskript
+bestaetigt: Lesen funktioniert nur UNPRAEFIGIERT (`xml_attr(node, "anchor")`/`xml_attr(node,
+"name")`) - der praefigierte Versuch (`"w:anchor"`) liefert `NA`. Passt zum bereits bekannten
+Verhalten von `styleId` (auch dort unpraefigiert gelesen) - also eine generelle xml2-Asymmetrie
+zwischen Lesen und Schreiben, nicht ein Einzelfall.
+
+**2. Struktur von Pandocs generierten Crossref-Hyperlinks.** Bereits bei der `tab.lp`-Recherche vor
+Gruppe 1 miterfasst (Testrender einer `@tbl-example`-Referenz): `<w:hyperlink w:anchor="tbl-example">`
+mit einem einzelnen `<w:r><w:rPr><w:rStyle w:val="Hyperlink"/></w:rPr><w:t>Table 1</w:t></w:r>` -
+identisch aufgebaut zu den Beschriftungen selbst (statischer, fest eingebackener Text, kein
+Word-Feld). Das bedeutet: der Ersatztext fuer `numbered: false` kann nicht aus einem lebendigen
+Feld kommen, sondern muss - wie bei pre/sep/number-bold in Gruppe 3/5 - per Text-Ersetzung erfolgen.
+
+**Design-Konsequenz:** anstatt Beschriftungen fuer Gruppe 9 ein zweites Mal zu suchen und zu
+parsen, wurde `oq_apply_captions()` (Gruppe 3/5, `table_caption_mapping.R`) so erweitert, dass sie
+IMMER (nicht nur wenn `needs_text_rewrite`) den Beschriftungstext per `oq_split_caption_text()`
+ermittelt und zusammen mit dem zugehoerigen Bookmark-Namen (`oq_caption_anchor_name()`, findet
+`w:bookmarkStart` als Geschwister der Beschriftung in derselben Wrapper-Zelle) in einer
+`anchor_text`-Rueckgabe sammelt - unabhaengig davon, ob `officequarto-tables.caption`/
+`-plots.caption` selbst konfiguriert sind. `writeback.R` erweitert dafuer das Gate, ab dem der
+Beschriftungs-Verarbeitungsblock ueberhaupt laeuft, um `crossref_rewrite_needed` (true nur bei
+explizitem `numbered: false`) - Gruppe 9 allein reicht damit aus, um die Beschriftungserkennung
+"still" anzustossen, auch ohne jede eigene Gruppe-3/5-Konfiguration.
+
+Verifiziert am funktionierenden Testprojekt: `report.qmd` erhielt einen Satz mit
+`@tbl-kennzahlen`/`@fig-umsatz`-Referenzen; nach dem Rendern mit `officequarto-crossref: {reference_num:
+false}` (officedown-Alias) zeigen beide Hyperlinks korrekt den reinen Beschriftungstext
+("Quartalskennzahlen"/"Umsatzentwicklung") statt "Table 1"/"Figure 1" - und zwar unveraendert vom
+gleichzeitig konfigurierten `prefix`/`separator` der Beschriftungen selbst (die nur den
+Beschriftungsabsatz betreffen, nicht den in `anchor_text` gesammelten reinen `rest`-Text).
+
 ## Offene Fragen aus Abschnitt 3 des Konzepts — Status
 
 | Frage | Status |

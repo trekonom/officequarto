@@ -24,6 +24,7 @@ Rscript ../dev/check_writeback.R        # checks header/footer/body/metadata/sty
 Rscript ../dev/check_option_aliases.R   # unit-checks oq_resolve_aliased()/oq_resolve_inverted_aliased()
 Rscript ../dev/check_caption_parsing.R  # unit-checks oq_split_caption_text() (table caption text-splitting)
 Rscript ../dev/check_style_map.R        # unit-checks oq_resolve_style_map()/oq_apply_style_map()
+Rscript ../dev/check_crossref.R         # unit-checks oq_apply_crossref_text()
 ```
 
 `template/report.qmd` includes a small fenced code block specifically so the style-pruning
@@ -90,8 +91,10 @@ _extensions/officequarto/
     ├── style_map.R           free-form style-map (officedown: mapstyles) core logic
     │                          (pure functions, no side effects of its own — called from
     │                          writeback.R)
-    └── page_mapping.R        page size/margins core logic (pure functions, no side
-                               effects of its own — called from writeback.R)
+    ├── page_mapping.R        page size/margins core logic (pure functions, no side
+    │                          effects of its own — called from writeback.R)
+    └── crossref_mapping.R    cross-reference text rewriting core logic (pure functions,
+                               no side effects of its own — called from writeback.R)
 
 template/                     example/dev project
 ├── _quarto.yml                project: type: officequarto; format.docx.reference-doc +
@@ -447,6 +450,40 @@ updates existing `w:pgSz`/`w:pgMar` nodes' attributes in place via `xml_find_fir
 creates or repositions them (both already exist in every real `reference-doc`-derived render), so
 there was nothing here for officequarto to have broken or to fix — unlike the Gruppe 1 `w:tblPr`
 child-ordering issue, which was a real, first-created-by-officequarto ordering bug.
+
+### Cross-reference text (`officequarto-crossref`, `crossref_mapping.R`, Gruppe 9)
+
+The last group of the officedown port, and the one closest in spirit to the reasons `tab.lp`/
+`fig.lp` got dropped — but implemented anyway (explicit user call after weighing the tradeoff):
+`@tbl-xyz`/`@fig-xyz` cross-references are, like captions, already resolved to static text (a
+`w:hyperlink[@w:anchor]` run reading e.g. `"Table 1"`) before `writeback.R` ever sees the document —
+confirmed empirically during the original `tab.lp` research. There's no live field to flip;
+`officequarto-crossref.numbered: false` (officedown: `reference_num`) works by finding every
+cross-reference hyperlink whose anchor matches a known caption's bookmark and replacing its text
+with that caption's own descriptive text.
+
+- **Where the replacement text comes from**: `oq_apply_captions()` (`table_caption_mapping.R`,
+  Gruppe 3/5's shared function) was extended to *always* compute `oq_split_caption_text()`'s
+  `$rest` and record it against the caption's bookmark name (`oq_caption_anchor_name()`) in a
+  returned `anchor_text` map — regardless of whether `needs_text_rewrite` is true, i.e. regardless
+  of whether `officequarto-tables.caption`/`officequarto-plots.caption` are configured at all. Only
+  the actual in-place XML rewrite (`oq_write_caption_run()`) stays gated on that; the parse+collect
+  step is unconditional. This was necessary because Gruppe 9 needs the descriptive text even when
+  the user hasn't touched caption styling — `writeback.R` reflects this by widening the gate that
+  decides whether the table/plot caption block runs at all to `!is.null(table_caption_config) ||
+  crossref_rewrite_needed` (and the plot equivalent), so Gruppe 9 alone is enough to trigger
+  caption discovery, "running silently" with an otherwise-empty `caption_options`.
+- **Reading `w:anchor`/`w:name`**: another instance of the read/write attribute-prefix asymmetry
+  already documented above for `w:val` — reading uses the *unprefixed* local name (`xml_attr(node,
+  "anchor")`/`xml_attr(node, "name")`), verified empirically here as it was for `styleId` earlier;
+  only *writing* needs the `w:`-prefixed form.
+- `oq_apply_crossref_text()` (`crossref_mapping.R`) does the actual replacement: for a matched
+  hyperlink, the first run gets the replacement text, any further runs in the same hyperlink are
+  removed (Pandoc's generated crossref hyperlinks are a single run in practice; this is defensive,
+  not the expected case).
+- Only ever active when `numbered` is explicitly `false` — Pandoc's own default (numbered) already
+  matches officedown's own default, so there's nothing to do when unset, same pattern as
+  `caption.above`.
 
 officedown's `tab.lp`/`fig.lp` (bookdown cross-reference label-prefix options) were deliberately
 **not** ported — researched explicitly before implementing Gruppe 1: they're a source-syntax

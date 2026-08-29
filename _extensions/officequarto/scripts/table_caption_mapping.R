@@ -133,6 +133,22 @@ oq_move_caption <- function(caption_p, content_node, above) {
   invisible(NULL)
 }
 
+## Findet den Namen des Bookmarks (w:bookmarkStart/@name), der eine
+## Beschriftung als Crossref-Ziel markiert - ein direktes Geschwister der
+## Beschriftung innerhalb derselben Pandoc-Wrapper-Zelle (siehe
+## oq_table_caption_content()/oq_plot_caption_content()). NA, falls keins
+## gefunden wird. Fuer Gruppe 9 (officequarto-crossref.numbered, siehe
+## crossref_mapping.R) - dort wird dieser Name als Schluessel benutzt, um
+## einen @tbl-xyz/@fig-xyz-Querverweis auf diese Beschriftung zurueckzufuehren.
+## Achtung xml2-Eigenheit: w:name wird beim LESEN unpraefigiert als "name"
+## adressiert (anders als beim SCHREIBEN, wo "w:val" etc. praefigiert sein
+## muss - siehe CLAUDE.md) - empirisch verifiziert.
+oq_caption_anchor_name <- function(caption_p, ns) {
+  bookmark <- xml2::xml_find_first(xml2::xml_parent(caption_p), "./w:bookmarkStart", ns)
+  if (is.na(bookmark)) return(NA_character_)
+  xml2::xml_attr(bookmark, "name")
+}
+
 ## Wendet caption_options ($style/$prefix/$separator/$number_bold/$above,
 ## jeweils optional) auf eine bereits gefundene Menge von
 ## Beschriftungsabsaetzen an (in-place via xml2-Referenzsemantik). Generisch
@@ -153,18 +169,33 @@ oq_move_caption <- function(caption_p, content_node, above) {
 ## Text-Rewrite) - erst nachdem alle Aenderungen am noch angehefteten Knoten
 ## vorgenommen wurden, wird er per copy+remove verschoben; ein Verschieben
 ## VOR den anderen Schritten wuerde mit einem bereits vom Dokumentbaum
-## abgetrennten Knoten weiterarbeiten. Gibt list(n_found, n_text_rewritten,
-## n_moved) zurueck - n_text_rewritten kann kleiner als n_found sein, wenn
-## eine Beschriftung nicht im erwarteten "Praefix Zahl Trenner Text"-Format
-## vorlag (oq_split_caption_text() konnte die Zahl nicht verankern) und
-## deshalb unangetastet blieb; n_moved kann kleiner als n_found sein, wenn
-## fuer eine Beschriftung kein zugehoeriger Inhaltsknoten gefunden wurde.
+## abgetrennten Knoten weiterarbeiten.
+##
+## Der eigentliche Beschriftungstext (oq_split_caption_text()s $rest) wird
+## IMMER ermittelt, unabhaengig davon, ob prefix/separator/number_bold
+## ueberhaupt konfiguriert sind (nicht nur wenn needs_text_rewrite) - Gruppe
+## 9 (officequarto-crossref.numbered: false) braucht diesen Text auch dann,
+## wenn Gruppe 3/5 selbst gar nicht konfiguriert wurden, nur "still"
+## mitlaufen, um die Crossref-Umschreibung zu ermoeglichen. Nur das
+## tatsaechliche SCHREIBEN in den Absatz (oq_write_caption_run()) bleibt an
+## needs_text_rewrite gebunden.
+##
+## Gibt list(n_found, n_text_rewritten, n_moved, anchor_text) zurueck -
+## n_text_rewritten kann kleiner als n_found sein, wenn eine Beschriftung
+## nicht im erwarteten "Praefix Zahl Trenner Text"-Format vorlag
+## (oq_split_caption_text() konnte die Zahl nicht verankern) und deshalb
+## unangetastet blieb; n_moved kann kleiner als n_found sein, wenn fuer eine
+## Beschriftung kein zugehoeriger Inhaltsknoten gefunden wurde. anchor_text
+## ist eine Named Character Vector Bookmark-Name -> Beschriftungstext (ohne
+## Praefix/Zahl/Trenner), fuer Beschriftungen, bei denen sowohl ein Bookmark
+## als auch ein erfolgreich geparster Text gefunden wurden.
 oq_apply_captions <- function(document_doc, captions, caption_options, content_finder = NULL) {
   ns <- xml2::xml_ns(document_doc)
 
   n_found <- length(captions)
   n_text_rewritten <- 0L
   n_moved <- 0L
+  anchor_text <- character(0)
 
   needs_text_rewrite <- !is.null(caption_options$prefix) ||
     !is.null(caption_options$separator) ||
@@ -177,14 +208,18 @@ oq_apply_captions <- function(document_doc, captions, caption_options, content_f
       oq_set_pstyle(p, ns, caption_options$style)
     }
 
-    if (needs_text_rewrite) {
-      runs <- xml2::xml_find_all(p, "./w:r", ns)
-      if (length(runs) > 0) {
-        first_run <- runs[[1]]
-        t_node <- xml2::xml_find_first(first_run, "./w:t", ns)
-        if (!is.na(t_node)) {
-          split <- oq_split_caption_text(xml2::xml_text(t_node), i)
-          if (isTRUE(split$matched)) {
+    runs <- xml2::xml_find_all(p, "./w:r", ns)
+    if (length(runs) > 0) {
+      first_run <- runs[[1]]
+      t_node <- xml2::xml_find_first(first_run, "./w:t", ns)
+      if (!is.na(t_node)) {
+        split <- oq_split_caption_text(xml2::xml_text(t_node), i)
+        if (isTRUE(split$matched)) {
+          anchor_name <- oq_caption_anchor_name(p, ns)
+          if (!is.na(anchor_name)) {
+            anchor_text[[anchor_name]] <- split$rest
+          }
+          if (needs_text_rewrite) {
             final_pre <- if (!is.null(caption_options$prefix)) caption_options$prefix else split$title_prefix
             final_sep <- if (!is.null(caption_options$separator)) caption_options$separator else split$generated_sep
             oq_write_caption_run(first_run, t_node, ns, final_pre, split$number, final_sep, split$rest, caption_options$number_bold)
@@ -203,5 +238,5 @@ oq_apply_captions <- function(document_doc, captions, caption_options, content_f
     }
   }
 
-  list(n_found = n_found, n_text_rewritten = n_text_rewritten, n_moved = n_moved)
+  list(n_found = n_found, n_text_rewritten = n_text_rewritten, n_moved = n_moved, anchor_text = anchor_text)
 }

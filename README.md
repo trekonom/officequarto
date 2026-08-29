@@ -62,7 +62,8 @@ _extensions/officequarto/
     ├── plot_mapping.R        figure style/align logic, sourced by writeback.R
     ├── plot_caption_mapping.R   figure caption paragraph detection, sourced by writeback.R
     ├── style_map.R           free-form style-map (mapstyles) logic, sourced by writeback.R
-    └── page_mapping.R        page size/margins (section properties) logic, sourced by writeback.R
+    ├── page_mapping.R        page size/margins (section properties) logic, sourced by writeback.R
+    └── crossref_mapping.R    cross-reference text rewriting logic, sourced by writeback.R
 
 template/                     example project (quarto use template)
 ├── _quarto.yml                project: type: officequarto, format.docx.officequarto-styles
@@ -376,6 +377,31 @@ groups `conditional`/`caption` together rather than splitting into more top-leve
 officedown's `orient` is spelled out as `orientation` here; its alias remains `page_size_orient`
 (officedown's actual literal option name, needed verbatim regardless of the new spelling).
 
+## Cross-reference text: `officequarto-crossref`
+
+By default, a cross-reference like `@tbl-kennzahlen` renders as just the number ("Table 1") — both
+Quarto's own default and {officedown}'s. `officequarto-crossref.numbered: false` (officedown:
+`reference_num`) shows the caption's descriptive text instead:
+
+```yaml
+format:
+  docx:
+    officequarto-crossref:
+      numbered: false   # show "Quartalskennzahlen" instead of "Table 1" at each @tbl-kennzahlen
+```
+
+Same underlying limitation as everywhere else that touches captions/cross-references: Quarto
+resolves `@tbl-xyz`/`@fig-xyz` references to static text (a hyperlink run reading e.g. `"Table
+1"`) before this hook ever runs, so there's no live field to flip — `officequarto` finds each
+cross-reference hyperlink whose anchor points at a known table/figure caption and replaces its text
+with that caption's own descriptive text (the part after the number, unaffected by any `prefix`/
+`separator` customization on the caption itself). Only takes effect when explicitly set to `false`
+— Pandoc's own default already shows the number, matching officedown's default too, so there's
+nothing to do otherwise. Setting it (even without touching `officequarto-tables.caption`/
+`officequarto-plots.caption` directly) still requires officequarto to walk every caption to build
+the anchor → text lookup, so expect the same log lines about captions being processed even if you
+haven't configured any caption styling yourself.
+
 ## Style pruning: keeping only reference-doc styles
 
 Pandoc's docx writer unconditionally adds its own style definitions on top of whatever
@@ -490,6 +516,7 @@ aren't implemented yet.
 | `officequarto-page.margins.header` | `page_margins_header` | Header distance (inches) | unset (`reference-doc` default) |
 | `officequarto-page.margins.footer` | `page_margins_footer` | Footer distance (inches) | unset (`reference-doc` default) |
 | `officequarto-page.margins.gutter` | `page_margins_gutter` | Gutter margin (inches) | unset (`reference-doc` default) |
+| `officequarto-crossref.numbered` | `reference_num` | Show the number (`true`) or caption text (`false`) at cross-references | unset (Pandoc default, already numbered) |
 
 ## Requirements
 
@@ -539,6 +566,7 @@ Rscript ../dev/check_writeback.R        # checks header/footer/body/metadata of 
 Rscript ../dev/check_option_aliases.R   # unit-checks canonical-name/officedown-alias resolution
 Rscript ../dev/check_caption_parsing.R  # unit-checks the table-caption text-splitting logic
 Rscript ../dev/check_style_map.R        # unit-checks officequarto-style-map resolution/application
+Rscript ../dev/check_crossref.R         # unit-checks cross-reference text rewriting
 ```
 
 `dev/make_sample_docx.R` regenerates the sample template `template/original.docx`, including the
