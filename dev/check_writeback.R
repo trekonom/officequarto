@@ -170,6 +170,28 @@ if (!identical(plot_align, "right")) {
 }
 ok("Abbildungs-Absatz ist rechtsbuendig ausgerichtet (officequarto-plots.align via officedown-Alias plots_align)")
 
+plot_caption_p <- xml_find_first(document_doc, "//w:p[w:pPr/w:pStyle/@w:val='AbbildungsbeschriftungACME']", ns)
+if (is.na(plot_caption_p)) fail("keine Abbildungs-Beschriftung mit dem konfigurierten Style 'AbbildungsbeschriftungACME' gefunden (officequarto-plots.caption.style via Alias plots_caption_style)")
+ok("Abbildungs-Beschriftung traegt den konfigurierten Style 'AbbildungsbeschriftungACME' (officequarto-plots.caption.style via officedown-Alias plots_caption_style)")
+
+plot_caption_runs <- xml_find_all(plot_caption_p, "./w:r", ns)
+if (length(plot_caption_runs) != 2) {
+  fail("Abbildungs-Beschriftung sollte in 2 Laeufe gesplittet sein (number-bold explizit gesetzt), gefunden: %d", length(plot_caption_runs))
+}
+plot_caption_first_text <- xml_text(xml_find_first(plot_caption_runs[[1]], "./w:t", ns))
+plot_caption_first_bold <- xml_attr(xml_find_first(plot_caption_runs[[1]], "./w:rPr/w:b", ns), "val")
+plot_caption_second_text <- xml_text(xml_find_first(plot_caption_runs[[2]], "./w:t", ns))
+if (!identical(plot_caption_first_text, "Abb. 1")) {
+  fail("Abbildungs-Beschriftung: erster Lauf sollte 'Abb. 1' sein (officequarto-plots.caption.prefix), gefunden: '%s'", plot_caption_first_text)
+}
+if (!identical(plot_caption_first_bold, "0")) {
+  fail("Abbildungs-Beschriftung: erster Lauf sollte explizit NICHT fett sein (officequarto-plots.caption.number-bold: false via Alias), w:b/@val='%s'", plot_caption_first_bold)
+}
+if (!identical(plot_caption_second_text, " | Umsatzentwicklung")) {
+  fail("Abbildungs-Beschriftung: zweiter Lauf sollte ' | Umsatzentwicklung' sein (officequarto-plots.caption.separator), gefunden: '%s'", plot_caption_second_text)
+}
+ok("Abbildungs-Beschriftungstext korrekt umformatiert: nicht-fett 'Abb. 1' + ' | Umsatzentwicklung' (prefix/separator/number-bold via officequarto-plots.caption, teils ueber officedown-Alias)")
+
 rendered_styles_doc <- read_xml(file.path(tmp, "word", "styles.xml"))
 rendered_style_ids <- xml_attr(xml_find_all(rendered_styles_doc, "//w:style", ns), "styleId")
 

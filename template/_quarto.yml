@@ -29,3 +29,8 @@ format:
     officequarto-plots:
       style: "Abbildung ACME"
       plots_align: right                    # officedown-Alias fuer align
+      caption:
+        plots_caption_style: "Abbildungsbeschriftung ACME"   # officedown-Alias fuer style
+        prefix: "Abb. "
+        separator: " | "
+        plots_caption_bold: false           # officedown-Alias fuer number-bold

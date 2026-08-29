@@ -56,8 +56,11 @@ _extensions/officequarto/
     ├── style_pruning.R       style-pruning core logic, sourced by writeback.R
     ├── option_aliases.R      canonical-name/officedown-alias resolution, sourced by writeback.R
     ├── table_mapping.R       table style/layout/width/conditional-formatting logic, sourced by writeback.R
-    ├── table_caption_mapping.R  table caption style/prefix/separator/bold logic, sourced by writeback.R
-    └── plot_mapping.R        figure style/align logic, sourced by writeback.R
+    ├── table_caption_mapping.R  table caption style/prefix/separator/bold logic (also the
+    │                          shared, generic caption-rewriting logic reused by plot_caption_mapping.R),
+    │                          sourced by writeback.R
+    ├── plot_mapping.R        figure style/align logic, sourced by writeback.R
+    └── plot_caption_mapping.R   figure caption paragraph detection, sourced by writeback.R
 
 template/                     example project (quarto use template)
 ├── _quarto.yml                project: type: officequarto, format.docx.officequarto-styles
@@ -261,6 +264,28 @@ equivalent. `topcaption` (caption position) is deferred: it's a structural parag
 operation, not a style tweak, and will be implemented together for both tables and figures once
 figure captions (a future group) exist, rather than doing the same structural work twice.
 
+### Figure captions: style, prefix, separator, bold
+
+`officequarto-plots.caption` mirrors [table captions](#table-captions-style-prefix-separator-bold)
+exactly — same fields, same text-parsing approach and its caveats, same `tnd`/`tns` exclusion
+rationale, just for figures:
+
+```yaml
+format:
+  docx:
+    officequarto-plots:
+      caption:
+        style: "Abbildungsbeschriftung ACME"
+        prefix: "Abb. "
+        separator: " | "
+        number-bold: false
+```
+
+Table and figure captions are structurally distinguished by whether Pandoc's synthetic
+caption-wrapper cell contains a nested table (table caption) or not (figure caption) — see
+[Table captions](#table-captions-style-prefix-separator-bold) above for the full mechanism; the
+actual text-rewriting logic is shared code, only the paragraph-finding differs.
+
 ## Style pruning: keeping only reference-doc styles
 
 Pandoc's docx writer unconditionally adds its own style definitions on top of whatever
@@ -358,6 +383,10 @@ aren't implemented yet.
 | `officequarto-tables.caption.number-bold` | `tables_caption_bold` | Bold the prefix+number portion | unset (Pandoc default, not bold) |
 | `officequarto-plots.style` | `plots_style` | Paragraph style for the image paragraph | unset (Pandoc default) |
 | `officequarto-plots.align` | `plots_align` | Image alignment, `left`/`center`/`right` | unset (Pandoc default) |
+| `officequarto-plots.caption.style` | `plots_caption_style` | Paragraph style for the caption | unset (Pandoc's `ImageCaption`) |
+| `officequarto-plots.caption.prefix` | `plots_caption_pre` | Text before the number | unset (Pandoc-generated text) |
+| `officequarto-plots.caption.separator` | `plots_caption_sep` | Text between number and caption | unset (Pandoc-generated text) |
+| `officequarto-plots.caption.number-bold` | `plots_caption_bold` | Bold the prefix+number portion | unset (Pandoc default, not bold) |
 
 ## Requirements
 

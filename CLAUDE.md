@@ -40,8 +40,9 @@ rm -f template/report.docx template/report.quarto-rendered.docx
 rm -rf template/.quarto template/report_files
 ```
 
-Regenerate the sample template (`template/original.docx`), including the seven ACME custom
-paragraph styles used to test style-mapping (body/bullet/number/letter/code-block/caption/plot):
+Regenerate the sample template (`template/original.docx`), including the eight ACME custom
+paragraph styles used to test style-mapping (body/bullet/number/letter/code-block/table-caption/
+plot/plot-caption):
 
 ```bash
 Rscript dev/make_sample_docx.R   # needs R packages: officer, xml2
@@ -79,8 +80,12 @@ _extensions/officequarto/
     ├── table_caption_mapping.R  table caption style/prefix/separator/bold core logic
     │                          (pure functions, no side effects of its own — called from
     │                          writeback.R)
-    └── plot_mapping.R        figure style/align core logic (pure functions, no side
-                               effects of its own — called from writeback.R)
+    ├── plot_mapping.R        figure style/align core logic (pure functions, no side
+    │                          effects of its own — called from writeback.R)
+    └── plot_caption_mapping.R  figure caption paragraph detection (pure functions, no
+                               side effects of its own — called from writeback.R; the
+                               actual text-rewriting logic lives in table_caption_mapping.R
+                               and is shared, not duplicated)
 
 template/                     example/dev project
 ├── _quarto.yml                project: type: officequarto; format.docx.reference-doc +
@@ -321,6 +326,22 @@ conceptually identical for both, and is planned as one combined follow-up once f
 (a future group, analogous to Gruppe 3) exist — implementing it once for `officequarto-tables.
 caption-above` alone would mean redoing the same reordering logic again for
 `officequarto-plots.caption-above` shortly after.
+
+### Figure captions (`officequarto-plots.caption`, `plot_caption_mapping.R`, Gruppe 5)
+
+Identical fields, identical mechanism, and identical `tnd`/`tns` exclusion rationale as Gruppe 3
+(table captions) — implemented as a refactor rather than a duplicate: `oq_apply_table_captions()`
+was generalized into `oq_apply_captions(document_doc, captions, caption_options)`
+(`table_caption_mapping.R`), which now takes an already-found paragraph node-set instead of finding
+it itself, so the identical text-rewriting logic (`oq_split_caption_text()`/
+`oq_write_caption_run()`, all still in `table_caption_mapping.R`) serves both groups. Only the
+paragraph-finding differs: `oq_find_plot_caption_paragraphs()` (`plot_caption_mapping.R`) is the
+mirror image of `oq_find_table_caption_paragraphs()` — same `pStyle="ImageCaption"` check, but
+`[not(../w:tbl)]` instead of `[../w:tbl]`, since a figure's caption-wrapper cell (see Gruppe 4)
+holds an image paragraph, not a nested table. `writeback.R` calls `oq_apply_captions()` twice, once
+per finder, each with its own independent 1-based numbering counter — table and figure captions
+have separate number sequences in Quarto ("Table 1"/"Figure 1" independently), so they must not
+share a single running count.
 
 officedown's `tab.lp`/`fig.lp` (bookdown cross-reference label-prefix options) were deliberately
 **not** ported — researched explicitly before implementing Gruppe 1: they're a source-syntax

@@ -67,6 +67,7 @@ source(file.path(get_script_dir(), "option_aliases.R"))
 source(file.path(get_script_dir(), "table_mapping.R"))
 source(file.path(get_script_dir(), "table_caption_mapping.R"))
 source(file.path(get_script_dir(), "plot_mapping.R"))
+source(file.path(get_script_dir(), "plot_caption_mapping.R"))
 
 warn_msg <- function(fmt, ...) log_msg(paste0("Warnung: ", fmt), ...)
 
@@ -199,6 +200,25 @@ if (!is.null(plot_align_val) && !(plot_align_val %in% c("left", "center", "right
   fail("officequarto-plots.align muss 'left', 'center' oder 'right' sein (erhalten: '%s').", plot_align_val)
 }
 
+## Gruppe 5 (officequarto-plots.caption.*) - identisches Muster zu Gruppe 3
+## (officequarto-tables.caption.*), siehe dort fuer die Begruendung.
+plot_caption_config <- plot_config$caption
+plot_caption_style_val <- if (!is.null(plot_caption_config)) {
+  oq_resolve_aliased(plot_caption_config, "style", "plots_caption_style", "officequarto-plots.caption", warn_msg)
+} else NULL
+plot_caption_prefix_val <- if (!is.null(plot_caption_config)) {
+  oq_resolve_aliased(plot_caption_config, "prefix", "plots_caption_pre", "officequarto-plots.caption", warn_msg)
+} else NULL
+plot_caption_separator_val <- if (!is.null(plot_caption_config)) {
+  oq_resolve_aliased(plot_caption_config, "separator", "plots_caption_sep", "officequarto-plots.caption", warn_msg)
+} else NULL
+plot_caption_bold_val <- if (!is.null(plot_caption_config)) {
+  oq_resolve_aliased(plot_caption_config, "number-bold", "plots_caption_bold", "officequarto-plots.caption", warn_msg)
+} else NULL
+if (!is.null(plot_caption_bold_val) && (!is.logical(plot_caption_bold_val) || length(plot_caption_bold_val) != 1 || is.na(plot_caption_bold_val))) {
+  fail("officequarto-plots.caption.number-bold muss true oder false sein (erhalten: '%s').", plot_caption_bold_val)
+}
+
 ## Uebertraegt dc:subject, cp:keywords, cp:category aus core_from in core_to und
 ## gibt den (ggf. veraenderten) core_to xml2-Doc zurueck.
 merge_core_properties <- function(core_to, core_from) {
@@ -308,7 +328,7 @@ for (rel_path in docx_outputs) {
       if (!is.null(table_caption_style_val)) {
         caption_options$style <- oq_resolve_style_id(name_to_id, table_caption_style_val, "officequarto-tables.caption.style", fail)
       }
-      caption_result <- oq_apply_table_captions(document_doc, caption_options)
+      caption_result <- oq_apply_captions(document_doc, oq_find_table_caption_paragraphs(document_doc, xml2::xml_ns(document_doc)), caption_options)
       log_msg("Tabellen-Beschriftungen: %d gefunden, %d Text umformatiert.",
                caption_result$n_found, caption_result$n_text_rewritten)
     }
@@ -320,6 +340,16 @@ for (rel_path in docx_outputs) {
       }
       n_plots <- oq_apply_plot_options(document_doc, plot_options)
       log_msg("Abbildungs-Optionen angewendet: %d Abbildung(en).", n_plots)
+    }
+
+    if (!is.null(plot_caption_config)) {
+      plot_caption_options <- list(prefix = plot_caption_prefix_val, separator = plot_caption_separator_val, number_bold = plot_caption_bold_val)
+      if (!is.null(plot_caption_style_val)) {
+        plot_caption_options$style <- oq_resolve_style_id(name_to_id, plot_caption_style_val, "officequarto-plots.caption.style", fail)
+      }
+      plot_caption_result <- oq_apply_captions(document_doc, oq_find_plot_caption_paragraphs(document_doc, xml2::xml_ns(document_doc)), plot_caption_options)
+      log_msg("Abbildungs-Beschriftungen: %d gefunden, %d Text umformatiert.",
+               plot_caption_result$n_found, plot_caption_result$n_text_rewritten)
     }
 
     xml2::write_xml(document_doc, document_path)

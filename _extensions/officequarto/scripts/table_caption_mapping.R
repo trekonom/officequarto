@@ -1,8 +1,11 @@
 ## Kernlogik fuer Gruppe 3 (Tabellen-Beschriftungen) des officedown-Options-
 ## Ports: officequarto-tables.caption.style/prefix/separator/number-bold.
-## Wird von writeback.R per source() eingebunden, keine eigenstaendige
-## Ausfuehrung. Benoetigt: xml2, oq_set_pstyle() aus style_mapping.R (muss vor
-## dieser Datei gesourced sein).
+## oq_apply_captions() (die eigentliche Formatierungslogik) ist generisch und
+## wird von Gruppe 5 (Abbildungs-Beschriftungen, plot_caption_mapping.R)
+## wiederverwendet - nur oq_find_table_caption_paragraphs() ist
+## Tabellen-spezifisch. Wird von writeback.R per source() eingebunden, keine
+## eigenstaendige Ausfuehrung. Benoetigt: xml2, oq_set_pstyle() aus
+## style_mapping.R (muss vor dieser Datei gesourced sein).
 ##
 ## `tnd`/`tns` (officedown: abschnittsweise Nummerierungstiefe, z.B. "2-1")
 ## wurden bewusst NICHT portiert - Quarto/Pandoc nummeriert Tabellen
@@ -104,16 +107,24 @@ oq_write_caption_run <- function(first_run, t_node, ns, pre, number, sep, rest, 
 }
 
 ## Wendet caption_options ($style/$prefix/$separator/$number_bold, jeweils
-## optional) auf jeden Tabellen-Beschriftungsabsatz an (in-place via
-## xml2-Referenzsemantik). Nummeriert Beschriftungen selbst in
-## Dokumentreihenfolge (1-basiert), identisch zu Pandocs Zaehlung. Gibt
-## list(n_found, n_text_rewritten) zurueck - n_text_rewritten kann kleiner
-## als n_found sein, wenn eine Beschriftung nicht im erwarteten
-## "Praefix Zahl Trenner Text"-Format vorlag (oq_split_caption_text() konnte
-## die Zahl nicht verankern) und deshalb unangetastet blieb.
-oq_apply_table_captions <- function(document_doc, caption_options) {
+## optional) auf eine bereits gefundene Menge von Beschriftungsabsaetzen an
+## (in-place via xml2-Referenzsemantik). Generisch fuer Tabellen- UND
+## Abbildungs-Beschriftungen - die Formatierungslogik selbst ist fuer beide
+## identisch, nur die Suche nach den Absaetzen unterscheidet sich
+## (oq_find_table_caption_paragraphs() hier bzw.
+## oq_find_plot_caption_paragraphs() in plot_caption_mapping.R fuer Gruppe
+## 5). Nummeriert Beschriftungen selbst in Dokumentreihenfolge (1-basiert),
+## identisch zu Pandocs Zaehlung - da Tabellen- und Abbildungs-Beschriftungen
+## bei Pandoc getrennte Nummernkreise haben ("Table 1"/"Figure 1"
+## unabhaengig voneinander), muss diese Funktion fuer Tabellen und
+## Abbildungen JEWEILS SEPARAT mit ihrer eigenen, bereits gefundenen Menge
+## aufgerufen werden. Gibt list(n_found, n_text_rewritten) zurueck -
+## n_text_rewritten kann kleiner als n_found sein, wenn eine Beschriftung
+## nicht im erwarteten "Praefix Zahl Trenner Text"-Format vorlag
+## (oq_split_caption_text() konnte die Zahl nicht verankern) und deshalb
+## unangetastet blieb.
+oq_apply_captions <- function(document_doc, captions, caption_options) {
   ns <- xml2::xml_ns(document_doc)
-  captions <- oq_find_table_caption_paragraphs(document_doc, ns)
 
   n_found <- length(captions)
   n_text_rewritten <- 0L
