@@ -432,6 +432,43 @@ Fehlerbericht) End-to-End nachgerendert und verifiziert: Tabellen- UND alle drei
 Beschriftungen tragen jetzt korrekt den konfigurierten `"caption"`-Style (`Bijschrift` als
 resolvter Style-ID im dortigen, niederlaendisch lokalisierten `reference-doc`).
 
+## Spike M — `officequarto.style-map`-Quell-IDs fuer eingebaute Word-Rollen sind reference-doc-abhaengig, verifiziert am 2026-08-29
+
+Nutzerbericht gegen `../hello-wordto`: `officequarto.style-map: {"Quote": [BlockQuote]}` sollte
+Absaetze einer nativen Markdown-Zitat-Auszeichnung (`> ...`) auf den Style `"Quote"` umleiten -
+funktioniert aber nicht (0 Absaetze umgemappt), obwohl derselbe Mechanismus fuer explizit per
+`custom-style="Quote"` ausgezeichnete Absaetze korrekt greift (die laufen gar nicht ueber
+`style-map` - Pandocs `custom-style`-Handling loest den Zielstyle direkt selbst auf).
+
+**Root Cause** (verifiziert per `officequarto.keep-rendered: true` + Rohdokument-Inspektion): der
+native `> `-Blockquote bekommt in `../hello-wordto`s Rendering tatsaechlich `pStyle="Bloktekst"`
+zugewiesen, nicht `"BlockQuote"`. Der Grund: `Bloktekst` ist die (niederlaendisch lokalisierte)
+`styleId` des in diesem `reference-doc` bereits vorhandenen eingebauten Word-Styles mit
+Anzeigenamen `"Block Text"` - Pandocs docx-Writer erkennt fuer bestimmte Element-Typen mit einem
+eingebauten Word-Rollen-Aequivalent (Blockquote ist einer davon), dass `reference-doc` diese Rolle
+bereits definiert, und referenziert dann DEREN echte `styleId` weiter, statt seine eigene generische
+`"BlockQuote"`-ID zu verwenden. `officequarto`s eigenes `original.docx`-Testtemplate definiert
+dagegen gar keinen eingebauten Blockquote-aequivalenten Style, weshalb Pandoc dort mangels
+Alternative auf seine generische `"BlockQuote"`-ID zurueckfaellt - weshalb das README/CLAUDE.md-
+Beispiel (`"Zitat ACME": [BlockQuote]`) dort "zufaellig" funktionieren wuerde, aber nie tatsaechlich
+end-to-end gegen echten Blockquote-Content in `template/report.qmd` getestet wurde (nur als
+Illustration in der Doku, nicht in `check_style_map.R`, das ausschliesslich synthetische XML-
+Testfaelle mit frei erfundenen IDs verwendet, oder in `check_writeback.R`, das nur den `Title`-Fall
+prueft).
+
+**Konsequenz**: die bisherige Doku-Aussage, `style-map`-Quell-IDs seien "Pandocs eigene, stabile,
+technische Style-IDs" (uneingeschraenkt portabel), stimmt so nur fuer Pandoc-eigene, generische
+Rollen ohne eingebautes Word-Aequivalent (`Normal`, `FirstParagraph`, `Compact`, `SourceCode`,
+`ImageCaption`/`TableCaption` - siehe Spike L). Fuer Rollen mit einem echten eingebauten Word-
+Gegenstueck (mindestens `Blockquote` bestaetigt; vermutlich auch weitere wie Ueberschriften-Ebenen)
+haengt die tatsaechlich von Pandoc vergebene `pStyle`-ID vom jeweiligen `reference-doc` ab -
+identisch zum bereits bekannten Lokalisierungsphaenomen bei Caption-Styles. Keine Code-Aenderung
+noetig (der `style-map`-Mechanismus selbst - Gleichheitsvergleich der `pStyle`-ID - funktioniert
+exakt wie entworfen); dies ist eine Doku-Luecke, kein Bug. README/CLAUDE.md um einen entsprechenden
+Hinweis ergaenzt: vor dem Einsatz von `style-map` fuer eingebaute-Rollen-Content den tatsaechlich
+gerenderten `pStyle` per `officequarto.keep-rendered: true` nachschlagen, statt eine feste ID wie
+`BlockQuote` anzunehmen.
+
 ## Offene Fragen aus Abschnitt 3 des Konzepts — Status
 
 | Frage | Status |

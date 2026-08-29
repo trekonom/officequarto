@@ -446,12 +446,29 @@ new name.
 Deliberately asymmetric source/target handling, mirroring the `SourceCode`/`code-block` precedent
 in `style_mapping.R`: the **target** (map key) is a real, user-facing style resolved via
 `oq_resolve_style_id()` against display names, fail-loud like everywhere else. The **source**
-values are Pandoc's own stable, technical style IDs (`Normal`, `Heading1`, `BlockQuote`, ...) —
-matched by direct equality (`oq_apply_style_map()`), not resolved as display names, and silently a
-no-op if a given source ID doesn't occur in the document at all (there's no reason to fail loudly
-over an ID that simply isn't used). `oq_resolve_style_map()` builds a flat source-ID → target-ID
-map from the nested config and fails loudly if the same source ID is claimed by two different
-targets (ambiguous).
+values are matched by direct `pStyle` equality (`oq_apply_style_map()`), not resolved as display
+names, and silently a no-op if a given source ID doesn't occur in the document at all (there's no
+reason to fail loudly over an ID that simply isn't used). `oq_resolve_style_map()` builds a flat
+source-ID → target-ID map from the nested config and fails loudly if the same source ID is claimed
+by two different targets (ambiguous).
+
+**Caveat, found via a real-world user report against `../hello-wordto` (see `dev/spike-notes.md`
+Spike M):** the source IDs are only unconditionally portable ("Pandoc's own stable, technical style
+IDs") for roles Pandoc invents itself when nothing better exists (`Normal`, `FirstParagraph`,
+`Compact`, `SourceCode`, `ImageCaption`/`TableCaption` — see Spike L). For a role with a genuine
+*built-in Word equivalent* — confirmed for blockquotes — Pandoc's docx writer instead reuses
+whatever style ID `reference-doc` already defines for that built-in role, which can be localized
+(e.g. `Bloktekst` for a Dutch template's "Block Text" style, not the generic `BlockQuote`) — same
+underlying phenomenon as the caption-style localization in Spike L, just via a different Pandoc
+code path (built-in-role reuse rather than caption-structure generation). `officequarto`'s own
+`original.docx` test template happens to define no blockquote-equivalent style at all, so Pandoc
+falls back to its generic `BlockQuote` ID there — which is why the README/here-documented
+`"Zitat ACME": [BlockQuote]` example "worked" without ever having been exercised end-to-end against
+real blockquote content in `template/report.qmd` (`check_style_map.R` only uses synthetic XML with
+made-up IDs; `check_writeback.R` only exercises the `Title` case). No code fix — `style-map`'s
+equality-match mechanism works exactly as designed; this is a documentation gap about Pandoc's own
+behavior, now called out in README with a pointer to verify actual `pStyle`s via
+`officequarto.keep-rendered: true` rather than assuming a fixed name.
 
 Runs **last** in `writeback.R`'s style-mapping pipeline, deliberately after `officequarto.styles`/
 `.lists`/`.pandoc-styles`/`.tables`/`.plots` — by that point most paragraphs already carry their final

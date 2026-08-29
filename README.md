@@ -437,10 +437,22 @@ format:
 Keys are real Word style **display names** in `reference-doc` (resolved the same fail-loud way as
 `body`/`list-bullet`/etc.); values are lists of **source paragraph style IDs** to redirect to that
 target — unlike the target side, these are matched as literal, technical Pandoc style IDs (e.g.
-`Title`, `Heading1`, `BlockQuote`), not resolved against display names, since they're stable,
-well-known Pandoc-internal identifiers rather than something you'd look up in Word's UI. A source
-ID that doesn't occur in the document is simply a no-op, not an error; a source ID assigned to two
-different targets is a configuration error and aborts.
+`Title`, `Heading1`, `BlockQuote`), not resolved against display names, since they're generally
+stable, well-known Pandoc-internal identifiers rather than something you'd look up in Word's UI. A
+source ID that doesn't occur in the document is simply a no-op, not an error; a source ID assigned
+to two different targets is a configuration error and aborts.
+
+> **Caveat — source IDs for built-in Word roles are not always portable.** For a genuinely
+> Pandoc-invented role (`Normal`, `FirstParagraph`, `Compact`, `SourceCode`, `ImageCaption`/
+> `TableCaption`), the source ID is always the same regardless of `reference-doc`. But for a role
+> that has a real *built-in Word equivalent* — confirmed for blockquotes (`> ...` in Markdown) —
+> Pandoc reuses whatever style ID your `reference-doc` already defines for that built-in role
+> instead of a fixed generic one, and that ID can be **localized** (e.g. a Dutch-authored template
+> may use `Bloktekst` for its "Block Text" style, not `BlockQuote`) — the same phenomenon documented
+> for caption styles above. If a `style-map` rule silently matches 0 paragraphs, render with
+> `officequarto.keep-rendered: true` and check the actual `pStyle` in
+> `<name>.quarto-rendered.docx` rather than assuming a name like `BlockQuote` from this example.
+> See `dev/spike-notes.md` (Spike M) for the empirical trail.
 
 This runs **last**, after every other style-mapping step, so by default it only affects paragraphs
 none of the curated options already touched — but since it matches on whatever `pStyle` a paragraph
