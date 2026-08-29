@@ -260,9 +260,8 @@ empirically; `officequarto-styles.body` explicitly excludes drawing-paragraphs s
 don't compete for the same paragraph).
 
 officedown's `fig.lp` is dropped for the same reason as `tab.lp` (see above) — no Quarto/post-render
-equivalent. `topcaption` (caption position) is deferred: it's a structural paragraph-reorder
-operation, not a style tweak, and will be implemented together for both tables and figures once
-figure captions (a future group) exist, rather than doing the same structural work twice.
+equivalent. `topcaption` (caption position) was implemented together for both tables and figures —
+see [Caption position](#caption-position-captionabove) below.
 
 ### Figure captions: style, prefix, separator, bold
 
@@ -285,6 +284,28 @@ Table and figure captions are structurally distinguished by whether Pandoc's syn
 caption-wrapper cell contains a nested table (table caption) or not (figure caption) — see
 [Table captions](#table-captions-style-prefix-separator-bold) above for the full mechanism; the
 actual text-rewriting logic is shared code, only the paragraph-finding differs.
+
+### Caption position: `caption.above`
+
+Both `officequarto-tables.caption` and `officequarto-plots.caption` accept an `above` field
+(officedown: `topcaption`) that moves the caption paragraph before or after its table/figure within
+Pandoc's wrapper cell:
+
+```yaml
+officequarto-tables:
+  caption:
+    above: false   # move the table caption after the table (Pandoc's own default is already "above")
+officequarto-plots:
+  caption:
+    above: true    # move the figure caption before the image (Pandoc's own default is already "below")
+```
+
+Worth knowing before you reach for this: Pandoc's own, unconfigured default already matches
+{officedown}'s per-type default (tables: caption above; figures: caption below) — `above` only
+needs setting when you want to *override* that default, e.g. to force a table's caption below it.
+Leave it unset otherwise. `above` lives under `caption` rather than as a top-level
+`officequarto-tables`/`officequarto-plots` field, grouped with the rest of the caption options
+since that's what it affects.
 
 ## Style pruning: keeping only reference-doc styles
 
@@ -381,12 +402,14 @@ aren't implemented yet.
 | `officequarto-tables.caption.prefix` | `tables_caption_pre` | Text before the number | unset (Pandoc-generated text) |
 | `officequarto-tables.caption.separator` | `tables_caption_sep` | Text between number and caption | unset (Pandoc-generated text) |
 | `officequarto-tables.caption.number-bold` | `tables_caption_bold` | Bold the prefix+number portion | unset (Pandoc default, not bold) |
+| `officequarto-tables.caption.above` | `tables_topcaption` | Move the caption before (`true`) or after (`false`) the table | unset (Pandoc default, already "above") |
 | `officequarto-plots.style` | `plots_style` | Paragraph style for the image paragraph | unset (Pandoc default) |
 | `officequarto-plots.align` | `plots_align` | Image alignment, `left`/`center`/`right` | unset (Pandoc default) |
 | `officequarto-plots.caption.style` | `plots_caption_style` | Paragraph style for the caption | unset (Pandoc's `ImageCaption`) |
 | `officequarto-plots.caption.prefix` | `plots_caption_pre` | Text before the number | unset (Pandoc-generated text) |
 | `officequarto-plots.caption.separator` | `plots_caption_sep` | Text between number and caption | unset (Pandoc-generated text) |
 | `officequarto-plots.caption.number-bold` | `plots_caption_bold` | Bold the prefix+number portion | unset (Pandoc default, not bold) |
+| `officequarto-plots.caption.above` | `plots_topcaption` | Move the caption before (`true`) or after (`false`) the figure | unset (Pandoc default, already "below") |
 
 ## Requirements
 

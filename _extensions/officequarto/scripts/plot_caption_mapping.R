@@ -26,3 +26,11 @@ oq_find_plot_caption_paragraphs <- function(document_doc, ns) {
     ns
   )
 }
+
+## Findet den zu einer Abbildungs-Beschriftung gehoerenden Inhaltsknoten (den
+## Bild-Absatz innerhalb derselben Wrapper-Zelle) - fuer oq_apply_captions()s
+## $above-Handling (siehe table_caption_mapping.R). NA, falls kein
+## Bild-Absatz gefunden wird.
+oq_plot_caption_content <- function(caption_p, ns) {
+  xml2::xml_find_first(xml2::xml_parent(caption_p), "./w:p[.//w:drawing]", ns)
+}

@@ -45,6 +45,14 @@ oq_find_table_caption_paragraphs <- function(document_doc, ns) {
   )
 }
 
+## Findet den zu einer Tabellen-Beschriftung gehoerenden Inhaltsknoten (die
+## verschachtelte, echte w:tbl innerhalb derselben Wrapper-Zelle) - fuer
+## oq_apply_captions()s $above-Handling (siehe dort). NA, falls keine
+## verschachtelte Tabelle existiert (z.B. bei einem atypischen Dokument).
+oq_table_caption_content <- function(caption_p, ns) {
+  xml2::xml_find_first(xml2::xml_parent(caption_p), "./w:tbl", ns)
+}
+
 ## Zerlegt den Text eines Beschriftungs-Laufs in [Text vor der Zahl] [Zahl]
 ## [Text nach der Zahl bis zum eigentlichen Beschriftungstext] [Rest]. Die
 ## erwartete Zahl wird von aussen uebergeben (officequarto zaehlt selbst,
@@ -106,28 +114,57 @@ oq_write_caption_run <- function(first_run, t_node, ns, pre, number, sep, rest, 
   invisible(NULL)
 }
 
-## Wendet caption_options ($style/$prefix/$separator/$number_bold, jeweils
-## optional) auf eine bereits gefundene Menge von Beschriftungsabsaetzen an
-## (in-place via xml2-Referenzsemantik). Generisch fuer Tabellen- UND
-## Abbildungs-Beschriftungen - die Formatierungslogik selbst ist fuer beide
-## identisch, nur die Suche nach den Absaetzen unterscheidet sich
-## (oq_find_table_caption_paragraphs() hier bzw.
-## oq_find_plot_caption_paragraphs() in plot_caption_mapping.R fuer Gruppe
-## 5). Nummeriert Beschriftungen selbst in Dokumentreihenfolge (1-basiert),
-## identisch zu Pandocs Zaehlung - da Tabellen- und Abbildungs-Beschriftungen
-## bei Pandoc getrennte Nummernkreise haben ("Table 1"/"Figure 1"
-## unabhaengig voneinander), muss diese Funktion fuer Tabellen und
-## Abbildungen JEWEILS SEPARAT mit ihrer eigenen, bereits gefundenen Menge
-## aufgerufen werden. Gibt list(n_found, n_text_rewritten) zurueck -
-## n_text_rewritten kann kleiner als n_found sein, wenn eine Beschriftung
-## nicht im erwarteten "Praefix Zahl Trenner Text"-Format vorlag
-## (oq_split_caption_text() konnte die Zahl nicht verankern) und deshalb
-## unangetastet blieb.
-oq_apply_captions <- function(document_doc, captions, caption_options) {
+## Verschiebt eine Beschriftung an die Position vor (above=TRUE) oder nach
+## (above=FALSE) ihren zugehoerigen Inhaltsknoten (verschachteltes w:tbl bei
+## Tabellen, Bild-Absatz bei Abbildungen - siehe content_finder-Parameter von
+## oq_apply_captions()), innerhalb derselben Pandoc-Wrapper-Zelle. Per
+## copy+remove statt eines direkten "Verschiebens" - xml2 bietet kein
+## natives Verschieben eines Knotens zwischen Positionen an, und
+## `xml_add_sibling(..., copy = FALSE)` erzeugt trotzdem eine Kopie und
+## entfernt das Original NICHT (empirisch verifiziert) - der Copy-Schritt
+## muss deshalb explizit durch xml_remove() des Originals ergaenzt werden.
+## Funktioniert unabhaengig von der bisherigen Position (kein Vorab-Check
+## noetig, da idempotent: eine bereits korrekt positionierte Beschriftung
+## landet nach copy+remove unveraendert an derselben Stelle).
+oq_move_caption <- function(caption_p, content_node, above) {
+  where <- if (isTRUE(above)) "before" else "after"
+  xml2::xml_add_sibling(content_node, caption_p, .where = where, copy = TRUE)
+  xml2::xml_remove(caption_p)
+  invisible(NULL)
+}
+
+## Wendet caption_options ($style/$prefix/$separator/$number_bold/$above,
+## jeweils optional) auf eine bereits gefundene Menge von
+## Beschriftungsabsaetzen an (in-place via xml2-Referenzsemantik). Generisch
+## fuer Tabellen- UND Abbildungs-Beschriftungen - die Formatierungslogik
+## selbst ist fuer beide identisch, nur die Suche nach den Absaetzen (und,
+## fuer $above, die Suche nach dem zugehoerigen Inhaltsknoten via
+## content_finder) unterscheidet sich (oq_find_table_caption_paragraphs()/
+## oq_table_caption_content() hier bzw. oq_find_plot_caption_paragraphs()/
+## oq_plot_caption_content() in plot_caption_mapping.R fuer Gruppe 5).
+## content_finder: function(caption_p, ns) -> Inhaltsknoten oder NA; nur
+## noetig, wenn caption_options$above gesetzt ist. Nummeriert Beschriftungen
+## selbst in Dokumentreihenfolge (1-basiert), identisch zu Pandocs Zaehlung -
+## da Tabellen- und Abbildungs-Beschriftungen bei Pandoc getrennte
+## Nummernkreise haben ("Table 1"/"Figure 1" unabhaengig voneinander), muss
+## diese Funktion fuer Tabellen und Abbildungen JEWEILS SEPARAT mit ihrer
+## eigenen, bereits gefundenen Menge aufgerufen werden. $above wird bewusst
+## als LETZTER Schritt pro Beschriftung angewendet (nach Style-Remap und
+## Text-Rewrite) - erst nachdem alle Aenderungen am noch angehefteten Knoten
+## vorgenommen wurden, wird er per copy+remove verschoben; ein Verschieben
+## VOR den anderen Schritten wuerde mit einem bereits vom Dokumentbaum
+## abgetrennten Knoten weiterarbeiten. Gibt list(n_found, n_text_rewritten,
+## n_moved) zurueck - n_text_rewritten kann kleiner als n_found sein, wenn
+## eine Beschriftung nicht im erwarteten "Praefix Zahl Trenner Text"-Format
+## vorlag (oq_split_caption_text() konnte die Zahl nicht verankern) und
+## deshalb unangetastet blieb; n_moved kann kleiner als n_found sein, wenn
+## fuer eine Beschriftung kein zugehoeriger Inhaltsknoten gefunden wurde.
+oq_apply_captions <- function(document_doc, captions, caption_options, content_finder = NULL) {
   ns <- xml2::xml_ns(document_doc)
 
   n_found <- length(captions)
   n_text_rewritten <- 0L
+  n_moved <- 0L
 
   needs_text_rewrite <- !is.null(caption_options$prefix) ||
     !is.null(caption_options$separator) ||
@@ -156,7 +193,15 @@ oq_apply_captions <- function(document_doc, captions, caption_options) {
         }
       }
     }
+
+    if (!is.null(caption_options$above) && !is.null(content_finder)) {
+      content_node <- content_finder(p, ns)
+      if (!is.na(content_node)) {
+        oq_move_caption(p, content_node, caption_options$above)
+        n_moved <- n_moved + 1L
+      }
+    }
   }
 
-  list(n_found = n_found, n_text_rewritten = n_text_rewritten)
+  list(n_found = n_found, n_text_rewritten = n_text_rewritten, n_moved = n_moved)
 }

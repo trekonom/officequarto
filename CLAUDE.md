@@ -314,18 +314,18 @@ all, just an image paragraph + caption paragraph). Replaced with a more precise,
 `//w:tbl[not(./w:tr/w:tc/w:p/w:pPr/w:pStyle/@w:val='ImageCaption')]` — excludes any table whose own
 direct cell contains an `ImageCaption`-styled paragraph, which identifies the wrapper itself
 (regardless of what it wraps) rather than inferring it from nested-table presence. This detection
-depends on `oq_apply_table_options()` running **before** `oq_apply_table_captions()` in
-`writeback.R`'s per-file block (current order) — by the time captions would have remapped
-`ImageCaption` to a user style, this signature would no longer match.
+depends on `oq_apply_table_options()` running **before** `oq_apply_captions()` (the caption
+style/text/position pass, Gruppe 3/5, see below) in `writeback.R`'s per-file block (current order)
+— by the time captions would have remapped `ImageCaption` to a user style, this signature would no
+longer match.
 
 officedown's `fig.lp` was dropped for the identical reason as `tab.lp` (see above) — no
-Quarto/post-render equivalent. `topcaption` (caption position, tables *and* figures) is
-deliberately deferred rather than implemented per-group: it's a structural paragraph-reorder
-operation (move the caption paragraph before/after its table or image within the wrapper cell),
-conceptually identical for both, and is planned as one combined follow-up once figure captions
-(a future group, analogous to Gruppe 3) exist — implementing it once for `officequarto-tables.
-caption-above` alone would mean redoing the same reordering logic again for
-`officequarto-plots.caption-above` shortly after.
+Quarto/post-render equivalent. `topcaption` (caption position, tables *and* figures) was
+deliberately deferred out of this group rather than implemented per-group: it's a structural
+paragraph-reorder operation (move the caption paragraph before/after its table or image within the
+wrapper cell), conceptually identical for both — implemented later as one combined follow-up once
+figure captions (Gruppe 5) existed, see "Caption position" below, rather than building the same
+reordering logic twice.
 
 ### Figure captions (`officequarto-plots.caption`, `plot_caption_mapping.R`, Gruppe 5)
 
@@ -342,6 +342,41 @@ holds an image paragraph, not a nested table. `writeback.R` calls `oq_apply_capt
 per finder, each with its own independent 1-based numbering counter — table and figure captions
 have separate number sequences in Quarto ("Table 1"/"Figure 1" independently), so they must not
 share a single running count.
+
+### Caption position (`caption.above`, combined tables+figures follow-up)
+
+Implements the `topcaption` field deferred from both Gruppe 1 (tables) and Gruppe 4 (figures),
+built once both had full caption infrastructure (Gruppe 3/5) to share. Lives at
+`officequarto-tables.caption.above`/`officequarto-plots.caption.above` — nested under `caption`
+rather than as a flat top-level field like officedown's `topcaption`, since a proper `caption`
+sub-section now exists and this option belongs there with the rest.
+
+**Key empirical fact that shapes the whole feature**: Pandoc's own, unconfigured default caption
+position already matches {officedown}'s own per-type default — captions render **above** tables
+and **below** figures out of the box (verified directly against real rendered XML). `above` is
+therefore needed only to *override* that default, never to achieve it; per-field opt-in (unset =
+untouched) means this "just works" without any active default-matching logic.
+
+Implementation, split for reuse:
+- `oq_move_caption(caption_p, content_node, above)` (`table_caption_mapping.R`) does the actual
+  reorder. xml2 has no native "move a node" primitive — `xml_add_sibling(..., copy = FALSE)` was
+  verified empirically to still copy rather than move (leaves the original in place, producing a
+  duplicate) — so the move is copy-then-remove-original (`copy = TRUE` followed by
+  `xml2::xml_remove()` on the original reference). Verified this leaves only a harmless, valid
+  redundant `xmlns:w` re-declaration on the moved node (libxml2's normal behavior when copying a
+  node across contexts), nothing that affects document validity or Word's rendering.
+- Folded into `oq_apply_captions()` (not a separate pass) as the **last** step per caption, after
+  style remap and text rewrite — deliberately, since those mutate the paragraph in place and must
+  happen while it's still attached to the tree; moving first would mean operating on an already-
+  detached node for the rest.
+- `content_finder` parameter (`function(caption_p, ns) -> node`) supplies the type-specific
+  "what does this caption belong to" lookup: `oq_table_caption_content()` (the nested `w:tbl`) vs.
+  `oq_plot_caption_content()` (the drawing-paragraph) — mirroring the split already used for
+  `oq_find_table_caption_paragraphs()`/`oq_find_plot_caption_paragraphs()`.
+- Verified end-to-end in both directions against the test template (table caption moved *after*
+  its table, figure caption moved *before* its image — both against Pandoc's native default) — and
+  that Pandoc's `w:bookmarkStart`/`w:bookmarkEnd` crossref anchors, which aren't touched by the
+  move, remain correctly positioned regardless.
 
 officedown's `tab.lp`/`fig.lp` (bookdown cross-reference label-prefix options) were deliberately
 **not** ported — researched explicitly before implementing Gruppe 1: they're a source-syntax

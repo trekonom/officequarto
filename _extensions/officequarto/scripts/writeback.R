@@ -186,6 +186,16 @@ table_caption_bold_val <- if (!is.null(table_caption_config)) {
 if (!is.null(table_caption_bold_val) && (!is.logical(table_caption_bold_val) || length(table_caption_bold_val) != 1 || is.na(table_caption_bold_val))) {
   fail("officequarto-tables.caption.number-bold muss true oder false sein (erhalten: '%s').", table_caption_bold_val)
 }
+## caption-above (officedown: topcaption) - nachtraeglich unter caption.above
+## eingeordnet statt als eigener Top-Level-Schluessel (urspruenglicher
+## Vorschlag vor Gruppe 3), da jetzt ein caption-Abschnitt existiert und alle
+## Beschriftungs-Optionen dort zusammengehoeren.
+table_caption_above_val <- if (!is.null(table_caption_config)) {
+  oq_resolve_aliased(table_caption_config, "above", "tables_topcaption", "officequarto-tables.caption", warn_msg)
+} else NULL
+if (!is.null(table_caption_above_val) && (!is.logical(table_caption_above_val) || length(table_caption_above_val) != 1 || is.na(table_caption_above_val))) {
+  fail("officequarto-tables.caption.above muss true oder false sein (erhalten: '%s').", table_caption_above_val)
+}
 
 ## Gruppe 4 (officequarto-plots.style/align) - fig.lp bewusst nicht portiert
 ## (siehe plot_mapping.R), topcaption zurueckgestellt (siehe oben).
@@ -217,6 +227,12 @@ plot_caption_bold_val <- if (!is.null(plot_caption_config)) {
 } else NULL
 if (!is.null(plot_caption_bold_val) && (!is.logical(plot_caption_bold_val) || length(plot_caption_bold_val) != 1 || is.na(plot_caption_bold_val))) {
   fail("officequarto-plots.caption.number-bold muss true oder false sein (erhalten: '%s').", plot_caption_bold_val)
+}
+plot_caption_above_val <- if (!is.null(plot_caption_config)) {
+  oq_resolve_aliased(plot_caption_config, "above", "plots_topcaption", "officequarto-plots.caption", warn_msg)
+} else NULL
+if (!is.null(plot_caption_above_val) && (!is.logical(plot_caption_above_val) || length(plot_caption_above_val) != 1 || is.na(plot_caption_above_val))) {
+  fail("officequarto-plots.caption.above muss true oder false sein (erhalten: '%s').", plot_caption_above_val)
 }
 
 ## Uebertraegt dc:subject, cp:keywords, cp:category aus core_from in core_to und
@@ -324,13 +340,13 @@ for (rel_path in docx_outputs) {
     }
 
     if (!is.null(table_caption_config)) {
-      caption_options <- list(prefix = table_caption_prefix_val, separator = table_caption_separator_val, number_bold = table_caption_bold_val)
+      caption_options <- list(prefix = table_caption_prefix_val, separator = table_caption_separator_val, number_bold = table_caption_bold_val, above = table_caption_above_val)
       if (!is.null(table_caption_style_val)) {
         caption_options$style <- oq_resolve_style_id(name_to_id, table_caption_style_val, "officequarto-tables.caption.style", fail)
       }
-      caption_result <- oq_apply_captions(document_doc, oq_find_table_caption_paragraphs(document_doc, xml2::xml_ns(document_doc)), caption_options)
-      log_msg("Tabellen-Beschriftungen: %d gefunden, %d Text umformatiert.",
-               caption_result$n_found, caption_result$n_text_rewritten)
+      caption_result <- oq_apply_captions(document_doc, oq_find_table_caption_paragraphs(document_doc, xml2::xml_ns(document_doc)), caption_options, oq_table_caption_content)
+      log_msg("Tabellen-Beschriftungen: %d gefunden, %d Text umformatiert, %d verschoben.",
+               caption_result$n_found, caption_result$n_text_rewritten, caption_result$n_moved)
     }
 
     if (!is.null(plot_config)) {
@@ -343,13 +359,13 @@ for (rel_path in docx_outputs) {
     }
 
     if (!is.null(plot_caption_config)) {
-      plot_caption_options <- list(prefix = plot_caption_prefix_val, separator = plot_caption_separator_val, number_bold = plot_caption_bold_val)
+      plot_caption_options <- list(prefix = plot_caption_prefix_val, separator = plot_caption_separator_val, number_bold = plot_caption_bold_val, above = plot_caption_above_val)
       if (!is.null(plot_caption_style_val)) {
         plot_caption_options$style <- oq_resolve_style_id(name_to_id, plot_caption_style_val, "officequarto-plots.caption.style", fail)
       }
-      plot_caption_result <- oq_apply_captions(document_doc, oq_find_plot_caption_paragraphs(document_doc, xml2::xml_ns(document_doc)), plot_caption_options)
-      log_msg("Abbildungs-Beschriftungen: %d gefunden, %d Text umformatiert.",
-               plot_caption_result$n_found, plot_caption_result$n_text_rewritten)
+      plot_caption_result <- oq_apply_captions(document_doc, oq_find_plot_caption_paragraphs(document_doc, xml2::xml_ns(document_doc)), plot_caption_options, oq_plot_caption_content)
+      log_msg("Abbildungs-Beschriftungen: %d gefunden, %d Text umformatiert, %d verschoben.",
+               plot_caption_result$n_found, plot_caption_result$n_text_rewritten, plot_caption_result$n_moved)
     }
 
     xml2::write_xml(document_doc, document_path)

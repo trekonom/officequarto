@@ -157,6 +157,14 @@ if (!identical(caption_second_text, " -- Quartalskennzahlen")) {
 }
 ok("Tabellen-Beschriftungstext korrekt umformatiert: fett 'Tab. 1' + ' -- Quartalskennzahlen' (prefix/separator via officequarto-tables.caption, separator ueber officedown-Alias)")
 
+## officequarto-tables.caption.above: false (Testkonfig) - Beschriftung soll
+## NACH der Tabelle stehen, gegen Pandocs Default (Tabellen: Beschriftung oben).
+table_caption_after_tbl <- xml_find_first(caption_p, "./preceding-sibling::w:tbl[1]", ns)
+if (is.na(table_caption_after_tbl)) {
+  fail("Tabellen-Beschriftung sollte NACH der Tabelle stehen (officequarto-tables.caption.above: false), steht aber davor")
+}
+ok("Tabellen-Beschriftung steht nach der Tabelle (officequarto-tables.caption.above: false, gegen Pandocs Default)")
+
 plot_p <- xml_find_first(document_doc, "//w:p[.//w:drawing]", ns)
 if (is.na(plot_p)) fail("kein Abbildungs-Absatz (w:p mit w:drawing) im Ergebnis-Dokument gefunden (erwartet: die Abbildung aus report.qmd)")
 plot_pstyle <- xml_attr(xml_find_first(plot_p, "./w:pPr/w:pStyle", ns), "val")
@@ -191,6 +199,15 @@ if (!identical(plot_caption_second_text, " | Umsatzentwicklung")) {
   fail("Abbildungs-Beschriftung: zweiter Lauf sollte ' | Umsatzentwicklung' sein (officequarto-plots.caption.separator), gefunden: '%s'", plot_caption_second_text)
 }
 ok("Abbildungs-Beschriftungstext korrekt umformatiert: nicht-fett 'Abb. 1' + ' | Umsatzentwicklung' (prefix/separator/number-bold via officequarto-plots.caption, teils ueber officedown-Alias)")
+
+## officequarto-plots.caption.above: true (Testkonfig, via Alias
+## plots_topcaption) - Beschriftung soll VOR der Abbildung stehen, gegen
+## Pandocs Default (Abbildungen: Beschriftung unten).
+plot_caption_before_img <- xml_find_first(plot_caption_p, "./following-sibling::w:p[.//w:drawing][1]", ns)
+if (is.na(plot_caption_before_img)) {
+  fail("Abbildungs-Beschriftung sollte VOR der Abbildung stehen (officequarto-plots.caption.above: true via Alias plots_topcaption), steht aber danach")
+}
+ok("Abbildungs-Beschriftung steht vor der Abbildung (officequarto-plots.caption.above: true via officedown-Alias plots_topcaption, gegen Pandocs Default)")
 
 rendered_styles_doc <- read_xml(file.path(tmp, "word", "styles.xml"))
 rendered_style_ids <- xml_attr(xml_find_all(rendered_styles_doc, "//w:style", ns), "styleId")

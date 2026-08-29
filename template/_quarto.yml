@@ -26,6 +26,7 @@ format:
         prefix: "Tab. "
         tables_caption_sep: " -- "          # officedown-Alias fuer separator
         number-bold: true
+        above: false                        # gegen Pandocs Default (Tabellen: Beschriftung oben)
     officequarto-plots:
       style: "Abbildung ACME"
       plots_align: right                    # officedown-Alias fuer align
@@ -34,3 +35,4 @@ format:
         prefix: "Abb. "
         separator: " | "
         plots_caption_bold: false           # officedown-Alias fuer number-bold
+        plots_topcaption: true               # officedown-Alias fuer above (gegen Pandocs Default: Abbildungen unten)
