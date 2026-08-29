@@ -33,7 +33,7 @@ always-safe unused-style case.
 
 `template/_extensions` is a symlink to `../_extensions` — this is how the extension is exercised
 during development without a separate `quarto add` install. `template/_quarto.yml` sets
-`officequarto-keep-rendered: true`, so rendering produces `report.docx` (final, in-place
+`officequarto.keep-rendered: true`, so rendering produces `report.docx` (final, in-place
 overwritten) and `report.quarto-rendered.docx` (the pre-write-back debug copy) in `template/`
 (both gitignored); clean up with:
 
@@ -98,8 +98,8 @@ _extensions/officequarto/
 
 template/                     example/dev project
 ├── _quarto.yml                project: type: officequarto; format.docx.reference-doc +
-│                               format.docx.officequarto-styles + officequarto-pandoc-styles
-│                               + officequarto-keep-rendered
+│                               format.docx.officequarto (styles/lists/pandoc-styles/
+│                               keep-rendered/...)
 ├── original.docx              sample reference-doc (custom header/footer/properties/styles)
 └── report.qmd                 the .qmd rendered against original.docx
 ```
@@ -111,19 +111,20 @@ template/                     example/dev project
    behavior, no custom code involved.
 2. `scripts/writeback.R` runs automatically as a post-render hook. For each rendered `.docx`
    output it:
-   - Resolves `reference-doc` and the optional `officequarto-styles`/`officequarto-pandoc-styles`/
-     `officequarto-keep-rendered` config via `quarto inspect <project_dir>` (parsed JSON) rather
-     than hand-parsing `_quarto.yml` — this correctly reflects resolved/merged config.
+   - Resolves `reference-doc` and the optional `officequarto.styles`/`officequarto.lists`/
+     `officequarto.pandoc-styles`/`officequarto.keep-rendered` config via
+     `quarto inspect <project_dir>` (parsed JSON) rather than hand-parsing `_quarto.yml` — this
+     correctly reflects resolved/merged config.
    - Unzips the rendered docx into a temp `work_dir`.
    - Merges `docProps/core.xml` fields (`dc:subject`, `cp:keywords`, `dc:description`,
      `cp:category`) and copies `docProps/custom.xml` from the original — these are the properties
      Pandoc does *not* carry over from `reference-doc` (it writes fresh, largely empty ones).
-   - If `officequarto-styles` is configured, applies style-mapping to `word/document.xml` (see
-     below) via `style_mapping.R`.
+   - If `officequarto.styles`/`officequarto.lists` is configured, applies style-mapping to
+     `word/document.xml` (see below) via `style_mapping.R`.
    - Always (unconditionally, no config): removes every style definition in the rendered
      `word/styles.xml` whose ID isn't present in `reference-doc`'s own `word/styles.xml` (see
      "Style pruning" below).
-   - If `officequarto-keep-rendered` is `true`, copies the still-untouched rendered docx to
+   - If `officequarto.keep-rendered` is `true`, copies the still-untouched rendered docx to
      `<name>.quarto-rendered.docx` before it gets overwritten (debug artifact, analogous to
      Quarto's own `keep-md`).
    - Re-zips `work_dir` into a temp file, then copies that over the original rendered path
@@ -141,13 +142,35 @@ merging two structurally similar documents. `writeback.R` therefore treats the P
 docx as already correct for body/header/footer/layout, and only patches metadata and styles on top
 of it. See `dev/spike-notes.md` (Spike A) for the full empirical trail.
 
-### Style-mapping (`officequarto-styles`)
+### Configuration namespace (`officequarto`, single top-level key)
 
-Configured under `format: docx: officequarto-styles: { body, list-bullet, list-number }` (all
-optional, independent). Values are Word **display names** (`w:name`), not internal style IDs —
-`style_mapping.R` resolves those against `word/styles.xml` of the rendered output and aborts with
-the list of available paragraph styles if a configured name isn't found (fail loud, no silent
-fallback).
+All configuration lives under one `format.docx.officequarto` key — no `officequarto-`-prefixed
+sibling keys directly under `format.docx` (an earlier design; explicitly restructured on the
+user's request, since the growing number of sibling keys had gotten verbose). Every option group
+is a subsection inside it: `officequarto.styles`, `officequarto.lists`, `officequarto.tables`,
+`officequarto.plots`, `officequarto.style-map`, `officequarto.page`, `officequarto.crossref`,
+`officequarto.pandoc-styles`, plus the scalar `officequarto.keep-rendered`. `writeback.R` reads the
+whole block once (`officequarto_config <- inspect$config$format$docx$officequarto`) and passes each
+named sub-list down to the relevant group's config-resolution code — the resolution logic itself
+(`oq_resolve_aliased()` etc.) is unaffected, since it already only ever saw the sub-list for its
+own group, never the full `format.docx` object. As part of this restructuring, list options
+(`list-bullet`/`list-number`/`list-letter`) were split out of the old combined
+`officequarto-styles` into their own `officequarto.lists` subsection, sibling to
+`officequarto.tables`/`officequarto.plots` — see "Style-mapping" below. This is a breaking change
+with no back-compat fallback for the old flat keys (consistent with this project's prototype status
+and no-backwards-compat-hacks philosophy) — `template/_quarto.yml` was migrated; `../hello-wordto`
+(external consumer project) was deliberately left on the old schema, out of scope for this change.
+
+### Style-mapping (`officequarto.styles.body`, `officequarto.lists.*`)
+
+Body text is configured under `officequarto.styles: { body }`; list options live in their own
+sibling subsection, `officequarto.lists: { list-bullet, list-number, list-letter }` — split out
+from a single combined `styles` section specifically so it could mirror `officequarto.tables`/
+`officequarto.plots` as its own named group (see "Configuration namespace" above). All fields
+across both subsections are optional, independent. Values are Word **display names** (`w:name`),
+not internal style IDs — `style_mapping.R` resolves those against `word/styles.xml` of the
+rendered output and aborts with the list of available paragraph styles if a configured name isn't
+found (fail loud, no silent fallback).
 
 Key empirical fact driving the implementation (verified against real rendered output, not just
 Pandoc docs — see `dev/spike-notes.md` Spike D): Pandoc does **not** use one fixed style ID for
@@ -172,7 +195,7 @@ detection logic in `style_mapping.R`:
 
 ### Option aliases (`option_aliases.R`)
 
-`officequarto`'s own option names (`officequarto-styles.list-bullet`/`list-number`, and future
+`officequarto`'s own option names (`officequarto.lists.list-bullet`/`list-number`, and future
 ported {officedown} option groups) are deliberately **not** a mechanical 1:1 translation of
 {officedown}'s option names (only `.` → `_`) — they're chosen fresh, to read clearly on their own
 without prior {officedown} knowledge. To ease migration for {officedown} users, the original
@@ -190,12 +213,12 @@ porting further {officedown} option groups (tables, captions, page layout, etc.)
 canonical option that has an {officedown} equivalent should resolve through
 `oq_resolve_aliased()` the same way `list-bullet`/`list-number` do for `ul_style`/`ol_style`.
 
-### Table options (`officequarto-tables`, `table_mapping.R`)
+### Table options (`officequarto.tables`, `table_mapping.R`)
 
 Gruppe 1 of the ongoing {officedown}-option port (see `README.md`'s Option reference table for the
 full canonical-name/alias list, filled in incrementally as further groups land). Configured under
-`format: docx: officequarto-tables: { style, layout, width }`, each field independently optional
-(per-field opt-in, same philosophy as `officequarto-styles` — an unset field is left exactly as
+`format: docx: officequarto: tables: { style, layout, width }`, each field independently optional
+(per-field opt-in, same philosophy as `officequarto.styles`/`officequarto.lists` — an unset field is left exactly as
 Pandoc rendered it; **deliberately no** auto-fill with officedown's own always-on defaults
 (`style: "Table"`, `layout: "autofit"`, `width: 1.0`), since those are officedown-template-specific
 assumptions that would fail loudly for most real-world `reference-doc` files that don't happen to
@@ -226,7 +249,7 @@ user). `style`/`layout`/`width` also accept the officedown aliases `tables_style
   !is.null(table_config)`, with `styles_doc`/`document_doc` read once and `document_doc` written
   once at the end, each sub-feature applied conditionally in between.
 
-### Table conditional formatting (`officequarto-tables.conditional`, Gruppe 2)
+### Table conditional formatting (`officequarto.tables.conditional`, Gruppe 2)
 
 Maps onto `w:tblLook`, the OOXML element controlling which of a table style's conditional
 formatting variants apply (Word's "Table Style Options" checkboxes: Header Row, Total Row,
@@ -254,7 +277,7 @@ against/falling back from the canonical value. `oq_resolve_table_bool_option()` 
 wraps whichever of the two applies (via an `invert` flag) plus fail-loud boolean-type validation,
 used for all six conditional fields in `writeback.R`.
 
-### Table captions (`officequarto-tables.caption`, `table_caption_mapping.R`, Gruppe 3)
+### Table captions (`officequarto.tables.caption`, `table_caption_mapping.R`, Gruppe 3)
 
 The hardest group implemented so far, because Quarto's docx table captions currently render as
 **static, already-baked-in text** (`"Table 1: My caption"` as a single `<w:r><w:t>` run, verified
@@ -322,13 +345,13 @@ caption instead.
   replicating this would mean officequarto independently tracking heading boundaries and
   maintaining its own numbering scheme, substantially bigger than anything else in this port.
 
-### Figure options (`officequarto-plots`, `plot_mapping.R`, Gruppe 4)
+### Figure options (`officequarto.plots`, `plot_mapping.R`, Gruppe 4)
 
 Mirrors Gruppe 1's `style` for the paragraph holding a figure, plus `align` (maps to `w:jc`, find-
 or-create like `w:tblLayout`/`w:tblW` in Gruppe 1). Figure paragraphs are detected via presence of
 a `w:drawing` descendant (`oq_find_plot_paragraphs()`) rather than by style name — verified
 empirically (rendering a minimal figure) that Pandoc assigns the SAME context-dependent role name
-to image paragraphs as to body-text paragraphs (e.g. `Compact`), meaning `officequarto-styles.body`
+to image paragraphs as to body-text paragraphs (e.g. `Compact`), meaning `officequarto.styles.body`
 would otherwise silently also remap image paragraphs. Fixed by excluding any paragraph containing
 a `w:drawing` from the body-role check in `oq_apply_style_mapping()` (`style_mapping.R`) — the two
 features now cleanly own disjoint sets of paragraphs.
@@ -356,7 +379,7 @@ wrapper cell), conceptually identical for both — implemented later as one comb
 figure captions (Gruppe 5) existed, see "Caption position" below, rather than building the same
 reordering logic twice.
 
-### Figure captions (`officequarto-plots.caption`, `plot_caption_mapping.R`, Gruppe 5)
+### Figure captions (`officequarto.plots.caption`, `plot_caption_mapping.R`, Gruppe 5)
 
 Identical fields, identical mechanism, and identical `tnd`/`tns` exclusion rationale as Gruppe 3
 (table captions) — implemented as a refactor rather than a duplicate: `oq_apply_table_captions()`
@@ -380,7 +403,7 @@ share a single running count.
 
 Implements the `topcaption` field deferred from both Gruppe 1 (tables) and Gruppe 4 (figures),
 built once both had full caption infrastructure (Gruppe 3/5) to share. Lives at
-`officequarto-tables.caption.above`/`officequarto-plots.caption.above` — nested under `caption`
+`officequarto.tables.caption.above`/`officequarto.plots.caption.above` — nested under `caption`
 rather than as a flat top-level field like officedown's `topcaption`, since a proper `caption`
 sub-section now exists and this option belongs there with the rest.
 
@@ -411,14 +434,14 @@ Implementation, split for reuse:
   that Pandoc's `w:bookmarkStart`/`w:bookmarkEnd` crossref anchors, which aren't touched by the
   move, remain correctly positioned regardless.
 
-### Free-form style mapping (`officequarto-style-map`, `style_map.R`, Gruppe 7)
+### Free-form style mapping (`officequarto.style-map`, `style_map.R`, Gruppe 7)
 
-Officedown's `mapstyles` renamed to `officequarto-style-map` (Schritt A confirmed with the user
-before implementing) — a new top-level section (sibling of `officequarto-styles`/`-tables`/
-`-plots`), not nested inside `officequarto-styles`, since mixing a free-form map with that
-section's fixed named slots (`body`/`list-bullet`/etc.) would be confusing. No section-level
-officedown alias exists (unlike every other group's per-field aliases) — `mapstyles:` itself isn't
-recognized, only the new name.
+Officedown's `mapstyles` renamed to `officequarto.style-map` (Schritt A confirmed with the user
+before implementing) — its own subsection (sibling of `officequarto.styles`/`.lists`/`.tables`/
+`.plots`), not nested inside `officequarto.styles`, since mixing a free-form map with that
+section's fixed named slots (`body`) would be confusing. No section-level officedown alias exists
+(unlike every other group's per-field aliases) — `mapstyles:` itself isn't recognized, only the
+new name.
 
 Deliberately asymmetric source/target handling, mirroring the `SourceCode`/`code-block` precedent
 in `style_mapping.R`: the **target** (map key) is a real, user-facing style resolved via
@@ -430,14 +453,14 @@ over an ID that simply isn't used). `oq_resolve_style_map()` builds a flat sourc
 map from the nested config and fails loudly if the same source ID is claimed by two different
 targets (ambiguous).
 
-Runs **last** in `writeback.R`'s style-mapping pipeline, deliberately after `officequarto-styles`/
-`-pandoc-styles`/`-tables`/`-plots` — by that point most paragraphs already carry their final
+Runs **last** in `writeback.R`'s style-mapping pipeline, deliberately after `officequarto.styles`/
+`.lists`/`.pandoc-styles`/`.tables`/`.plots` — by that point most paragraphs already carry their final
 `pStyle`, so a typical rule (keyed on Pandoc's own generated names) naturally only touches
 paragraphs none of the curated options already claimed, while a rule deliberately keyed on an
 already-remapped target name can still reach and further override it, since matching is always
 against whatever `pStyle` a paragraph currently has at that point in the pipeline.
 
-### Page layout (`officequarto-page`, `page_mapping.R`, Gruppe 8)
+### Page layout (`officequarto.page`, `page_mapping.R`, Gruppe 8)
 
 Unlike every other group, this touches section properties (`w:sectPr`/`w:pgSz`/`w:pgMar`), not
 paragraph or table styles — and unlike `tab.lp`/`fig.lp`, this one genuinely needed a post-render
@@ -447,9 +470,9 @@ docx writer has no YAML override mechanism for them at all (unlike its LaTeX/PDF
 `geometry` options), so overriding them without hand-editing `reference-doc` requires a direct XML
 patch.
 
-One combined top-level section `officequarto-page` (`size`/`margins` sub-groups), not two separate
+One combined top-level section `officequarto.page` (`size`/`margins` sub-groups), not two separate
 sections mirroring officedown's `page_size`/`page_margins` — confirmed with the user in Schritt A,
-consistent with how `officequarto-tables` groups `conditional`/`caption` rather than splitting into
+consistent with how `officequarto.tables` groups `conditional`/`caption` rather than splitting into
 more top-level sections. `orient` renamed to `orientation` (also confirmed); the officedown alias
 stays `page_size_orient` (officedown's literal historical name, needed verbatim for migration
 regardless of the new canonical spelling).
@@ -466,7 +489,7 @@ returning a resolved named list — introduced here because this group has ten n
 (three `size` + seven `margins`), where the previous one-call-per-field pattern used by every
 earlier group would have been pure repetition.
 
-**Verified empirically** (comparing `officequarto-keep-rendered`'s pre-patch debug copy against the
+**Verified empirically** (comparing `officequarto.keep-rendered`'s pre-patch debug copy against the
 final output) that Pandoc's own unpatched `w:sectPr` already orders `pgMar` before `pgSz` before
 `type` — technically not `CT_SectPr`'s defined schema sequence (which places `type` before `pgSz`
 before `pgMar`), but Word tolerates it and it predates any officequarto involvement: this code only
@@ -475,14 +498,14 @@ creates or repositions them (both already exist in every real `reference-doc`-de
 there was nothing here for officequarto to have broken or to fix — unlike the Gruppe 1 `w:tblPr`
 child-ordering issue, which was a real, first-created-by-officequarto ordering bug.
 
-### Cross-reference text (`officequarto-crossref`, `crossref_mapping.R`, Gruppe 9)
+### Cross-reference text (`officequarto.crossref`, `crossref_mapping.R`, Gruppe 9)
 
 The last group of the officedown port, and the one closest in spirit to the reasons `tab.lp`/
 `fig.lp` got dropped — but implemented anyway (explicit user call after weighing the tradeoff):
 `@tbl-xyz`/`@fig-xyz` cross-references are, like captions, already resolved to static text (a
 `w:hyperlink[@w:anchor]` run reading e.g. `"Table 1"`) before `writeback.R` ever sees the document —
 confirmed empirically during the original `tab.lp` research. There's no live field to flip;
-`officequarto-crossref.numbered: false` (officedown: `reference_num`) works by finding every
+`officequarto.crossref.numbered: false` (officedown: `reference_num`) works by finding every
 cross-reference hyperlink whose anchor matches a known caption's bookmark and replacing its text
 with that caption's own descriptive text.
 
@@ -490,7 +513,7 @@ with that caption's own descriptive text.
   Gruppe 3/5's shared function) was extended to *always* compute `oq_split_caption_text()`'s
   `$rest` and record it against the caption's bookmark name (`oq_caption_anchor_name()`) in a
   returned `anchor_text` map — regardless of whether `needs_text_rewrite` is true, i.e. regardless
-  of whether `officequarto-tables.caption`/`officequarto-plots.caption` are configured at all. Only
+  of whether `officequarto.tables.caption`/`officequarto.plots.caption` are configured at all. Only
   the actual in-place XML rewrite (`oq_write_caption_run()`) stays gated on that; the parse+collect
   step is unconditional. This was necessary because Gruppe 9 needs the descriptive text even when
   the user hasn't touched caption styling — `writeback.R` reflects this by widening the gate that
@@ -534,30 +557,31 @@ something specific to `reference-doc`. `style_pruning.R` removes every style in 
 style is still referenced somewhere in the rendered content
 (`w:pStyle`/`w:rStyle`/`w:tblStyle` in `document.xml`/`footnotes.xml`/`endnotes.xml`/`comments.xml`
 — e.g. a real code block, or Pandoc's own body/list role names like `FirstParagraph`/`Compact` when
-`officequarto-styles` isn't configured for that role and `reference-doc` doesn't happen to define
-them), it is still removed and `writeback.R` logs a warning; the affected content falls back to
-Word's default formatting rather than erroring out. Runs independently of whether
-`officequarto-styles` is configured, always after the style-mapping step (so it prunes against the
-final, already-remapped `document.xml`).
+`officequarto.styles`/`officequarto.lists` isn't configured for that role and `reference-doc`
+doesn't happen to define them), it is still removed and `writeback.R` logs a warning; the affected
+content falls back to Word's default formatting rather than erroring out. Runs independently of
+whether `officequarto.styles`/`officequarto.lists` is configured, always after the style-mapping
+step (so it prunes against the final, already-remapped `document.xml`).
 
 `oq_is_pandoc_code_style_id(id)` in `style_pruning.R` identifies Pandoc's fixed syntax-highlighting
 style-ID family (`id == "SourceCode" | grepl("Tok$", id)` — a stable naming convention of Pandoc's
 docx writer). `dev/check_writeback.R` sources `style_pruning.R` directly to reuse this helper
 rather than duplicating the pattern.
 
-**Escape hatch: `officequarto-pandoc-styles.code-block`** (optional, default unset → prune as
-above). Deliberately a separate top-level section, sibling of `officequarto-styles` under
-`format.docx` (not nested inside `officequarto-styles`) — it's about Pandoc-added styles, not about
-remapping reference-doc styles, and is independent of whether `officequarto-styles` is configured
+**Escape hatch: `officequarto.pandoc-styles.code-block`** (optional, default unset → prune as
+above). Deliberately its own subsection, sibling of `officequarto.styles`/`officequarto.lists`
+(not nested inside either) — it's about Pandoc-added styles, not about remapping reference-doc
+styles, and is independent of whether `officequarto.styles`/`officequarto.lists` is configured
 at all (`writeback.R` gates the whole style-mapping block on `!is.null(style_config) ||
-!is.null(code_block_config)`, not on `style_config` alone, so `code-block` works standalone):
+!is.null(lists_config) || !is.null(code_block_config)`, not on `style_config`/`lists_config`
+alone, so `code-block` works standalone):
 - `true` — exempts `SourceCode` + all `*Tok` styles from pruning entirely (`writeback.R` computes
   `union(ref_style_ids, code_style_ids)` as the keep-set passed to `oq_prune_foreign_styles`, which
   needed no signature change for this). Pandoc's own code-block styling, including syntax-
   highlighting colors, survives untouched.
 - a style name (string) — resolved via the same `oq_resolve_style_id` used for `body`/
   `list-bullet`/`list-number` (that function takes the fully-qualified config key, e.g.
-  `"officequarto-pandoc-styles.code-block"` vs. `"officequarto-styles.body"`, for its error
+  `"officequarto.pandoc-styles.code-block"` vs. `"officequarto.styles.body"`, for its error
   message), then `style_ids$code` is applied in `oq_apply_style_mapping`'s paragraph loop via a
   direct `current == "SourceCode"` equality check (not an allowlist — unlike
   `Normal`/`FirstParagraph`/`Compact`, `SourceCode` is a stable, non-context-dependent Pandoc ID).
@@ -576,7 +600,7 @@ at all (`writeback.R` gates the whole style-mapping block on `!is.null(style_con
   set `project: type: officequarto` — otherwise `writeback.R` never runs. Verified by counter-test
   in `dev/spike-notes.md` (Spike B).
 - Reading resolved config always goes through `quarto inspect <project_dir>` (JSON), never manual
-  YAML parsing — this is what makes nested keys like `format.docx.officequarto-styles` reliable.
+  YAML parsing — this is what makes nested keys like `format.docx.officequarto.tables` reliable.
 - Locating `style_mapping.R` from within `writeback.R` uses the `commandArgs(trailingOnly=FALSE)`
   `--file=` trick (`get_script_dir()`), because Quarto's post-render invocation cwd cannot be
   assumed to be the script's own directory.

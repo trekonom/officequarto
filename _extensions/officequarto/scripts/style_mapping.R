@@ -27,7 +27,7 @@ oq_style_name_to_id <- function(styles_doc, type = "paragraph") {
 ## Loest einen vom Nutzer angegebenen Anzeigenamen zu einer styleId auf.
 ## Bricht mit einer Liste verfuegbarer Namen ab, wenn nicht gefunden. `key` ist
 ## der volle Konfigurationspfad fuer die Fehlermeldung (z.B.
-## "officequarto-styles.body" oder "officequarto-pandoc-styles.code-block").
+## "officequarto.styles.body" oder "officequarto.pandoc-styles.code-block").
 oq_resolve_style_id <- function(name_to_id, display_name, key, fail_fn) {
   if (display_name %in% names(name_to_id)) {
     return(unname(name_to_id[[display_name]]))
@@ -137,7 +137,7 @@ oq_apply_style_mapping <- function(document_doc, num_fmt_map, style_ids, style_n
     ## "Compact", verifiziert empirisch) - waeren also sonst faelschlich vom
     ## Body-Role-Mapping erfasst. Werden hier ausgenommen und stattdessen
     ## dediziert von oq_apply_plot_options() (plot_mapping.R,
-    ## officequarto-plots.style) behandelt.
+    ## officequarto.plots.style) behandelt.
     if (!is.na(xml2::xml_find_first(p, ".//w:drawing", ns))) next
 
     if (is.null(style_ids$body)) next

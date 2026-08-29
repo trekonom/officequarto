@@ -1,5 +1,5 @@
 ## Kernlogik fuer Gruppe 8 (Seitenlayout) des officedown-Options-Ports:
-## officequarto-page.size.{width,height,orientation}/
+## officequarto.page.size.{width,height,orientation}/
 ## margins.{top,bottom,left,right,header,footer,gutter}. Wird von
 ## writeback.R per source() eingebunden, keine eigenstaendige Ausfuehrung.
 ## Benoetigt: xml2.

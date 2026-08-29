@@ -1,5 +1,5 @@
 ## Unit-Check fuer oq_resolve_style_map()/oq_apply_style_map() (siehe
-## scripts/style_map.R, Gruppe 7 / officequarto-style-map). Eigenstaendig
+## scripts/style_map.R, Gruppe 7 / officequarto.style-map). Eigenstaendig
 ## ausfuehrbar, ohne vorherigen `quarto render` - reine Funktionslogik, kein
 ## Docx-Zugriff (bis auf ein minimales xml2-Dokument fuer
 ## oq_apply_style_map()). Wie check_option_aliases.R aus template/ heraus

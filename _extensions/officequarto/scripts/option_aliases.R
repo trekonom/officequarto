@@ -4,9 +4,9 @@
 ## "Option reference"). Wird von writeback.R per source() eingebunden, keine
 ## eigenstaendige Ausfuehrung.
 
-## config: benannte Liste (z.B. der Wert von format.docx.officequarto-styles).
+## config: benannte Liste (z.B. der Wert von format.docx.officequarto.tables).
 ## canonical_key/alias_key: die beiden moeglichen Schluessel in config.
-## group_label: fuer die Warnmeldung (z.B. "officequarto-styles"). warn_fn:
+## group_label: fuer die Warnmeldung (z.B. "officequarto.tables"). warn_fn:
 ## Funktion(fmt, ...), die bei einem Konflikt aufgerufen wird - wie fail_fn bei
 ## oq_resolve_style_id() wird auch hier eine Callback-Funktion statt eines
 ## direkten log_msg()-Aufrufs verwendet, damit diese Datei wie style_mapping.R
@@ -42,7 +42,7 @@ oq_resolve_aliased <- function(config, canonical_key, alias_key, group_label, wa
 ## Wert oder NULL). fields ist ein benannter Character Vector canonical Name
 ## -> officedown-Alias (z.B. c(width = "page_size_width", height =
 ## "page_size_height")). Nuetzlich fuer Gruppen mit vielen gleichartigen
-## Feldern (z.B. officequarto-page.size/.margins), um die sonst noetige
+## Feldern (z.B. officequarto.page.size/.margins), um die sonst noetige
 ## Wiederholung von oq_resolve_aliased()-Aufrufen zu vermeiden. config darf
 ## NULL sein (dann ist jedes Feld NULL, wie oq_resolve_aliased() das auch
 ## einzeln handhaben wuerde).
@@ -58,7 +58,7 @@ oq_resolve_fields <- function(config, fields, group_label, warn_fn) {
 
 ## Variante von oq_resolve_aliased() fuer Optionspaare mit ENTGEGENGESETZTER
 ## Polaritaet zwischen canonical Name und officedown-Alias (z.B.
-## officequarto-tables.conditional.band-rows, positiv formuliert, vs.
+## officequarto.tables.conditional.band-rows, positiv formuliert, vs.
 ## officedowns no_hband, negativ formuliert - "band-rows: true" und
 ## "no_hband: false" meinen dasselbe). oq_resolve_aliased() selbst eignet
 ## sich hierfuer nicht, da dessen Konfliktpruefung Rohwerte auf Gleichheit

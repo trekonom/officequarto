@@ -1,5 +1,5 @@
 ## Kernlogik fuer Gruppe 9 (Querverweis-Nummerierung) des officedown-
-## Options-Ports: officequarto-crossref.numbered (officedown:
+## Options-Ports: officequarto.crossref.numbered (officedown:
 ## reference_num). Wird von writeback.R per source() eingebunden, keine
 ## eigenstaendige Ausfuehrung. Benoetigt: xml2.
 ##
@@ -16,8 +16,8 @@
 ## Zuordnung, gesammelt waehrend der Beschriftungsverarbeitung (Gruppe 3/5) -
 ## unabhaengig davon, ob diese selbst konfiguriert sind (writeback.R stellt
 ## sicher, dass Gruppe 3/5 "still", ohne eigene Style-/Text-Aenderungen,
-## mitlaufen, sobald officequarto-crossref.numbered: false gesetzt ist, auch
-## wenn officequarto-tables.caption/-plots.caption selbst nicht konfiguriert
+## mitlaufen, sobald officequarto.crossref.numbered: false gesetzt ist, auch
+## wenn officequarto.tables.caption/.plots.caption selbst nicht konfiguriert
 ## wurden).
 
 ## Ersetzt den Text jedes w:hyperlink[@w:anchor], dessen Anker ein

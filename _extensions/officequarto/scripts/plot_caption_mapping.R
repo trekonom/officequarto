@@ -1,5 +1,5 @@
 ## Kernlogik fuer Gruppe 5 (Abbildungs-Beschriftungen) des officedown-
-## Options-Ports: officequarto-plots.caption.style/prefix/separator/
+## Options-Ports: officequarto.plots.caption.style/prefix/separator/
 ## number-bold. Die eigentliche Text-Umformatierungslogik ist identisch zu
 ## Gruppe 3 (Tabellen-Beschriftungen) und lebt deshalb gemeinsam in
 ## table_caption_mapping.R (oq_apply_captions()/oq_split_caption_text()/

@@ -1,5 +1,5 @@
 ## Kernlogik fuer Gruppe 1 (Tabellen-Basis: style/layout/width) und Gruppe 2
-## (Tabellen-Conditional-Formatting: officequarto-tables.conditional.*) des
+## (Tabellen-Conditional-Formatting: officequarto.tables.conditional.*) des
 ## officedown-Options-Ports. Wird von writeback.R per source() eingebunden,
 ## keine eigenstaendige Ausfuehrung. Benoetigt: xml2 (bereits von writeback.R
 ## geprueft) sowie oq_resolve_aliased()/oq_resolve_inverted_aliased() aus
@@ -76,7 +76,7 @@ oq_set_tbl_width <- function(tbl_pr, ns, width_fraction) {
   invisible(NULL)
 }
 
-## Gruppe-2-Felder (officequarto-tables.conditional.*) -> ihr w:tblLook-
+## Gruppe-2-Felder (officequarto.tables.conditional.*) -> ihr w:tblLook-
 ## Attribut plus ob der Wert beim Schreiben invertiert werden muss.
 ## band-rows/band-columns sind bewusst positiv formuliert (siehe README),
 ## OOXML selbst kennt aber nur die negativ gepolten noHBand/noVBand - die
@@ -111,7 +111,7 @@ oq_set_tbl_look <- function(tbl_pr, ns, conditional_options) {
   invisible(NULL)
 }
 
-## Loest ein einzelnes boolesches officequarto-tables.conditional-Feld auf
+## Loest ein einzelnes boolesches officequarto.tables.conditional-Feld auf
 ## (canonical Name vs. officedown-Alias, ueber oq_resolve_aliased() bzw. bei
 ## invert=TRUE ueber oq_resolve_inverted_aliased()) und validiert das
 ## Ergebnis als einzelnen TRUE/FALSE-Wert (fail-loud, Konsistenz mit
@@ -119,9 +119,9 @@ oq_set_tbl_look <- function(tbl_pr, ns, conditional_options) {
 ## die Fehlermeldung.
 oq_resolve_table_bool_option <- function(config, canonical_key, alias_key, invert, key_path, warn_fn, fail_fn) {
   resolved <- if (invert) {
-    oq_resolve_inverted_aliased(config, canonical_key, alias_key, "officequarto-tables.conditional", warn_fn)
+    oq_resolve_inverted_aliased(config, canonical_key, alias_key, "officequarto.tables.conditional", warn_fn)
   } else {
-    oq_resolve_aliased(config, canonical_key, alias_key, "officequarto-tables.conditional", warn_fn)
+    oq_resolve_aliased(config, canonical_key, alias_key, "officequarto.tables.conditional", warn_fn)
   }
   if (!is.null(resolved) && (!is.logical(resolved) || length(resolved) != 1 || is.na(resolved))) {
     fail_fn("%s muss true oder false sein (erhalten: '%s').", key_path, resolved)

@@ -1,10 +1,10 @@
 ## Kernlogik fuer Gruppe 7 (freies Style-Mapping) des officedown-Options-
-## Ports: officequarto-style-map (officedown: mapstyles). Wird von
+## Ports: officequarto.style-map (officedown: mapstyles). Wird von
 ## writeback.R per source() eingebunden, keine eigenstaendige Ausfuehrung.
 ## Benoetigt: xml2, oq_resolve_style_id()/oq_set_pstyle() aus
 ## style_mapping.R (muss vor dieser Datei gesourced sein).
 ##
-## Anders als officequarto-styles/-tables/-plots (feste, kuratierte Rollen
+## Anders als officequarto.styles/.tables/.plots (feste, kuratierte Rollen
 ## mit Pandoc-spezifischer Erkennungslogik: numPr fuer Listen, w:drawing fuer
 ## Abbildungen, etc.) ist dies ein generischer Escape-Hatch: eine freie
 ## Zuordnungstabelle Ziel-Style -> Liste von Quell-pStyle-IDs, die direkt per
@@ -22,7 +22,7 @@
 ## sonst in diesem Projekt).
 ##
 ## Laeuft bewusst als LETZTER Schritt der Style-Mapping-Pipeline in
-## writeback.R (nach officequarto-styles/-pandoc-styles/-tables/-plots) -
+## writeback.R (nach officequarto.styles/.lists/.pandoc-styles/.tables/.plots) -
 ## zu diesem Zeitpunkt tragen die meisten Absaetze bereits ihre finale
 ## pStyle, sodass eine uebliche Regel (Pandoc-Quellnamen als Schluessel)
 ## automatisch nur noch unberuehrte Absaetze trifft, waehrend eine bewusst
@@ -39,14 +39,14 @@ oq_resolve_style_map <- function(style_map_config, name_to_id, fail_fn) {
   for (target_name in names(style_map_config)) {
     target_id <- oq_resolve_style_id(
       name_to_id, target_name,
-      sprintf("officequarto-style-map.\"%s\"", target_name), fail_fn
+      sprintf("officequarto.style-map.\"%s\"", target_name), fail_fn
     )
     source_ids <- style_map_config[[target_name]]
     for (source_id in source_ids) {
       if (source_id %in% names(source_to_target)) {
         fail_fn(
           paste0(
-            "officequarto-style-map: Quell-Style '%s' ist mehreren Zielen zugeordnet ",
+            "officequarto.style-map: Quell-Style '%s' ist mehreren Zielen zugeordnet ",
             "('%s' und '%s') - jeder Quell-Style darf nur einem Ziel zugeordnet sein."
           ),
           source_id, source_to_target[[source_id]], target_id

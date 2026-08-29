@@ -1,5 +1,5 @@
 ## Kernlogik fuer Gruppe 3 (Tabellen-Beschriftungen) des officedown-Options-
-## Ports: officequarto-tables.caption.style/prefix/separator/number-bold.
+## Ports: officequarto.tables.caption.style/prefix/separator/number-bold.
 ## oq_apply_captions() (die eigentliche Formatierungslogik) ist generisch und
 ## wird von Gruppe 5 (Abbildungs-Beschriftungen, plot_caption_mapping.R)
 ## wiederverwendet - nur oq_find_table_caption_paragraphs() ist
@@ -159,7 +159,7 @@ oq_move_caption <- function(caption_p, content_node, above) {
 ## Beschriftung als Crossref-Ziel markiert - ein direktes Geschwister der
 ## Beschriftung innerhalb derselben Pandoc-Wrapper-Zelle (siehe
 ## oq_table_caption_content()/oq_plot_caption_content()). NA, falls keins
-## gefunden wird. Fuer Gruppe 9 (officequarto-crossref.numbered, siehe
+## gefunden wird. Fuer Gruppe 9 (officequarto.crossref.numbered, siehe
 ## crossref_mapping.R) - dort wird dieser Name als Schluessel benutzt, um
 ## einen @tbl-xyz/@fig-xyz-Querverweis auf diese Beschriftung zurueckzufuehren.
 ## Achtung xml2-Eigenheit: w:name wird beim LESEN unpraefigiert als "name"
@@ -196,7 +196,7 @@ oq_caption_anchor_name <- function(caption_p, ns) {
 ## Der eigentliche Beschriftungstext (oq_split_caption_text()s $rest) wird
 ## IMMER ermittelt, unabhaengig davon, ob prefix/separator/number_bold
 ## ueberhaupt konfiguriert sind (nicht nur wenn needs_text_rewrite) - Gruppe
-## 9 (officequarto-crossref.numbered: false) braucht diesen Text auch dann,
+## 9 (officequarto.crossref.numbered: false) braucht diesen Text auch dann,
 ## wenn Gruppe 3/5 selbst gar nicht konfiguriert wurden, nur "still"
 ## mitlaufen, um die Crossref-Umschreibung zu ermoeglichen. Nur das
 ## tatsaechliche SCHREIBEN in den Absatz (oq_write_caption_run()) bleibt an
