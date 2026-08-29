@@ -20,7 +20,8 @@ Render the example project and verify the hook end-to-end:
 ```bash
 cd template
 quarto render report.qmd
-Rscript ../dev/check_writeback.R   # checks header/footer/body/metadata/style-mapping/style-pruning of the result
+Rscript ../dev/check_writeback.R       # checks header/footer/body/metadata/style-mapping/style-pruning of the result
+Rscript ../dev/check_option_aliases.R  # unit-checks oq_resolve_aliased() (canonical name vs. officedown alias)
 ```
 
 `template/report.qmd` includes a small fenced code block specifically so the style-pruning
@@ -50,6 +51,12 @@ To verify the extension also works as a genuine external install (not just via t
 
 There is no linter/formatter configured for the R scripts in this repo.
 
+## Workflow
+
+New features (and exploratory/spike work) should always be implemented on a feature branch, not
+directly on `main` — create the branch first, then do the work. Only merge to `main` once the
+feature/spike is complete and reviewed.
+
 ## Architecture
 
 ```
@@ -61,8 +68,10 @@ _extensions/officequarto/
     │                         metadata merge, zip/unzip), sources style_mapping.R + style_pruning.R
     ├── style_mapping.R       style-mapping core logic (pure functions, no side effects of
     │                          its own — called from writeback.R)
-    └── style_pruning.R       style-pruning core logic (pure functions, no side effects of
-                               its own — called from writeback.R)
+    ├── style_pruning.R       style-pruning core logic (pure functions, no side effects of
+    │                          its own — called from writeback.R)
+    └── option_aliases.R      canonical-name/officedown-alias resolution (pure functions, no
+                               side effects of its own — called from writeback.R)
 
 template/                     example/dev project
 ├── _quarto.yml                project: type: officequarto; format.docx.reference-doc +
@@ -133,6 +142,26 @@ detection logic in `style_mapping.R`:
   `Compact`, `BodyText`, `Body Text`). A reference-doc that makes Pandoc pick a body role outside
   this list will not be recognized — documented limitation.
 - Only `word/document.xml` (main body) is patched — not footnotes/comments.
+
+### Option aliases (`option_aliases.R`)
+
+`officequarto`'s own option names (`officequarto-styles.list-bullet`/`list-number`, and future
+ported {officedown} option groups) are deliberately **not** a mechanical 1:1 translation of
+{officedown}'s option names (only `.` → `_`) — they're chosen fresh, to read clearly on their own
+without prior {officedown} knowledge. To ease migration for {officedown} users, the original
+{officedown} option name (`.` → `_`, e.g. `ol_style`, `ul_style`) remains usable as an **alias**
+within the same config section, resolving to the same value as the canonical name.
+
+`oq_resolve_aliased(config, canonical_key, alias_key, group_label, warn_fn)` in
+`option_aliases.R` implements this: if both keys are set to the same value, or only one is set,
+that value is used silently; if both are set to *different* values, the canonical key wins and
+`warn_fn` is called with a message naming the discarded alias value (`writeback.R` wires this to
+`log_msg` via a small `warn_msg` wrapper, prefixed `"Warnung: "` — same pattern as `fail_fn` in
+`oq_resolve_style_id`, so this file stays a pure function collection with no side effects of its
+own, consistent with `style_mapping.R`/`style_pruning.R`). This is the reference pattern for
+porting further {officedown} option groups (tables, captions, page layout, etc.) — each new
+canonical option that has an {officedown} equivalent should resolve through
+`oq_resolve_aliased()` the same way `list-bullet`/`list-number` do for `ul_style`/`ol_style`.
 
 ### Style pruning (always on by default)
 

@@ -53,7 +53,8 @@ _extensions/officequarto/
 └── scripts/
     ├── writeback.R           post-render hook (orchestration)
     ├── style_mapping.R       style-mapping core logic, sourced by writeback.R
-    └── style_pruning.R       style-pruning core logic, sourced by writeback.R
+    ├── style_pruning.R       style-pruning core logic, sourced by writeback.R
+    └── option_aliases.R      canonical-name/officedown-alias resolution, sourced by writeback.R
 
 template/                     example project (quarto use template)
 ├── _quarto.yml                project: type: officequarto, format.docx.officequarto-styles
@@ -115,6 +116,24 @@ lists). Bullet vs. numbered is distinguished via `word/numbering.xml` (`w:numFmt
 anything else) — exactly as in {officedown}, there is **one style per list type, not per nesting
 level**. If a configured style name doesn't exist in `reference-doc`, the hook aborts with a list
 of the available paragraph styles instead of silently ignoring the misconfiguration.
+
+### officedown aliases
+
+`officequarto` uses its own, more descriptive option names (e.g. `list-bullet`/`list-number`)
+rather than copying {officedown}'s option names verbatim. If you're coming from {officedown},
+though, its original option names remain usable as **aliases** in the same `officequarto-styles`
+section, so you don't have to relearn names you already know:
+
+```yaml
+officequarto-styles:
+  list-bullet: "Aufzählung ACME"   # canonical name
+  # ul_style: "Aufzählung ACME"    # ...or the officedown alias — same effect
+```
+
+If both the canonical name and its alias are set to *different* values, the canonical name wins
+and the hook logs a warning naming the discarded alias value. See
+[Option reference](#option-reference) for the full canonical-name/alias table (filled in
+incrementally as more {officedown} option groups are ported).
 
 ## Style pruning: keeping only reference-doc styles
 
@@ -185,6 +204,19 @@ format:
 This additionally produces `<name>.quarto-rendered.docx` next to the final `<name>.docx`, holding
 the unmodified Pandoc output (no metadata merge, no style-mapping).
 
+## Option reference
+
+Canonical option names use kebab-case and are the primary, documented way to configure
+`officequarto`. Where an option corresponds to one from {officedown}, its original name (with
+`.` replaced by `_`) remains usable as an alias — see [officedown aliases](#officedown-aliases).
+This table is filled in as each {officedown} option group is ported; groups not yet listed here
+aren't implemented yet.
+
+| New name | officedown alias | Meaning | Default |
+|---|---|---|---|
+| `officequarto-styles.list-bullet` | `ul_style` | Word style for bullet-list paragraphs | unset (Pandoc default) |
+| `officequarto-styles.list-number` | `ol_style` | Word style for numbered-list paragraphs | unset (Pandoc default) |
+
 ## Requirements
 
 - `quarto` (tested with 1.8.24) and `pandoc` (tested with 3.10.1) in `PATH`
@@ -229,7 +261,8 @@ the unmodified Pandoc output (no metadata merge, no style-mapping).
 ```bash
 cd template
 quarto render report.qmd
-Rscript ../dev/check_writeback.R   # checks header/footer/body/metadata of the result
+Rscript ../dev/check_writeback.R       # checks header/footer/body/metadata of the result
+Rscript ../dev/check_option_aliases.R  # unit-checks canonical-name/officedown-alias resolution
 ```
 
 `dev/make_sample_docx.R` regenerates the sample template `template/original.docx`, including the

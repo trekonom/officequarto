@@ -7,7 +7,7 @@ format:
     officequarto-keep-rendered: true
     officequarto-styles:
       body: "Fließtext ACME"
-      list-bullet: "Aufzählung ACME"
+      ul_style: "Aufzählung ACME"      # officedown-Alias fuer list-bullet, siehe README
       list-number: "Nummerierung ACME"
     officequarto-pandoc-styles:
       code-block: "Code ACME"

@@ -16,6 +16,10 @@
 ## Zusaetzlich, optional per `format.docx.officequarto-styles` konfigurierbar:
 ## Body- und Listen-Absaetze werden auf vom Nutzer benannte, echte Styles des
 ## reference-doc umgemappt (siehe scripts/style_mapping.R fuer die Kernlogik).
+## Fuer officedown-Umsteiger:innen akzeptieren die Listen-Optionen zusaetzlich
+## die alten officedown-Namen (`ol_style`/`ul_style`) als Alias zu den neuen,
+## sprechenderen Namen (`list-number`/`list-bullet`) - siehe
+## scripts/option_aliases.R fuer die Aufloesungslogik inkl. Konfliktregel.
 ##
 ## Der Hook ueberschreibt die von Quarto/Pandoc erzeugte .docx direkt an Ort
 ## und Stelle - es entsteht keine zweite Ausgabedatei. Wer das reine,
@@ -50,6 +54,9 @@ get_script_dir <- function() {
 }
 source(file.path(get_script_dir(), "style_mapping.R"))
 source(file.path(get_script_dir(), "style_pruning.R"))
+source(file.path(get_script_dir(), "option_aliases.R"))
+
+warn_msg <- function(fmt, ...) log_msg(paste0("Warnung: ", fmt), ...)
 
 output_files <- Sys.getenv("QUARTO_PROJECT_OUTPUT_FILES", unset = "")
 output_dir <- Sys.getenv("QUARTO_PROJECT_OUTPUT_DIR", unset = ".")
@@ -173,11 +180,13 @@ for (rel_path in docx_outputs) {
     if (!is.null(style_config$body)) {
       style_ids$body <- oq_resolve_style_id(name_to_id, style_config$body, "officequarto-styles.body", fail)
     }
-    if (!is.null(style_config$`list-bullet`)) {
-      style_ids$list_bullet <- oq_resolve_style_id(name_to_id, style_config$`list-bullet`, "officequarto-styles.list-bullet", fail)
+    list_bullet_val <- oq_resolve_aliased(style_config, "list-bullet", "ul_style", "officequarto-styles", warn_msg)
+    if (!is.null(list_bullet_val)) {
+      style_ids$list_bullet <- oq_resolve_style_id(name_to_id, list_bullet_val, "officequarto-styles.list-bullet", fail)
     }
-    if (!is.null(style_config$`list-number`)) {
-      style_ids$list_number <- oq_resolve_style_id(name_to_id, style_config$`list-number`, "officequarto-styles.list-number", fail)
+    list_number_val <- oq_resolve_aliased(style_config, "list-number", "ol_style", "officequarto-styles", warn_msg)
+    if (!is.null(list_number_val)) {
+      style_ids$list_number <- oq_resolve_style_id(name_to_id, list_number_val, "officequarto-styles.list-number", fail)
     }
     if (is.character(code_block_config) && nzchar(code_block_config)) {
       style_ids$code <- oq_resolve_style_id(name_to_id, code_block_config, "officequarto-pandoc-styles.code-block", fail)
