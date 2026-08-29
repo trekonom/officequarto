@@ -30,6 +30,13 @@
 ## Quartos eigenem `keep-md`); es wird dann zusaetzlich als
 ## `<name>.quarto-rendered.docx` abgelegt.
 ##
+## Zusaetzlich, optional per `format.docx.officequarto-tables` konfigurierbar:
+## Tabellen-Style/-Layout/-Breite werden auf jede w:tbl im Dokument angewendet
+## (siehe scripts/table_mapping.R fuer die Kernlogik; Gruppe 1 des
+## officedown-Options-Ports, siehe README). Wie bei den Listen-Optionen
+## akzeptieren style/layout/width zusaetzlich die officedown-Aliase
+## tables_style/tables_layout/tables_width (siehe scripts/option_aliases.R).
+##
 ## Zusaetzlich, immer aktiv: Pandocs docx-Writer fuegt beim Rendern eigene
 ## Style-Definitionen hinzu, die im reference-doc gar nicht existieren (z.B.
 ## Syntax-Highlighting-Styles fuer Codebloecke, unabhaengig davon, ob welche
@@ -57,6 +64,7 @@ get_script_dir <- function() {
 source(file.path(get_script_dir(), "style_mapping.R"))
 source(file.path(get_script_dir(), "style_pruning.R"))
 source(file.path(get_script_dir(), "option_aliases.R"))
+source(file.path(get_script_dir(), "table_mapping.R"))
 
 warn_msg <- function(fmt, ...) log_msg(paste0("Warnung: ", fmt), ...)
 
@@ -120,6 +128,28 @@ if (!code_block_valid) {
   fail("officequarto-pandoc-styles.code-block muss entweder true oder ein Style-Name (String) sein.")
 }
 
+## table_style_val/table_layout_val/table_width_val loesen jeweils canonical
+## Name vs. officedown-Alias auf (tables_style/tables_layout/tables_width) -
+## einmalig hier, nicht pro Ausgabedatei, da die Konfiguration render-weit
+## gleich ist.
+table_config <- tryCatch(inspect$config$format$docx$`officequarto-tables`, error = function(e) NULL)
+table_style_val <- if (!is.null(table_config)) {
+  oq_resolve_aliased(table_config, "style", "tables_style", "officequarto-tables", warn_msg)
+} else NULL
+table_layout_val <- if (!is.null(table_config)) {
+  oq_resolve_aliased(table_config, "layout", "tables_layout", "officequarto-tables", warn_msg)
+} else NULL
+table_width_val <- if (!is.null(table_config)) {
+  oq_resolve_aliased(table_config, "width", "tables_width", "officequarto-tables", warn_msg)
+} else NULL
+
+if (!is.null(table_layout_val) && !(table_layout_val %in% c("autofit", "fixed"))) {
+  fail("officequarto-tables.layout muss 'autofit' oder 'fixed' sein (erhalten: '%s').", table_layout_val)
+}
+if (!is.null(table_width_val) && (!is.numeric(table_width_val) || length(table_width_val) != 1 || table_width_val <= 0)) {
+  fail("officequarto-tables.width muss eine einzelne positive Zahl sein (erhalten: '%s').", table_width_val)
+}
+
 ## Uebertraegt dc:subject, cp:keywords, cp:category aus core_from in core_to und
 ## gibt den (ggf. veraenderten) core_to xml2-Doc zurueck.
 merge_core_properties <- function(core_to, core_from) {
@@ -169,45 +199,59 @@ for (rel_path in docx_outputs) {
     file.copy(custom_from_path, file.path(work_dir, "docProps", "custom.xml"), overwrite = TRUE)
   }
 
-  if (!is.null(style_config) || !is.null(code_block_config)) {
+  if (!is.null(style_config) || !is.null(code_block_config) || !is.null(table_config)) {
     styles_path <- file.path(work_dir, "word", "styles.xml")
     document_path <- file.path(work_dir, "word", "document.xml")
     numbering_path <- file.path(work_dir, "word", "numbering.xml")
 
     styles_doc <- xml2::read_xml(styles_path)
-    name_to_id <- oq_style_name_to_id(styles_doc)
-    style_num_id <- oq_style_num_id(styles_doc)
-
-    style_ids <- list()
-    if (!is.null(style_config$body)) {
-      style_ids$body <- oq_resolve_style_id(name_to_id, style_config$body, "officequarto-styles.body", fail)
-    }
-    list_bullet_val <- oq_resolve_aliased(style_config, "list-bullet", "ul_style", "officequarto-styles", warn_msg)
-    if (!is.null(list_bullet_val)) {
-      style_ids$list_bullet <- oq_resolve_style_id(name_to_id, list_bullet_val, "officequarto-styles.list-bullet", fail)
-    }
-    list_number_val <- oq_resolve_aliased(style_config, "list-number", "ol_style", "officequarto-styles", warn_msg)
-    if (!is.null(list_number_val)) {
-      style_ids$list_number <- oq_resolve_style_id(name_to_id, list_number_val, "officequarto-styles.list-number", fail)
-    }
-    if (!is.null(style_config$`list-letter`)) {
-      style_ids$list_letter <- oq_resolve_style_id(name_to_id, style_config$`list-letter`, "officequarto-styles.list-letter", fail)
-    }
-    if (is.character(code_block_config) && nzchar(code_block_config)) {
-      style_ids$code <- oq_resolve_style_id(name_to_id, code_block_config, "officequarto-pandoc-styles.code-block", fail)
-    }
-
-    num_fmt_map <- if (file.exists(numbering_path)) {
-      oq_num_fmt_map(xml2::read_xml(numbering_path))
-    } else {
-      character(0)
-    }
-
     document_doc <- xml2::read_xml(document_path)
-    result <- oq_apply_style_mapping(document_doc, num_fmt_map, style_ids, style_num_id)
+
+    if (!is.null(style_config) || !is.null(code_block_config)) {
+      name_to_id <- oq_style_name_to_id(styles_doc)
+      style_num_id <- oq_style_num_id(styles_doc)
+
+      style_ids <- list()
+      if (!is.null(style_config$body)) {
+        style_ids$body <- oq_resolve_style_id(name_to_id, style_config$body, "officequarto-styles.body", fail)
+      }
+      list_bullet_val <- oq_resolve_aliased(style_config, "list-bullet", "ul_style", "officequarto-styles", warn_msg)
+      if (!is.null(list_bullet_val)) {
+        style_ids$list_bullet <- oq_resolve_style_id(name_to_id, list_bullet_val, "officequarto-styles.list-bullet", fail)
+      }
+      list_number_val <- oq_resolve_aliased(style_config, "list-number", "ol_style", "officequarto-styles", warn_msg)
+      if (!is.null(list_number_val)) {
+        style_ids$list_number <- oq_resolve_style_id(name_to_id, list_number_val, "officequarto-styles.list-number", fail)
+      }
+      if (!is.null(style_config$`list-letter`)) {
+        style_ids$list_letter <- oq_resolve_style_id(name_to_id, style_config$`list-letter`, "officequarto-styles.list-letter", fail)
+      }
+      if (is.character(code_block_config) && nzchar(code_block_config)) {
+        style_ids$code <- oq_resolve_style_id(name_to_id, code_block_config, "officequarto-pandoc-styles.code-block", fail)
+      }
+
+      num_fmt_map <- if (file.exists(numbering_path)) {
+        oq_num_fmt_map(xml2::read_xml(numbering_path))
+      } else {
+        character(0)
+      }
+
+      result <- oq_apply_style_mapping(document_doc, num_fmt_map, style_ids, style_num_id)
+      log_msg("Style-Mapping angewendet: %d Body-Absaetze, %d Listen-Absaetze, %d Codeblock-Absaetze.",
+               result$n_body, result$n_list, result$n_code)
+    }
+
+    if (!is.null(table_config)) {
+      table_options <- list(layout = table_layout_val, width = table_width_val)
+      if (!is.null(table_style_val)) {
+        table_style_name_to_id <- oq_style_name_to_id(styles_doc, type = "table")
+        table_options$style <- oq_resolve_style_id(table_style_name_to_id, table_style_val, "officequarto-tables.style", fail)
+      }
+      n_tables <- oq_apply_table_options(document_doc, table_options)
+      log_msg("Tabellen-Optionen angewendet: %d Tabelle(n).", n_tables)
+    }
+
     xml2::write_xml(document_doc, document_path)
-    log_msg("Style-Mapping angewendet: %d Body-Absaetze, %d Listen-Absaetze, %d Codeblock-Absaetze.",
-             result$n_body, result$n_list, result$n_code)
   }
 
   ref_styles_path <- file.path(orig_dir, "word", "styles.xml")

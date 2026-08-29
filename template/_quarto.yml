@@ -12,3 +12,7 @@ format:
       list-letter: "Buchstabierung ACME"
     officequarto-pandoc-styles:
       code-block: "Code ACME"
+    officequarto-tables:
+      style: "Tabelle ACME"
+      layout: fixed
+      tables_width: 0.8         # officedown-Alias fuer width, siehe README

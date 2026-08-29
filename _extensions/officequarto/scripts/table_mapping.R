@@ -1,0 +1,95 @@
+## Kernlogik fuer Gruppe 1 (Tabellen-Basis) des officedown-Options-Ports:
+## officequarto-tables.style/layout/width. Wird von writeback.R per source()
+## eingebunden, keine eigenstaendige Ausfuehrung. Benoetigt: xml2 (bereits von
+## writeback.R geprueft).
+##
+## `caption-above` (officedown: topcaption) ist bewusst NICHT Teil dieser
+## Datei - es hat erst mit echten Tabellen-Beschriftungen (Gruppe 3) einen
+## sichtbaren Effekt und wird zusammen mit dieser implementiert, statt jetzt
+## als wirkungsloser Platzhalter zu existieren.
+##
+## `tab.lp` (officedown) wurde bewusst NICHT portiert: es ist ein
+## bookdown-Autoren-Syntax-Konzept (Label-Praefix beim Parsen von
+## \@ref(tab:xyz)), kein Rendering-Schalter, und hat in Quartos eigenem
+## Crossref-System (\#tbl-xyz, von Quarto/Pandoc VOR diesem Post-Render-Hook
+## aufgeloest) keine sinnvolle Entsprechung - siehe README.
+
+## Reihenfolge der w:tblPr-Kindelemente laut OOXML-Schema (CT_TblPrBase,
+## Auszug - nur die hier relevanten und ihre ueblichen Nachbarn). Wird
+## gebraucht, weil xml2::xml_add_child() ohne .where einfach ans Ende haengt;
+## ein neu erzeugtes w:tblLayout landet damit sonst hinter Pandocs eigenem
+## w:tblLook, was nicht der Schema-Reihenfolge entspricht (Word selbst ist
+## tolerant, aber eine schema-konforme Reihenfolge ist sauberer/portabler).
+officequarto_tblpr_order <- c(
+  "tblStyle", "tblpPr", "tblOverlap", "bidiVisual", "tblStyleRowBandSize",
+  "tblStyleColBandSize", "tblW", "jc", "tblCellSpacing", "tblInd",
+  "tblBorders", "shd", "tblLayout", "tblCellMar", "tblLook",
+  "tblCaption", "tblDescription"
+)
+
+## Fuegt ein neues, lokal "tag_local" genanntes Kind-Element in tbl_pr an der
+## laut officequarto_tblpr_order korrekten Position ein (vor dem ersten
+## bereits vorhandenen Geschwister-Element, das in der Reihenfolge spaeter
+## kommt, sonst am Ende) und gibt den neuen Knoten zurueck.
+oq_add_tbl_pr_child <- function(tbl_pr, tag_local) {
+  tag_pos <- match(tag_local, officequarto_tblpr_order)
+  existing <- xml2::xml_children(tbl_pr)
+  existing_pos <- match(xml2::xml_name(existing), officequarto_tblpr_order)
+  insert_before <- which(!is.na(existing_pos) & existing_pos > tag_pos)
+  where <- if (length(insert_before) > 0) min(insert_before) - 1L else length(existing)
+  xml2::xml_add_child(tbl_pr, paste0("w:", tag_local), .where = where)
+}
+
+## Setzt (oder erzeugt) das w:tblStyle-Kind-Element von w:tblPr.
+oq_set_tbl_style <- function(tbl_pr, ns, style_id) {
+  node <- xml2::xml_find_first(tbl_pr, "./w:tblStyle", ns)
+  if (is.na(node)) {
+    node <- oq_add_tbl_pr_child(tbl_pr, "tblStyle")
+  }
+  xml2::xml_attr(node, "w:val") <- style_id
+  invisible(NULL)
+}
+
+## Setzt (oder erzeugt) das w:tblLayout-Kind-Element von w:tblPr. layout ist
+## bereits der validierte OOXML-Wert ("autofit"/"fixed").
+oq_set_tbl_layout <- function(tbl_pr, ns, layout) {
+  node <- xml2::xml_find_first(tbl_pr, "./w:tblLayout", ns)
+  if (is.na(node)) {
+    node <- oq_add_tbl_pr_child(tbl_pr, "tblLayout")
+  }
+  xml2::xml_attr(node, "w:type") <- layout
+  invisible(NULL)
+}
+
+## Setzt (oder erzeugt) das w:tblW-Kind-Element von w:tblPr. width_fraction
+## ist relativ zur Seitenbreite (0..1, wie bei officedown); OOXML erwartet bei
+## w:type="pct" den Wert in Fuenfzigstel-Prozent (100% Seitenbreite = 5000).
+oq_set_tbl_width <- function(tbl_pr, ns, width_fraction) {
+  node <- xml2::xml_find_first(tbl_pr, "./w:tblW", ns)
+  if (is.na(node)) {
+    node <- oq_add_tbl_pr_child(tbl_pr, "tblW")
+  }
+  xml2::xml_attr(node, "w:type") <- "pct"
+  xml2::xml_attr(node, "w:w") <- as.character(round(width_fraction * 5000))
+  invisible(NULL)
+}
+
+## Wendet table_options ($style/$layout/$width, jeweils optional) auf jede
+## w:tbl in einem geparsten document.xml an (in-place via
+## xml2-Referenzsemantik). Gibt die Anzahl der bearbeiteten Tabellen zurueck.
+oq_apply_table_options <- function(document_doc, table_options) {
+  ns <- xml2::xml_ns(document_doc)
+  tables <- xml2::xml_find_all(document_doc, "//w:tbl", ns)
+
+  for (tbl in tables) {
+    tbl_pr <- xml2::xml_find_first(tbl, "./w:tblPr", ns)
+    if (is.na(tbl_pr)) {
+      tbl_pr <- xml2::xml_add_child(tbl, "w:tblPr", .where = 0)
+    }
+    if (!is.null(table_options$style)) oq_set_tbl_style(tbl_pr, ns, table_options$style)
+    if (!is.null(table_options$layout)) oq_set_tbl_layout(tbl_pr, ns, table_options$layout)
+    if (!is.null(table_options$width)) oq_set_tbl_width(tbl_pr, ns, table_options$width)
+  }
+
+  length(tables)
+}

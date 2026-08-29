@@ -49,4 +49,13 @@ res <- oq_resolve_aliased(list(), "list-number", "ol_style", "officequarto-style
 if (!is.null(res)) fail("keins gesetzt: erwartet NULL, erhalten '%s'", res)
 ok("weder canonical noch Alias gesetzt ergibt NULL")
 
+## Gleiche Logik fuer die Gruppe-1-Tabellenoptionen (officequarto-tables.width
+## vs. Alias tables_width) - eigener Testfall, da eine andere Gruppe/anderer
+## Werttyp (numerisch statt String).
+warnings_seen <- character(0)
+res <- oq_resolve_aliased(list(tables_width = 0.8), "width", "tables_width", "officequarto-tables", warn_collect)
+if (!identical(res, 0.8)) fail("Tabellen-Alias: erwartet 0.8, erhalten '%s'", res)
+if (length(warnings_seen) != 0) fail("Tabellen-Alias: unerwartete Warnung(en): %s", paste(warnings_seen, collapse = "; "))
+ok("officequarto-tables.width ueber den officedown-Alias 'tables_width' gesetzt wird korrekt aufgeloest")
+
 cat("\nAlle Checks bestanden.\n")

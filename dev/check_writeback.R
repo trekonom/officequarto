@@ -7,7 +7,9 @@
 ## neu gerenderte Body-Text ist auffindbar, die aus dem Original
 ## zurueckgeschriebenen Metadaten (Subject/Custom-Property) sind vorhanden,
 ## Body-/Bullet-/Nummerierungs-/Buchstaben-Listen-/Codeblock-Absaetze tragen
-## die konfigurierten ACME-Custom-Styles statt Pandocs Standard-Styles, dass word/styles.xml im
+## die konfigurierten ACME-Custom-Styles statt Pandocs Standard-Styles, dass die Tabelle
+## den konfigurierten Style/Layout/Breite traegt (officequarto-tables, Schema-konforme
+## w:tblPr-Reihenfolge), dass word/styles.xml im
 ## Ergebnis exakt die Styles aus original.docx enthaelt (Pandocs
 ## Syntax-Highlighting-Laufstile fuer den Codeblock in report.qmd wurden trotz
 ## Verwendung entfernt - officequarto-pandoc-styles.code-block mappt hier nur die
@@ -86,6 +88,36 @@ if (any(pstyles == "Normal") || any(pstyles == "Compact") || any(pstyles == "Fir
        paste(unique(pstyles), collapse = ", "))
 }
 ok("keine unumgemappten Pandoc-Standard-Styles (Normal/Compact/FirstParagraph) mehr vorhanden")
+
+tbl_pr <- xml_find_first(document_doc, "//w:tbl/w:tblPr", ns)
+if (is.na(tbl_pr)) fail("kein w:tbl/w:tblPr im Ergebnis-Dokument gefunden (erwartet: die Tabelle aus report.qmd)")
+
+tbl_style <- xml_attr(xml_find_first(tbl_pr, "./w:tblStyle", ns), "val")
+if (!identical(tbl_style, "TabelleACME")) {
+  fail("Tabelle sollte den konfigurierten Style 'TabelleACME' tragen (officequarto-tables.style), gefunden: '%s'", tbl_style)
+}
+ok("Tabelle traegt den konfigurierten Style 'TabelleACME' (officequarto-tables.style)")
+
+tbl_layout <- xml_attr(xml_find_first(tbl_pr, "./w:tblLayout", ns), "type")
+if (!identical(tbl_layout, "fixed")) {
+  fail("Tabelle sollte tblLayout type='fixed' tragen (officequarto-tables.layout), gefunden: '%s'", tbl_layout)
+}
+ok("Tabelle traegt den konfigurierten Layout 'fixed' (officequarto-tables.layout)")
+
+tbl_w_node <- xml_find_first(tbl_pr, "./w:tblW", ns)
+tbl_w_type <- xml_attr(tbl_w_node, "type")
+tbl_w_val <- xml_attr(tbl_w_node, "w")
+if (!identical(tbl_w_type, "pct") || !identical(tbl_w_val, "4000")) {
+  fail("Tabelle sollte tblW type='pct' w='4000' tragen (officequarto-tables.width: 0.8), gefunden: type='%s' w='%s'", tbl_w_type, tbl_w_val)
+}
+ok("Tabelle traegt die konfigurierte Breite 0.8 (officequarto-tables.width, als tblW type='pct' w='4000')")
+
+tbl_pr_children <- xml_name(xml_children(tbl_pr))
+tbl_pr_order <- match(tbl_pr_children, c("tblStyle", "tblW", "tblLayout", "tblLook"))
+if (is.unsorted(tbl_pr_order, na.rm = TRUE)) {
+  fail("w:tblPr-Kindelemente sind nicht in Schema-Reihenfolge: %s", paste(tbl_pr_children, collapse = ", "))
+}
+ok("w:tblPr-Kindelemente stehen in Schema-Reihenfolge: %s", paste(tbl_pr_children, collapse = ", "))
 
 rendered_styles_doc <- read_xml(file.path(tmp, "word", "styles.xml"))
 rendered_style_ids <- xml_attr(xml_find_all(rendered_styles_doc, "//w:style", ns), "styleId")

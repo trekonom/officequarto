@@ -70,8 +70,10 @@ _extensions/officequarto/
     │                          its own — called from writeback.R)
     ├── style_pruning.R       style-pruning core logic (pure functions, no side effects of
     │                          its own — called from writeback.R)
-    └── option_aliases.R      canonical-name/officedown-alias resolution (pure functions, no
-                               side effects of its own — called from writeback.R)
+    ├── option_aliases.R      canonical-name/officedown-alias resolution (pure functions, no
+    │                          side effects of its own — called from writeback.R)
+    └── table_mapping.R       table style/layout/width core logic (pure functions, no side
+                               effects of its own — called from writeback.R)
 
 template/                     example/dev project
 ├── _quarto.yml                project: type: officequarto; format.docx.reference-doc +
@@ -166,6 +168,54 @@ own, consistent with `style_mapping.R`/`style_pruning.R`). This is the reference
 porting further {officedown} option groups (tables, captions, page layout, etc.) — each new
 canonical option that has an {officedown} equivalent should resolve through
 `oq_resolve_aliased()` the same way `list-bullet`/`list-number` do for `ul_style`/`ol_style`.
+
+### Table options (`officequarto-tables`, `table_mapping.R`)
+
+Gruppe 1 of the ongoing {officedown}-option port (see `README.md`'s Option reference table for the
+full canonical-name/alias list, filled in incrementally as further groups land). Configured under
+`format: docx: officequarto-tables: { style, layout, width }`, each field independently optional
+(per-field opt-in, same philosophy as `officequarto-styles` — an unset field is left exactly as
+Pandoc rendered it; **deliberately no** auto-fill with officedown's own always-on defaults
+(`style: "Table"`, `layout: "autofit"`, `width: 1.0`), since those are officedown-template-specific
+assumptions that would fail loudly for most real-world `reference-doc` files that don't happen to
+define a table style literally named `"Table"` — explicit design decision, confirmed with the
+user). `style`/`layout`/`width` also accept the officedown aliases `tables_style`/`tables_layout`/
+`tables_width` via `oq_resolve_aliased()` (see "Option aliases" above), resolved once per render
+(not per output file, since config doesn't vary per file) into `table_style_val`/
+`table_layout_val`/`table_width_val` in `writeback.R`.
+
+- `style` is resolved against `reference-doc`'s **table**-type styles, not paragraph styles —
+  `oq_style_name_to_id()` in `style_mapping.R` was generalized with a `type` parameter
+  (`"paragraph"` default, `"table"` for this) rather than duplicated, since the display-name → 
+  styleId lookup logic is identical for both OOXML style types.
+- `layout`/`width` are written directly onto every `w:tbl`'s `w:tblPr` (`oq_apply_table_options()`
+  in `table_mapping.R` finds/creates `w:tblPr` for each `w:tbl` in `word/document.xml`, applying
+  whichever of `style`/`layout`/`width` were configured). `layout` maps 1:1 to OOXML's
+  `w:tblLayout/@w:type` (`autofit`/`fixed`, validated against exactly those two values, fail-loud
+  otherwise); `width` (0..1, relative to page width) maps to `w:tblW` with `w:type="pct"` and
+  `w:w` in fiftieths-of-a-percent (`round(width * 5000)`, so `100%` = `5000`).
+- New `w:tblPr` child elements are inserted at their OOXML-schema-correct position
+  (`officequarto_tblpr_order` in `table_mapping.R`, `oq_add_tbl_pr_child()`), not blindly appended
+  — verified empirically that a naively appended `w:tblLayout` lands after Pandoc's own
+  `w:tblLook`, which is out of CT_TblPrBase's defined child sequence; Word itself tolerates this,
+  but schema-correct order is the more portable choice.
+- Paragraph-style-mapping and table-option application now share a single read/write pass over
+  `word/document.xml` per output file (previously only paragraph-style-mapping owned that
+  read/write) — the combined gate is `!is.null(style_config) || !is.null(code_block_config) ||
+  !is.null(table_config)`, with `styles_doc`/`document_doc` read once and `document_doc` written
+  once at the end, each sub-feature applied conditionally in between.
+
+officedown's `tab.lp`/`fig.lp` (bookdown cross-reference label-prefix options) were deliberately
+**not** ported — researched explicitly before implementing Gruppe 1: they're a source-syntax
+concept for bookdown's `\@ref(tab:xyz)` parser, not a rendering option, and have no integration
+point in officequarto's post-render architecture (Quarto's own `#tbl-xyz`/`#fig-xyz` crossrefs are
+already resolved to static content before `writeback.R` ever sees the docx). The visible caption
+prefix text concern is already covered natively by Quarto's own `crossref.tbl-title`/`fig-title`
+YAML keys — no `officequarto` option needed for that. Tangential finding worth remembering for a
+future Gruppe 3 (table/figure captions): Quarto's docx crossref captions currently render as
+static baked-in text rather than real Word `SEQ` fields (open upstream gap) — `officequarto`'s
+post-render XML access is a plausible place to eventually bolt on real `SEQ`-field-based numbering,
+which is what officedown's own approach relies on.
 
 ### Style pruning (always on by default)
 

@@ -54,7 +54,8 @@ _extensions/officequarto/
     ├── writeback.R           post-render hook (orchestration)
     ├── style_mapping.R       style-mapping core logic, sourced by writeback.R
     ├── style_pruning.R       style-pruning core logic, sourced by writeback.R
-    └── option_aliases.R      canonical-name/officedown-alias resolution, sourced by writeback.R
+    ├── option_aliases.R      canonical-name/officedown-alias resolution, sourced by writeback.R
+    └── table_mapping.R       table style/layout/width core logic, sourced by writeback.R
 
 template/                     example project (quarto use template)
 ├── _quarto.yml                project: type: officequarto, format.docx.officequarto-styles
@@ -138,6 +139,36 @@ and the hook logs a warning naming the discarded alias value. See
 [Option reference](#option-reference) for the full canonical-name/alias table (filled in
 incrementally as more {officedown} option groups are ported).
 
+## Table options: style, layout, width
+
+`officequarto-tables` lets you control how every table in the rendered document is formatted —
+analogous to {officedown}'s `tables` option, ported as the first group of a broader
+{officedown}-option port (see [Option reference](#option-reference)):
+
+```yaml
+format:
+  docx:
+    officequarto-tables:
+      style: "Tabelle ACME"    # Word table style name, resolved like officequarto-styles.body
+      layout: fixed            # "autofit" or "fixed"
+      width: 0.8                # relative to page width (0..1)
+      # tables_style/tables_layout/tables_width also work as officedown aliases, same
+      # conflict rule as officequarto-styles' ol_style/ul_style (see officedown aliases above)
+```
+
+All three fields are independently optional (per-field opt-in, like `officequarto-styles`) — an
+unset field is left exactly as Pandoc rendered it, there's no forced fallback to officedown's own
+defaults. `style` is resolved against `reference-doc`'s **table** styles (not paragraph styles),
+same fail-loud lookup as `body`/`list-bullet`/etc. `layout`/`width` are written directly onto every
+table's `w:tblPr` (`w:tblLayout`/`w:tblW`), inserted in OOXML-schema order alongside whatever
+`w:tblPr` children Pandoc already produced.
+
+officedown's `tab.lp` option (a bookdown cross-reference label-prefix) is deliberately **not**
+ported — it's an authoring-syntax concept with no equivalent once Quarto has already resolved
+cross-references before this hook ever runs. If you need to change the visible "Table"/"Figure"
+caption prefix text, use Quarto's own native `crossref.tbl-title`/`crossref.fig-title` in your
+`_quarto.yml` instead — no `officequarto` option needed for that.
+
 ## Style pruning: keeping only reference-doc styles
 
 Pandoc's docx writer unconditionally adds its own style definitions on top of whatever
@@ -220,6 +251,9 @@ aren't implemented yet.
 | `officequarto-styles.list-bullet` | `ul_style` | Word style for bullet-list paragraphs | unset (Pandoc default) |
 | `officequarto-styles.list-number` | `ol_style` | Word style for numbered-list paragraphs (decimal, roman, ...) | unset (Pandoc default) |
 | `officequarto-styles.list-letter` | *(none — no officedown equivalent)* | Word style for lettered-list paragraphs (`a.`/`b.`/... or `A.`/`B.`/...) | unset (Pandoc default) |
+| `officequarto-tables.style` | `tables_style` | Word table style name | unset (Pandoc/reference-doc default) |
+| `officequarto-tables.layout` | `tables_layout` | Table layout, `autofit` or `fixed` | unset (Pandoc default) |
+| `officequarto-tables.width` | `tables_width` | Table width relative to page width (0–1) | unset (Pandoc default) |
 
 ## Requirements
 

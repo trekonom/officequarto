@@ -215,6 +215,48 @@ Buchstaben-Listen-Absaetze werden korrekt auf `BuchstabierungACME` umgemappt, `l
 (separat auf `NummerierungACME` gemappt) bleibt bei weiterhin nur 3 Absaetzen unveraendert — keine
 Vermischung der beiden Buckets.
 
+## Spike H — Tabellen-Basisoptionen (Gruppe 1) und `tab.lp`-Verzicht, verifiziert am 2026-08-29
+
+Zwei offene Fragen vor der Implementierung von `officequarto-tables` (Gruppe 1 des
+officedown-Options-Ports: `style`/`layout`/`width`, officedown-Vorbild: `tables = list(style=,
+layout=, width=, topcaption=, tab.lp=)`):
+
+**1. Braucht officequarto ein `tab.lp`/`fig.lp`-Aequivalent?** Recherchiert (Quartos eigene
+Crossref-Dokumentation, `quarto.org/docs/authoring/cross-reference-options.html` und
+`.../cross-references.html`, sowie eine Quarto-Maintainer-Diskussion zu Docx-Crossrefs,
+`github.com/orgs/quarto-dev/discussions/8503`) statt angenommen: Nein. `tab.lp` ist in
+officedown/bookdown ein reines **Autoren-Syntax-Konzept** — der Praefix, an dem bookdowns
+`\@ref(tab:xyz)`-Parser erkennt, dass ein Label sich auf eine Tabelle bezieht — kein
+Rendering-Schalter. Quartos eigenes Aequivalent (`#tbl-xyz`/`#fig-xyz`) ist eine fixe,
+nicht-konfigurierbare Quarto-Autoren-Konvention, die schon beim Parsen der `.qmd` aufgeloest wird —
+lange bevor `writeback.R` (das nur das fertig gerenderte docx sieht) ueberhaupt laeuft. Kein
+Ansatzpunkt in der Post-Render-Architektur. Das sichtbare Praefix-Textproblem ("Tabelle" statt
+"Table") ist ausserdem bereits nativ durch Quartos eigene `crossref.tbl-title`/`fig-title`
+YAML-Optionen geloest — keine officequarto-Option dafuer noetig. Randbefund fuer eine spaetere
+Gruppe 3 (Tabellen-/Abbildungs-Beschriftungen): Quartos Docx-Crossref-Captions sind aktuell
+statischer, fest eingebackener Text statt echter Word-`SEQ`-Felder (offene Quarto-Luecke) — der
+Post-Render-XML-Zugriff von officequarto waere ein plausibler Ort, um das spaeter nachzuruesten.
+
+**2. `style` gegen welche Styles aufloesen?** `officequarto-tables.style` referenziert
+Tabellen-Styles (`w:type="table"`), nicht Absatz-Styles wie `body`/`list-*` — `oq_style_name_to_id()`
+in `style_mapping.R` wurde daher um einen `type`-Parameter erweitert (`"paragraph"`
+Default, `"table"` fuer diesen Fall), statt eine zweite fast identische Funktion anzulegen. Beim
+Pruefen der Test-Vorlage zeigte sich: `original.docx` (von `officer::read_docx()` erzeugt) enthaelt
+bereits vier eingebaute Tabellen-Styles, darunter den Basis-Style mit der ID `TableauNormal` (nicht
+`TableNormal` wie im generischen OOXML-Beispiel — officer-Basisvorlage ist franzoesisch benannt).
+Der neue ACME-Tabellen-Style (`TabelleACME`) baut deshalb auf `TableauNormal` auf, nicht auf einen
+angenommenen `TableNormal`.
+
+**Zusaetzlicher Implementierungsfund (nicht vorab recherchiert, beim ersten Testrender entdeckt):**
+ein per `xml2::xml_add_child(tbl_pr, "w:tblLayout")` ohne `.where` neu erzeugtes Element landet
+einfach als letztes Kind von `w:tblPr` — bei einer von Pandoc bereits mit `w:tblStyle`, `w:tblW`,
+`w:tblLook` vorbelegten `w:tblPr` also *hinter* `w:tblLook`, obwohel `w:tblLayout` laut
+OOXML-Schema (`CT_TblPrBase`) *vor* `w:tblLook` stehen muss. Word selbst toleriert das
+(rendert trotzdem korrekt), aber nicht schema-konform. Behoben durch `oq_add_tbl_pr_child()`
+(`table_mapping.R`), das die Zielposition anhand einer festen `officequarto_tblpr_order`-Sequenz
+bestimmt statt blind anzuhaengen — verifiziert per `check_writeback.R`-Assertion auf die konkrete
+resultierende Kindelement-Reihenfolge (`tblStyle, tblW, tblLayout, tblLook`).
+
 ## Offene Fragen aus Abschnitt 3 des Konzepts — Status
 
 | Frage | Status |

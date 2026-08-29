@@ -13,10 +13,12 @@
 
 officequarto_body_role_styles <- c("Normal", "FirstParagraph", "Compact", "BodyText", "Body Text")
 
-## styles.xml (xml2-Dokument) -> Named Character Vector: Anzeigename -> styleId
-oq_style_name_to_id <- function(styles_doc) {
+## styles.xml (xml2-Dokument) -> Named Character Vector: Anzeigename -> styleId.
+## type ist der OOXML-Style-Typ ("paragraph" fuer Body/Listen/Codeblock-Styles,
+## "table" fuer Tabellen-Styles, siehe table_mapping.R).
+oq_style_name_to_id <- function(styles_doc, type = "paragraph") {
   ns <- xml2::xml_ns(styles_doc)
-  nodes <- xml2::xml_find_all(styles_doc, "//w:style[@w:type='paragraph']", ns)
+  nodes <- xml2::xml_find_all(styles_doc, sprintf("//w:style[@w:type='%s']", type), ns)
   ids <- xml2::xml_attr(nodes, "styleId")
   nm <- xml2::xml_text(xml2::xml_find_first(nodes, "./w:name/@w:val", ns))
   stats::setNames(ids, nm)
