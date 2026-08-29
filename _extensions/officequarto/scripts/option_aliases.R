@@ -37,6 +37,25 @@ oq_resolve_aliased <- function(config, canonical_key, alias_key, group_label, wa
   alias_val
 }
 
+## Ruft oq_resolve_aliased() fuer mehrere Felder derselben Gruppe auf einmal
+## auf und gibt eine benannte Liste zurueck (canonical Name -> aufgeloester
+## Wert oder NULL). fields ist ein benannter Character Vector canonical Name
+## -> officedown-Alias (z.B. c(width = "page_size_width", height =
+## "page_size_height")). Nuetzlich fuer Gruppen mit vielen gleichartigen
+## Feldern (z.B. officequarto-page.size/.margins), um die sonst noetige
+## Wiederholung von oq_resolve_aliased()-Aufrufen zu vermeiden. config darf
+## NULL sein (dann ist jedes Feld NULL, wie oq_resolve_aliased() das auch
+## einzeln handhaben wuerde).
+oq_resolve_fields <- function(config, fields, group_label, warn_fn) {
+  stats::setNames(
+    lapply(names(fields), function(canonical) {
+      if (is.null(config)) return(NULL)
+      oq_resolve_aliased(config, canonical, fields[[canonical]], group_label, warn_fn)
+    }),
+    names(fields)
+  )
+}
+
 ## Variante von oq_resolve_aliased() fuer Optionspaare mit ENTGEGENGESETZTER
 ## Polaritaet zwischen canonical Name und officedown-Alias (z.B.
 ## officequarto-tables.conditional.band-rows, positiv formuliert, vs.

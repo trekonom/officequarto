@@ -87,9 +87,11 @@ _extensions/officequarto/
     │                          side effects of its own — called from writeback.R; the
     │                          actual text-rewriting logic lives in table_caption_mapping.R
     │                          and is shared, not duplicated)
-    └── style_map.R           free-form style-map (officedown: mapstyles) core logic
-                               (pure functions, no side effects of its own — called from
-                               writeback.R)
+    ├── style_map.R           free-form style-map (officedown: mapstyles) core logic
+    │                          (pure functions, no side effects of its own — called from
+    │                          writeback.R)
+    └── page_mapping.R        page size/margins core logic (pure functions, no side
+                               effects of its own — called from writeback.R)
 
 template/                     example/dev project
 ├── _quarto.yml                project: type: officequarto; format.docx.reference-doc +
@@ -407,6 +409,44 @@ Runs **last** in `writeback.R`'s style-mapping pipeline, deliberately after `off
 paragraphs none of the curated options already claimed, while a rule deliberately keyed on an
 already-remapped target name can still reach and further override it, since matching is always
 against whatever `pStyle` a paragraph currently has at that point in the pipeline.
+
+### Page layout (`officequarto-page`, `page_mapping.R`, Gruppe 8)
+
+Unlike every other group, this touches section properties (`w:sectPr`/`w:pgSz`/`w:pgMar`), not
+paragraph or table styles — and unlike `tab.lp`/`fig.lp`, this one genuinely needed a post-render
+implementation rather than pointing at a native Quarto/Pandoc equivalent: page size/margins already
+carry over from `reference-doc` via Pandoc's normal section-properties inheritance, but Pandoc's
+docx writer has no YAML override mechanism for them at all (unlike its LaTeX/PDF writer's
+`geometry` options), so overriding them without hand-editing `reference-doc` requires a direct XML
+patch.
+
+One combined top-level section `officequarto-page` (`size`/`margins` sub-groups), not two separate
+sections mirroring officedown's `page_size`/`page_margins` — confirmed with the user in Schritt A,
+consistent with how `officequarto-tables` groups `conditional`/`caption` rather than splitting into
+more top-level sections. `orient` renamed to `orientation` (also confirmed); the officedown alias
+stays `page_size_orient` (officedown's literal historical name, needed verbatim for migration
+regardless of the new canonical spelling).
+
+Values are in inches (matching officedown) converted to twips (`× 1440`) for OOXML. Applied
+uniformly to every `w:sectPr` in the document (`oq_apply_page_options()`) — most documents have
+exactly one; a document with genuinely different per-section page layouts isn't the target
+scenario, matching officedown's own single-section assumption. No automatic `width`/`height` swap
+when `orientation: landscape` is set — same as officedown, the user owns dimension consistency.
+
+New generic helper `oq_resolve_fields()` (`option_aliases.R`) added for this group specifically: it
+wraps `oq_resolve_aliased()` over a whole named vector of `canonical -> alias` pairs at once,
+returning a resolved named list — introduced here because this group has ten near-identical fields
+(three `size` + seven `margins`), where the previous one-call-per-field pattern used by every
+earlier group would have been pure repetition.
+
+**Verified empirically** (comparing `officequarto-keep-rendered`'s pre-patch debug copy against the
+final output) that Pandoc's own unpatched `w:sectPr` already orders `pgMar` before `pgSz` before
+`type` — technically not `CT_SectPr`'s defined schema sequence (which places `type` before `pgSz`
+before `pgMar`), but Word tolerates it and it predates any officequarto involvement: this code only
+updates existing `w:pgSz`/`w:pgMar` nodes' attributes in place via `xml_find_first()`, it never
+creates or repositions them (both already exist in every real `reference-doc`-derived render), so
+there was nothing here for officequarto to have broken or to fix — unlike the Gruppe 1 `w:tblPr`
+child-ordering issue, which was a real, first-created-by-officequarto ordering bug.
 
 officedown's `tab.lp`/`fig.lp` (bookdown cross-reference label-prefix options) were deliberately
 **not** ported — researched explicitly before implementing Gruppe 1: they're a source-syntax

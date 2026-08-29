@@ -38,3 +38,16 @@ format:
         plots_topcaption: true               # officedown-Alias fuer above (gegen Pandocs Default: Abbildungen unten)
     officequarto-style-map:
       "Titel ACME": [Title]
+    officequarto-page:
+      size:
+        width: 11.7
+        height: 8.3
+        page_size_orient: landscape   # officedown-Alias fuer orientation
+      margins:
+        top: 0.75
+        page_margins_bottom: 0.75     # officedown-Alias fuer bottom
+        left: 1
+        right: 1
+        header: 0.4
+        footer: 0.4
+        gutter: 0

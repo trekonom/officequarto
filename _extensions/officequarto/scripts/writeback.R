@@ -69,6 +69,7 @@ source(file.path(get_script_dir(), "table_caption_mapping.R"))
 source(file.path(get_script_dir(), "plot_mapping.R"))
 source(file.path(get_script_dir(), "plot_caption_mapping.R"))
 source(file.path(get_script_dir(), "style_map.R"))
+source(file.path(get_script_dir(), "page_mapping.R"))
 
 warn_msg <- function(fmt, ...) log_msg(paste0("Warnung: ", fmt), ...)
 
@@ -245,6 +246,37 @@ if (!is.null(style_map_config) && (!is.list(style_map_config) || is.null(names(s
   fail("officequarto-style-map muss eine benannte Liste sein (Ziel-Style-Name -> Liste von Quell-pStyle-IDs).")
 }
 
+## Gruppe 8 (officequarto-page.size/.margins) - Werte in Zoll, siehe
+## page_mapping.R fuer die Twips-Umrechnung und die Begruendung, warum diese
+## Gruppe (anders als alle anderen) Section Properties statt Styles betrifft.
+page_config <- tryCatch(inspect$config$format$docx$`officequarto-page`, error = function(e) NULL)
+
+page_size_fields <- c(width = "page_size_width", height = "page_size_height", orientation = "page_size_orient")
+page_size_vals <- oq_resolve_fields(page_config$size, page_size_fields, "officequarto-page.size", warn_msg)
+for (f in c("width", "height")) {
+  v <- page_size_vals[[f]]
+  if (!is.null(v) && (!is.numeric(v) || length(v) != 1 || v <= 0)) {
+    fail("officequarto-page.size.%s muss eine einzelne positive Zahl sein (erhalten: '%s').", f, v)
+  }
+}
+if (!is.null(page_size_vals$orientation) && !(page_size_vals$orientation %in% c("portrait", "landscape"))) {
+  fail("officequarto-page.size.orientation muss 'portrait' oder 'landscape' sein (erhalten: '%s').", page_size_vals$orientation)
+}
+
+page_margin_fields <- c(
+  top = "page_margins_top", bottom = "page_margins_bottom",
+  left = "page_margins_left", right = "page_margins_right",
+  header = "page_margins_header", footer = "page_margins_footer",
+  gutter = "page_margins_gutter"
+)
+page_margin_vals <- oq_resolve_fields(page_config$margins, page_margin_fields, "officequarto-page.margins", warn_msg)
+for (f in names(page_margin_fields)) {
+  v <- page_margin_vals[[f]]
+  if (!is.null(v) && (!is.numeric(v) || length(v) != 1 || v < 0)) {
+    fail("officequarto-page.margins.%s muss eine einzelne, nicht-negative Zahl sein (erhalten: '%s').", f, v)
+  }
+}
+
 ## Uebertraegt dc:subject, cp:keywords, cp:category aus core_from in core_to und
 ## gibt den (ggf. veraenderten) core_to xml2-Doc zurueck.
 merge_core_properties <- function(core_to, core_from) {
@@ -294,7 +326,7 @@ for (rel_path in docx_outputs) {
     file.copy(custom_from_path, file.path(work_dir, "docProps", "custom.xml"), overwrite = TRUE)
   }
 
-  if (!is.null(style_config) || !is.null(code_block_config) || !is.null(table_config) || !is.null(plot_config) || !is.null(style_map_config)) {
+  if (!is.null(style_config) || !is.null(code_block_config) || !is.null(table_config) || !is.null(plot_config) || !is.null(style_map_config) || !is.null(page_config)) {
     styles_path <- file.path(work_dir, "word", "styles.xml")
     document_path <- file.path(work_dir, "word", "document.xml")
     numbering_path <- file.path(work_dir, "word", "numbering.xml")
@@ -386,6 +418,11 @@ for (rel_path in docx_outputs) {
       source_to_target <- oq_resolve_style_map(style_map_config, name_to_id, fail)
       n_mapped <- oq_apply_style_map(document_doc, source_to_target)
       log_msg("Freies Style-Mapping (officequarto-style-map) angewendet: %d Absaetze.", n_mapped)
+    }
+
+    if (!is.null(page_config)) {
+      n_sections <- oq_apply_page_options(document_doc, list(size = page_size_vals, margins = page_margin_vals))
+      log_msg("Seitenlayout (officequarto-page) angewendet: %d Section(s).", n_sections)
     }
 
     xml2::write_xml(document_doc, document_path)

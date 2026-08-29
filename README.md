@@ -61,7 +61,8 @@ _extensions/officequarto/
     │                          sourced by writeback.R
     ├── plot_mapping.R        figure style/align logic, sourced by writeback.R
     ├── plot_caption_mapping.R   figure caption paragraph detection, sourced by writeback.R
-    └── style_map.R           free-form style-map (mapstyles) logic, sourced by writeback.R
+    ├── style_map.R           free-form style-map (mapstyles) logic, sourced by writeback.R
+    └── page_mapping.R        page size/margins (section properties) logic, sourced by writeback.R
 
 template/                     example project (quarto use template)
 ├── _quarto.yml                project: type: officequarto, format.docx.officequarto-styles
@@ -336,6 +337,45 @@ none of the curated options already touched — but since it matches on whatever
 currently has, it can also be pointed at an already-remapped target name to override it further, if
 you deliberately want that.
 
+## Page layout: `officequarto-page`
+
+Page size and margins already carry over from `reference-doc` natively via Pandoc — like
+everything else, no configuration needed for that. `officequarto-page` exists for a different
+case: overriding them *without* editing `reference-doc` itself. Pandoc's docx writer has no YAML
+knob for this at all (unlike its LaTeX/PDF writer's `geometry` options), so this patches
+`w:sectPr`/`w:pgSz`/`w:pgMar` directly, analogous to {officedown}'s `page_size`/`page_margins`:
+
+```yaml
+format:
+  docx:
+    officequarto-page:
+      size:
+        width: 11.7      # inches
+        height: 8.3
+        orientation: landscape   # "portrait" or "landscape"
+      margins:
+        top: 0.75         # inches
+        bottom: 0.75
+        left: 1
+        right: 1
+        header: 0.4
+        footer: 0.4
+        gutter: 0
+```
+
+Values are in inches (matching officedown), converted internally to twips for OOXML. Every field
+is independently optional, applied uniformly to every section in the document (most documents have
+exactly one `w:sectPr`; a document with genuinely different per-section layouts isn't the target
+scenario here, same as officedown's own single-section assumption). Setting `orientation` does
+**not** automatically swap `width`/`height` — you're responsible for consistent dimensions, same as
+in officedown.
+
+`officequarto-page` is a single combined section (unlike officedown's separate `page_size`/
+`page_margins`), with `size`/`margins` as sub-groups — consistent with how `officequarto-tables`
+groups `conditional`/`caption` together rather than splitting into more top-level sections.
+officedown's `orient` is spelled out as `orientation` here; its alias remains `page_size_orient`
+(officedown's actual literal option name, needed verbatim regardless of the new spelling).
+
 ## Style pruning: keeping only reference-doc styles
 
 Pandoc's docx writer unconditionally adds its own style definitions on top of whatever
@@ -440,6 +480,16 @@ aren't implemented yet.
 | `officequarto-plots.caption.number-bold` | `plots_caption_bold` | Bold the prefix+number portion | unset (Pandoc default, not bold) |
 | `officequarto-plots.caption.above` | `plots_topcaption` | Move the caption before (`true`) or after (`false`) the figure | unset (Pandoc default, already "below") |
 | `officequarto-style-map` | *(renamed from officedown's `mapstyles`, shape unchanged)* | Free-form target-style → source-style-IDs map | unset (no effect) |
+| `officequarto-page.size.width` | `page_size_width` | Page width (inches) | unset (`reference-doc` default) |
+| `officequarto-page.size.height` | `page_size_height` | Page height (inches) | unset (`reference-doc` default) |
+| `officequarto-page.size.orientation` | `page_size_orient` | `portrait`/`landscape` | unset (`reference-doc` default) |
+| `officequarto-page.margins.top` | `page_margins_top` | Top margin (inches) | unset (`reference-doc` default) |
+| `officequarto-page.margins.bottom` | `page_margins_bottom` | Bottom margin (inches) | unset (`reference-doc` default) |
+| `officequarto-page.margins.left` | `page_margins_left` | Left margin (inches) | unset (`reference-doc` default) |
+| `officequarto-page.margins.right` | `page_margins_right` | Right margin (inches) | unset (`reference-doc` default) |
+| `officequarto-page.margins.header` | `page_margins_header` | Header distance (inches) | unset (`reference-doc` default) |
+| `officequarto-page.margins.footer` | `page_margins_footer` | Footer distance (inches) | unset (`reference-doc` default) |
+| `officequarto-page.margins.gutter` | `page_margins_gutter` | Gutter margin (inches) | unset (`reference-doc` default) |
 
 ## Requirements
 

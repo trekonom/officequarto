@@ -214,6 +214,29 @@ if (is.na(plot_caption_before_img)) {
 }
 ok("Abbildungs-Beschriftung steht vor der Abbildung (officequarto-plots.caption.above: true via officedown-Alias plots_topcaption, gegen Pandocs Default)")
 
+sect_pr <- xml_find_first(document_doc, "//w:sectPr", ns)
+if (is.na(sect_pr)) fail("keine w:sectPr im Ergebnis-Dokument gefunden")
+
+pg_sz <- xml_find_first(sect_pr, "./w:pgSz", ns)
+expected_pg_sz <- c(w = "16848", h = "11952", orient = "landscape")
+for (attr_name in names(expected_pg_sz)) {
+  actual <- xml_attr(pg_sz, attr_name)
+  if (!identical(actual, expected_pg_sz[[attr_name]])) {
+    fail("w:pgSz/@%s sollte '%s' sein (officequarto-page.size), gefunden: '%s'", attr_name, expected_pg_sz[[attr_name]], actual)
+  }
+}
+ok("Seitengroesse korrekt gesetzt: 11.7x8.3 Zoll, landscape (officequarto-page.size, orientation via officedown-Alias page_size_orient)")
+
+pg_mar <- xml_find_first(sect_pr, "./w:pgMar", ns)
+expected_pg_mar <- c(top = "1080", bottom = "1080", left = "1440", right = "1440", header = "576", footer = "576", gutter = "0")
+for (attr_name in names(expected_pg_mar)) {
+  actual <- xml_attr(pg_mar, attr_name)
+  if (!identical(actual, expected_pg_mar[[attr_name]])) {
+    fail("w:pgMar/@%s sollte '%s' sein (officequarto-page.margins), gefunden: '%s'", attr_name, expected_pg_mar[[attr_name]], actual)
+  }
+}
+ok("Seitenraender korrekt gesetzt (officequarto-page.margins, bottom via officedown-Alias page_margins_bottom)")
+
 rendered_styles_doc <- read_xml(file.path(tmp, "word", "styles.xml"))
 rendered_style_ids <- xml_attr(xml_find_all(rendered_styles_doc, "//w:style", ns), "styleId")
 
