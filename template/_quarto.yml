@@ -4,3 +4,7 @@ project:
 format:
   docx:
     reference-doc: original.docx
+    officequarto-styles:
+      body: "Fließtext ACME"
+      list-bullet: "Aufzählung ACME"
+      list-number: "Nummerierung ACME"

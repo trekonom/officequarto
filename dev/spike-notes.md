@@ -72,6 +72,39 @@ Den Pfad des `reference-doc` selbst liefert keine Env-Variable — dafür wird `
 robuster als eigenes YAML-Parsing von `_quarto.yml`, weil `quarto inspect` bereits Merges/
 Defaults auflöst.
 
+## Spike D — Style-Mapping (Body/Listen), verifiziert am 2026-08-28
+
+Ausgangsannahme aus der Recherche (officedown/Pandoc-Interna) war, Pandoc verwende feste
+Style-IDs `Normal` (Body) und `ListParagraph` (Listen). Das war **unvollständig**: Am echten
+gerenderten Dokument zeigte sich, dass Pandoc je nach Kontext unterschiedliche Style-Namen wählt,
+die im `reference-doc` existieren:
+
+- Body-Absätze direkt nach einer Überschrift → `FirstParagraph`
+- Listen-Absätze aus "tight" Markdown-Listen (keine Leerzeile zwischen Einträgen, der
+  Normalfall) → `Compact` — **sowohl für Bullet- als auch für nummerierte Listen**
+- `Normal`/`ListParagraph` kommen nur in anderen Konstellationen vor (z. B. "loose" Listen,
+  Body-Absätze ohne vorausgehende Überschrift)
+
+Verifiziert per `unzip`+Python-Regex-Diff am realen `bericht.docx`: alle 9 Absätze trugen explizite
+`pStyle`-Werte aus `{Title, Titre2, FirstParagraph, Compact}`, `ListParagraph` kam gar nicht vor.
+**Konsequenz:** Listen-Absätze werden nicht am Style-Namen erkannt, sondern an der Präsenz von
+`<w:numPr>` (zuverlässig, unabhängig vom gewählten Style-Namen); Body-Absätze werden über eine
+Allowlist bekannter Rollennamen erkannt (`Normal`, `FirstParagraph`, `Compact`, `BodyText`,
+`Body Text`) — siehe `scripts/style_mapping.R`.
+
+Ebenfalls verifiziert: `word/numbering.xml` löst `numId` → `abstractNumId` → `w:numFmt` (Ebene 0)
+zuverlässig auf; im Test hatte die Bullet-Liste `numFmt="bullet"`, die nummerierte Liste
+`numFmt="decimal"` — mit unterschiedlichen `numId`s (1001 vs. 1002), aber identischem `pStyle`
+(`Compact`) auf Absatzebene. Ohne den `numFmt`-Umweg wäre Bullet/Nummerierung nicht unterscheidbar
+gewesen.
+
+Außerdem bestätigt: `word/styles.xml` im gerenderten Output enthält alle Style-Definitionen des
+`reference-doc` unverändert (inkl. selbst ergänzter Custom-Styles) plus von Pandoc zusätzlich
+benötigte Styles (z. B. Syntax-Highlighting-Token-Styles) — keine zweite Extraktion aus dem
+`reference-doc` nötig, `work_dir/word/styles.xml` reicht. Und: `quarto inspect` liefert einen neu
+hinzugefügten verschachtelten Key `format.docx.officequarto-styles` genauso zuverlässig wie
+`reference-doc` (per Gegenprobe mit einem Testwert bestätigt).
+
 ## Offene Fragen aus Abschnitt 3 des Konzepts — Status
 
 | Frage | Status |

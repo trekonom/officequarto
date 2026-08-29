@@ -12,9 +12,24 @@
 ## weitgehend leeres core.xml. Genau das schreibt dieser Hook zurueck: er nimmt
 ## das frisch gerenderte .docx (Body/Header/Footer/Styles bereits korrekt) und
 ## uebertraegt Subject/Keywords/Category/Custom-Properties des Originals hinein.
+##
+## Zusaetzlich, optional per `format.docx.officequarto-styles` konfigurierbar:
+## Body- und Listen-Absaetze werden auf vom Nutzer benannte, echte Styles des
+## reference-doc umgemappt (siehe scripts/style_mapping.R fuer die Kernlogik).
 
 log_msg <- function(fmt, ...) cat(sprintf(paste0("[officequarto] ", fmt, "\n"), ...))
 fail <- function(fmt, ...) stop(sprintf(paste0("officequarto: ", fmt), ...), call. = FALSE)
+
+## Ermittelt das Verzeichnis dieses Skripts, unabhaengig vom Arbeitsverzeichnis,
+## in dem Quarto den Post-Render-Hook ausfuehrt.
+get_script_dir <- function() {
+  file_arg <- grep("^--file=", commandArgs(trailingOnly = FALSE), value = TRUE)
+  if (length(file_arg) == 1) {
+    return(dirname(normalizePath(sub("^--file=", "", file_arg))))
+  }
+  "."
+}
+source(file.path(get_script_dir(), "style_mapping.R"))
 
 output_files <- Sys.getenv("QUARTO_PROJECT_OUTPUT_FILES", unset = "")
 output_dir <- Sys.getenv("QUARTO_PROJECT_OUTPUT_DIR", unset = ".")
@@ -63,6 +78,8 @@ reference_doc_path <- file.path(project_dir, reference_doc)
 if (!file.exists(reference_doc_path)) {
   fail("reference-doc '%s' wurde nicht gefunden.", reference_doc_path)
 }
+
+style_config <- tryCatch(inspect$config$format$docx$`officequarto-styles`, error = function(e) NULL)
 
 ## Uebertraegt dc:subject, cp:keywords, cp:category aus core_from in core_to und
 ## gibt den (ggf. veraenderten) core_to xml2-Doc zurueck.
@@ -116,6 +133,37 @@ for (rel_path in docx_outputs) {
   custom_from_path <- file.path(orig_dir, "docProps", "custom.xml")
   if (file.exists(custom_from_path)) {
     file.copy(custom_from_path, file.path(work_dir, "docProps", "custom.xml"), overwrite = TRUE)
+  }
+
+  if (!is.null(style_config)) {
+    styles_path <- file.path(work_dir, "word", "styles.xml")
+    document_path <- file.path(work_dir, "word", "document.xml")
+    numbering_path <- file.path(work_dir, "word", "numbering.xml")
+
+    styles_doc <- xml2::read_xml(styles_path)
+    name_to_id <- oq_style_name_to_id(styles_doc)
+
+    style_ids <- list()
+    if (!is.null(style_config$body)) {
+      style_ids$body <- oq_resolve_style_id(name_to_id, style_config$body, "body", fail)
+    }
+    if (!is.null(style_config$`list-bullet`)) {
+      style_ids$list_bullet <- oq_resolve_style_id(name_to_id, style_config$`list-bullet`, "list-bullet", fail)
+    }
+    if (!is.null(style_config$`list-number`)) {
+      style_ids$list_number <- oq_resolve_style_id(name_to_id, style_config$`list-number`, "list-number", fail)
+    }
+
+    num_fmt_map <- if (file.exists(numbering_path)) {
+      oq_num_fmt_map(xml2::read_xml(numbering_path))
+    } else {
+      character(0)
+    }
+
+    document_doc <- xml2::read_xml(document_path)
+    result <- oq_apply_style_mapping(document_doc, num_fmt_map, style_ids)
+    xml2::write_xml(document_doc, document_path)
+    log_msg("Style-Mapping angewendet: %d Body-Absaetze, %d Listen-Absaetze.", result$n_body, result$n_list)
   }
 
   if (file.exists(target_path)) file.remove(target_path)

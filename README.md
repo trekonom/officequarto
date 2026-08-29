@@ -40,20 +40,22 @@ aber als installierbare Quarto-Extension statt als R-Paket.
    euer Original mit reingerenderten Inhalten und zurückgeschriebenen Dokument-Metadaten.
 
 Ein vollständiges Beispiel liegt in [`template/`](template/): `original.docx` (Beispielvorlage mit
-eigenem Header/Footer/Custom-Properties) + `bericht.qmd` + `_quarto.yml`.
+eigenem Header/Footer/Custom-Properties/Custom-Styles) + `bericht.qmd` + `_quarto.yml`.
 
 ## Architektur
 
 ```
 _extensions/officequarto/
-├── _extension.yml       contributes: project: { project: { type: default,
-│                                                  post-render: [scripts/writeback.R] } }
-└── scripts/writeback.R  Post-Render-Hook
+├── _extension.yml            contributes: project: { project: { type: default,
+│                                                       post-render: [scripts/writeback.R] } }
+└── scripts/
+    ├── writeback.R           Post-Render-Hook (Orchestrierung)
+    └── style_mapping.R       Style-Mapping-Kernlogik, von writeback.R per source() eingebunden
 
-template/                 Beispielprojekt (quarto use template)
-├── _quarto.yml            project: type: officequarto
-├── original.docx          Beispiel-Vorlage
-└── bericht.qmd             format: docx: reference-doc: original.docx
+template/                     Beispielprojekt (quarto use template)
+├── _quarto.yml                project: type: officequarto, format.docx.officequarto-styles
+├── original.docx              Beispiel-Vorlage (inkl. drei ACME-Custom-Styles)
+└── bericht.qmd                 format: docx: reference-doc: original.docx
 ```
 
 Ablauf bei `quarto render`:
@@ -75,6 +77,38 @@ Body bereits vollständig erledigt — ein zusätzlicher XML-Merge-Schritt mit `
 keinen Mehrwert und stieß zudem auf einen Grenzfall-Bug in `officer 0.7.3` beim Zusammenführen
 zweier strukturell sehr ähnlicher Dokumente. Details in
 [`dev/spike-notes.md`](dev/spike-notes.md).
+
+## Style-Mapping: Body-Text und Listen auf eigene Word-Styles ummappen
+
+Pandoc rendert Body-Absätze und Listen zwar mit den Styles/Layout-Vorgaben aus `reference-doc`,
+verwendet dafür aber **eigene, feste Style-Namen** (je nach Kontext z. B. `Normal`,
+`FirstParagraph` oder `Compact`) statt eurer eigenen, im Template ggf. anders benannten Styles
+(z. B. `Fließtext` in einem deutschen Corporate-Template). `officequarto` erlaubt, das
+zuzuschneiden — analog zu [{officedown}](https://github.com/ardata-fr/officedown)s
+`mapstyles`/`ol.style`/`ul.style`, optional und pro Rolle einzeln konfigurierbar:
+
+```yaml
+format:
+  docx:
+    reference-doc: original.docx
+    officequarto-styles:
+      body: "Fließtext ACME"                # echter Style-Name aus original.docx
+      list-bullet: "Aufzählung ACME"
+      list-number: "Nummerierung ACME"
+```
+
+Angegeben wird der im Word-UI sichtbare Style-**Name** (nicht die interne Style-ID) — der Hook
+löst das selbst gegen `word/styles.xml` des `reference-doc` auf. Alle drei Felder sind optional
+und unabhängig nutzbar; nicht angegebene Rollen bleiben bei Pandocs Standard-Styles.
+
+Funktionsweise: Body-Absätze werden über eine Allowlist bekannter Pandoc-Body-Rollen erkannt
+(`Normal`, `FirstParagraph`, `Compact`, `BodyText`/`Body Text`); Listen-Absätze werden über die
+Präsenz von `<w:numPr>` erkannt (nicht über den Style-Namen, da Pandoc für Bullet- **und**
+nummerierte Listen denselben Style verwendet). Bullet vs. nummeriert wird über `word/numbering.xml`
+(`w:numFmt`: `bullet` vs. alles andere) unterschieden — genau wie bei {officedown} gibt es dabei
+**einen Style pro Listen-TYP, nicht pro Verschachtelungsebene**. Ist ein konfigurierter Style-Name
+im `reference-doc` nicht vorhanden, bricht der Hook mit einer Liste der verfügbaren Paragraph-Styles
+ab, statt die Fehlkonfiguration still zu ignorieren.
 
 ## Voraussetzungen
 
@@ -102,6 +136,10 @@ zweier strukturell sehr ähnlicher Dokumente. Details in
 - Round-Trip-Treue ist grundsätzlich begrenzt: Wenn ein `docProps/custom.xml` im gerenderten
   Pandoc-Ergebnis noch nicht als Part registriert ist, wird das beim Überschreiben nicht
   automatisch nachgetragen (siehe `dev/spike-notes.md`).
+- Das Style-Mapping patcht nur `word/document.xml` (Haupttext), nicht Fußnoten/Kommentare, und
+  bietet einen Style pro Listen-Typ (bullet/numbered) statt pro Verschachtelungsebene. Die
+  Body-Erkennung basiert auf einer Allowlist bekannter Pandoc-Rollennamen — ein reference-doc, das
+  Body-Text unter einem noch nicht gelisteten Pandoc-Rollennamen rendert, wird nicht erkannt.
 
 ## Entwicklung / Tests
 
@@ -111,5 +149,6 @@ quarto render bericht.qmd
 Rscript ../dev/check_writeback.R   # prueft Header/Footer/Body/Metadaten des Ergebnisses
 ```
 
-`dev/make_sample_docx.R` erzeugt die Beispiel-Vorlage `template/original.docx` neu (benötigt das
-R-Paket `officer`, nur für die Testvorlagen-Erzeugung, nicht für den Hook selbst).
+`dev/make_sample_docx.R` erzeugt die Beispiel-Vorlage `template/original.docx` neu, inkl. der drei
+ACME-Custom-Styles fürs Style-Mapping (benötigt die R-Pakete `officer` und `xml2`, nur für die
+Testvorlagen-Erzeugung, nicht für den Hook selbst).

@@ -1,8 +1,11 @@
 ## End-to-End-Check fuer den officequarto-Workflow.
-## Erwartet, dass zuvor `quarto render bericht.qmd` im template/-Projekt lief.
+## Erwartet, dass zuvor `quarto render bericht.qmd` im template/-Projekt lief
+## (mit der officequarto-styles-Konfiguration aus template/_quarto.yml).
 ## Prueft: written-back.docx existiert, Header/Footer aus original.docx sind
 ## erhalten, der neu gerenderte Body-Text ist auffindbar, die aus dem Original
-## zurueckgeschriebenen Metadaten (Subject/Custom-Property) sind vorhanden.
+## zurueckgeschriebenen Metadaten (Subject/Custom-Property) sind vorhanden,
+## und Body-/Bullet-/Nummerierungs-Absaetze tragen die konfigurierten
+## ACME-Custom-Styles statt Pandocs Standard-Styles.
 library(xml2)
 
 fail <- function(...) {
@@ -42,6 +45,29 @@ custom_has_property <- file.exists(custom_path) &&
   any(grepl("Vertraulichkeitsstufe", readLines(custom_path, warn = FALSE), fixed = TRUE))
 if (!custom_has_property) fail("Custom-Property aus original.docx fehlt")
 ok("Custom-Property aus original.docx wurde zurueckgeschrieben")
+
+document_doc <- read_xml(file.path(tmp, "word", "document.xml"))
+ns <- xml_ns(document_doc)
+pstyles <- xml_attr(xml_find_all(document_doc, "//w:p/w:pPr/w:pStyle", ns), "val")
+
+n_body <- sum(pstyles == "FliesstextACME")
+if (n_body < 1) fail("kein Body-Absatz traegt den konfigurierten Style 'FliesstextACME' (gefunden: %s)",
+                      paste(unique(pstyles), collapse = ", "))
+ok("%d Body-Absatz/-Absaetze tragen den konfigurierten Style", n_body)
+
+n_bullet <- sum(pstyles == "AufzaehlungACME")
+if (n_bullet != 3) fail("erwartet 3 Bullet-Absaetze mit Style 'AufzaehlungACME', gefunden %d", n_bullet)
+ok("%d Bullet-Absaetze tragen den konfigurierten Style", n_bullet)
+
+n_number <- sum(pstyles == "NummerierungACME")
+if (n_number != 3) fail("erwartet 3 nummerierte Absaetze mit Style 'NummerierungACME', gefunden %d", n_number)
+ok("%d nummerierte Absaetze tragen den konfigurierten Style", n_number)
+
+if (any(pstyles == "Normal") || any(pstyles == "Compact") || any(pstyles == "FirstParagraph")) {
+  fail("es sind noch unbenannte Pandoc-Standard-Styles im Ergebnis vorhanden: %s",
+       paste(unique(pstyles), collapse = ", "))
+}
+ok("keine unumgemappten Pandoc-Standard-Styles (Normal/Compact/FirstParagraph) mehr vorhanden")
 
 unlink(tmp, recursive = TRUE)
 cat("\nAlle Checks bestanden.\n")
