@@ -71,6 +71,11 @@ if (n_body < 1) fail("kein Body-Absatz traegt den konfigurierten Style 'Fliesste
                       paste(unique(pstyles), collapse = ", "))
 ok("%d Body-Absatz/-Absaetze tragen den konfigurierten Style", n_body)
 
+n_title <- sum(pstyles == "TitelACME")
+if (n_title != 1) fail("erwartet 1 Titel-Absatz mit Style 'TitelACME' (officequarto-style-map: {\"Titel ACME\": [Title]}), gefunden %d", n_title)
+if ("Title" %in% pstyles) fail("es sollte kein unumgemappter 'Title'-Absatz mehr vorhanden sein (officequarto-style-map)")
+ok("%d Titel-Absatz traegt den ueber officequarto-style-map konfigurierten Style 'TitelACME' (freies Style-Mapping, Gruppe 7)", n_title)
+
 n_bullet <- sum(pstyles == "AufzaehlungACME")
 if (n_bullet != 3) fail("erwartet 3 Bullet-Absaetze mit Style 'AufzaehlungACME', gefunden %d", n_bullet)
 ok("%d Bullet-Absaetze tragen den konfigurierten Style", n_bullet)

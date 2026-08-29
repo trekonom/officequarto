@@ -68,6 +68,7 @@ source(file.path(get_script_dir(), "table_mapping.R"))
 source(file.path(get_script_dir(), "table_caption_mapping.R"))
 source(file.path(get_script_dir(), "plot_mapping.R"))
 source(file.path(get_script_dir(), "plot_caption_mapping.R"))
+source(file.path(get_script_dir(), "style_map.R"))
 
 warn_msg <- function(fmt, ...) log_msg(paste0("Warnung: ", fmt), ...)
 
@@ -235,6 +236,15 @@ if (!is.null(plot_caption_above_val) && (!is.logical(plot_caption_above_val) || 
   fail("officequarto-plots.caption.above muss true oder false sein (erhalten: '%s').", plot_caption_above_val)
 }
 
+## Gruppe 7 (officequarto-style-map, officedown: mapstyles) - freies
+## Style-Mapping, siehe style_map.R. Nur grobe Formvalidierung hier (benannte
+## Liste); die eigentliche Aufloesung (Ziel-Style gegen reference-doc) passiert
+## pro Ausgabedatei weiter unten, da sie name_to_id braucht.
+style_map_config <- tryCatch(inspect$config$format$docx$`officequarto-style-map`, error = function(e) NULL)
+if (!is.null(style_map_config) && (!is.list(style_map_config) || is.null(names(style_map_config)) || any(!nzchar(names(style_map_config))))) {
+  fail("officequarto-style-map muss eine benannte Liste sein (Ziel-Style-Name -> Liste von Quell-pStyle-IDs).")
+}
+
 ## Uebertraegt dc:subject, cp:keywords, cp:category aus core_from in core_to und
 ## gibt den (ggf. veraenderten) core_to xml2-Doc zurueck.
 merge_core_properties <- function(core_to, core_from) {
@@ -284,7 +294,7 @@ for (rel_path in docx_outputs) {
     file.copy(custom_from_path, file.path(work_dir, "docProps", "custom.xml"), overwrite = TRUE)
   }
 
-  if (!is.null(style_config) || !is.null(code_block_config) || !is.null(table_config) || !is.null(plot_config)) {
+  if (!is.null(style_config) || !is.null(code_block_config) || !is.null(table_config) || !is.null(plot_config) || !is.null(style_map_config)) {
     styles_path <- file.path(work_dir, "word", "styles.xml")
     document_path <- file.path(work_dir, "word", "document.xml")
     numbering_path <- file.path(work_dir, "word", "numbering.xml")
@@ -366,6 +376,16 @@ for (rel_path in docx_outputs) {
       plot_caption_result <- oq_apply_captions(document_doc, oq_find_plot_caption_paragraphs(document_doc, xml2::xml_ns(document_doc)), plot_caption_options, oq_plot_caption_content)
       log_msg("Abbildungs-Beschriftungen: %d gefunden, %d Text umformatiert, %d verschoben.",
                plot_caption_result$n_found, plot_caption_result$n_text_rewritten, plot_caption_result$n_moved)
+    }
+
+    ## Bewusst als letzter Schritt (siehe style_map.R): trifft dadurch
+    ## standardmaessig nur noch von den obigen Schritten unberuehrte
+    ## Absaetze, kann bei Bedarf aber auch gezielt bereits umgemappte
+    ## Ziel-Styles noch einmal ueberschreiben.
+    if (!is.null(style_map_config)) {
+      source_to_target <- oq_resolve_style_map(style_map_config, name_to_id, fail)
+      n_mapped <- oq_apply_style_map(document_doc, source_to_target)
+      log_msg("Freies Style-Mapping (officequarto-style-map) angewendet: %d Absaetze.", n_mapped)
     }
 
     xml2::write_xml(document_doc, document_path)

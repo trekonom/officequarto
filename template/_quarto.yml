@@ -36,3 +36,5 @@ format:
         separator: " | "
         plots_caption_bold: false           # officedown-Alias fuer number-bold
         plots_topcaption: true               # officedown-Alias fuer above (gegen Pandocs Default: Abbildungen unten)
+    officequarto-style-map:
+      "Titel ACME": [Title]

@@ -23,6 +23,7 @@ quarto render report.qmd
 Rscript ../dev/check_writeback.R        # checks header/footer/body/metadata/style-mapping/style-pruning of the result
 Rscript ../dev/check_option_aliases.R   # unit-checks oq_resolve_aliased()/oq_resolve_inverted_aliased()
 Rscript ../dev/check_caption_parsing.R  # unit-checks oq_split_caption_text() (table caption text-splitting)
+Rscript ../dev/check_style_map.R        # unit-checks oq_resolve_style_map()/oq_apply_style_map()
 ```
 
 `template/report.qmd` includes a small fenced code block specifically so the style-pruning
@@ -40,9 +41,9 @@ rm -f template/report.docx template/report.quarto-rendered.docx
 rm -rf template/.quarto template/report_files
 ```
 
-Regenerate the sample template (`template/original.docx`), including the eight ACME custom
+Regenerate the sample template (`template/original.docx`), including the nine ACME custom
 paragraph styles used to test style-mapping (body/bullet/number/letter/code-block/table-caption/
-plot/plot-caption):
+plot/plot-caption/title):
 
 ```bash
 Rscript dev/make_sample_docx.R   # needs R packages: officer, xml2
@@ -82,10 +83,13 @@ _extensions/officequarto/
     │                          writeback.R)
     ├── plot_mapping.R        figure style/align core logic (pure functions, no side
     │                          effects of its own — called from writeback.R)
-    └── plot_caption_mapping.R  figure caption paragraph detection (pure functions, no
-                               side effects of its own — called from writeback.R; the
-                               actual text-rewriting logic lives in table_caption_mapping.R
-                               and is shared, not duplicated)
+    ├── plot_caption_mapping.R  figure caption paragraph detection (pure functions, no
+    │                          side effects of its own — called from writeback.R; the
+    │                          actual text-rewriting logic lives in table_caption_mapping.R
+    │                          and is shared, not duplicated)
+    └── style_map.R           free-form style-map (officedown: mapstyles) core logic
+                               (pure functions, no side effects of its own — called from
+                               writeback.R)
 
 template/                     example/dev project
 ├── _quarto.yml                project: type: officequarto; format.docx.reference-doc +
@@ -377,6 +381,32 @@ Implementation, split for reuse:
   its table, figure caption moved *before* its image — both against Pandoc's native default) — and
   that Pandoc's `w:bookmarkStart`/`w:bookmarkEnd` crossref anchors, which aren't touched by the
   move, remain correctly positioned regardless.
+
+### Free-form style mapping (`officequarto-style-map`, `style_map.R`, Gruppe 7)
+
+Officedown's `mapstyles` renamed to `officequarto-style-map` (Schritt A confirmed with the user
+before implementing) — a new top-level section (sibling of `officequarto-styles`/`-tables`/
+`-plots`), not nested inside `officequarto-styles`, since mixing a free-form map with that
+section's fixed named slots (`body`/`list-bullet`/etc.) would be confusing. No section-level
+officedown alias exists (unlike every other group's per-field aliases) — `mapstyles:` itself isn't
+recognized, only the new name.
+
+Deliberately asymmetric source/target handling, mirroring the `SourceCode`/`code-block` precedent
+in `style_mapping.R`: the **target** (map key) is a real, user-facing style resolved via
+`oq_resolve_style_id()` against display names, fail-loud like everywhere else. The **source**
+values are Pandoc's own stable, technical style IDs (`Normal`, `Heading1`, `BlockQuote`, ...) —
+matched by direct equality (`oq_apply_style_map()`), not resolved as display names, and silently a
+no-op if a given source ID doesn't occur in the document at all (there's no reason to fail loudly
+over an ID that simply isn't used). `oq_resolve_style_map()` builds a flat source-ID → target-ID
+map from the nested config and fails loudly if the same source ID is claimed by two different
+targets (ambiguous).
+
+Runs **last** in `writeback.R`'s style-mapping pipeline, deliberately after `officequarto-styles`/
+`-pandoc-styles`/`-tables`/`-plots` — by that point most paragraphs already carry their final
+`pStyle`, so a typical rule (keyed on Pandoc's own generated names) naturally only touches
+paragraphs none of the curated options already claimed, while a rule deliberately keyed on an
+already-remapped target name can still reach and further override it, since matching is always
+against whatever `pStyle` a paragraph currently has at that point in the pipeline.
 
 officedown's `tab.lp`/`fig.lp` (bookdown cross-reference label-prefix options) were deliberately
 **not** ported — researched explicitly before implementing Gruppe 1: they're a source-syntax

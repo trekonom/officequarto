@@ -60,7 +60,8 @@ _extensions/officequarto/
     │                          shared, generic caption-rewriting logic reused by plot_caption_mapping.R),
     │                          sourced by writeback.R
     ├── plot_mapping.R        figure style/align logic, sourced by writeback.R
-    └── plot_caption_mapping.R   figure caption paragraph detection, sourced by writeback.R
+    ├── plot_caption_mapping.R   figure caption paragraph detection, sourced by writeback.R
+    └── style_map.R           free-form style-map (mapstyles) logic, sourced by writeback.R
 
 template/                     example project (quarto use template)
 ├── _quarto.yml                project: type: officequarto, format.docx.officequarto-styles
@@ -307,6 +308,34 @@ Leave it unset otherwise. `above` lives under `caption` rather than as a top-lev
 `officequarto-tables`/`officequarto-plots` field, grouped with the rest of the caption options
 since that's what it affects.
 
+## Free-form style mapping: `officequarto-style-map`
+
+The curated options above (`officequarto-styles`, `officequarto-tables`, `officequarto-plots`)
+cover the common cases with dedicated detection logic (list markers, drawings, table structure).
+`officequarto-style-map` is a generic escape hatch for everything else — analogous to
+{officedown}'s `mapstyles`, remapping any Pandoc-rendered paragraph style directly by name:
+
+```yaml
+format:
+  docx:
+    officequarto-style-map:
+      "Titel ACME": [Title]
+      "Zitat ACME": [BlockQuote]
+```
+
+Keys are real Word style **display names** in `reference-doc` (resolved the same fail-loud way as
+`body`/`list-bullet`/etc.); values are lists of **source paragraph style IDs** to redirect to that
+target — unlike the target side, these are matched as literal, technical Pandoc style IDs (e.g.
+`Title`, `Heading1`, `BlockQuote`), not resolved against display names, since they're stable,
+well-known Pandoc-internal identifiers rather than something you'd look up in Word's UI. A source
+ID that doesn't occur in the document is simply a no-op, not an error; a source ID assigned to two
+different targets is a configuration error and aborts.
+
+This runs **last**, after every other style-mapping step, so by default it only affects paragraphs
+none of the curated options already touched — but since it matches on whatever `pStyle` a paragraph
+currently has, it can also be pointed at an already-remapped target name to override it further, if
+you deliberately want that.
+
 ## Style pruning: keeping only reference-doc styles
 
 Pandoc's docx writer unconditionally adds its own style definitions on top of whatever
@@ -410,6 +439,7 @@ aren't implemented yet.
 | `officequarto-plots.caption.separator` | `plots_caption_sep` | Text between number and caption | unset (Pandoc-generated text) |
 | `officequarto-plots.caption.number-bold` | `plots_caption_bold` | Bold the prefix+number portion | unset (Pandoc default, not bold) |
 | `officequarto-plots.caption.above` | `plots_topcaption` | Move the caption before (`true`) or after (`false`) the figure | unset (Pandoc default, already "below") |
+| `officequarto-style-map` | *(renamed from officedown's `mapstyles`, shape unchanged)* | Free-form target-style → source-style-IDs map | unset (no effect) |
 
 ## Requirements
 
@@ -458,6 +488,7 @@ quarto render report.qmd
 Rscript ../dev/check_writeback.R        # checks header/footer/body/metadata of the result
 Rscript ../dev/check_option_aliases.R   # unit-checks canonical-name/officedown-alias resolution
 Rscript ../dev/check_caption_parsing.R  # unit-checks the table-caption text-splitting logic
+Rscript ../dev/check_style_map.R        # unit-checks officequarto-style-map resolution/application
 ```
 
 `dev/make_sample_docx.R` regenerates the sample template `template/original.docx`, including the
