@@ -1,7 +1,9 @@
-## Kernlogik fuer Gruppe 1 (Tabellen-Basis) des officedown-Options-Ports:
-## officequarto-tables.style/layout/width. Wird von writeback.R per source()
-## eingebunden, keine eigenstaendige Ausfuehrung. Benoetigt: xml2 (bereits von
-## writeback.R geprueft).
+## Kernlogik fuer Gruppe 1 (Tabellen-Basis: style/layout/width) und Gruppe 2
+## (Tabellen-Conditional-Formatting: officequarto-tables.conditional.*) des
+## officedown-Options-Ports. Wird von writeback.R per source() eingebunden,
+## keine eigenstaendige Ausfuehrung. Benoetigt: xml2 (bereits von writeback.R
+## geprueft) sowie oq_resolve_aliased()/oq_resolve_inverted_aliased() aus
+## option_aliases.R (muss vor dieser Datei gesourced sein).
 ##
 ## `caption-above` (officedown: topcaption) ist bewusst NICHT Teil dieser
 ## Datei - es hat erst mit echten Tabellen-Beschriftungen (Gruppe 3) einen
@@ -74,9 +76,65 @@ oq_set_tbl_width <- function(tbl_pr, ns, width_fraction) {
   invisible(NULL)
 }
 
-## Wendet table_options ($style/$layout/$width, jeweils optional) auf jede
-## w:tbl in einem geparsten document.xml an (in-place via
-## xml2-Referenzsemantik). Gibt die Anzahl der bearbeiteten Tabellen zurueck.
+## Gruppe-2-Felder (officequarto-tables.conditional.*) -> ihr w:tblLook-
+## Attribut plus ob der Wert beim Schreiben invertiert werden muss.
+## band-rows/band-columns sind bewusst positiv formuliert (siehe README),
+## OOXML selbst kennt aber nur die negativ gepolten noHBand/noVBand - die
+## Invertierung passiert hier beim Schreiben, nicht schon bei der
+## Options-Aufloesung (die haelt canonical Werte in ihrer eigenen, positiven
+## Polaritaet, siehe oq_resolve_inverted_aliased() in option_aliases.R).
+officequarto_tbllook_attrs <- list(
+  `first-row`    = list(attr = "firstRow",    invert = FALSE),
+  `first-column` = list(attr = "firstColumn", invert = FALSE),
+  `last-row`     = list(attr = "lastRow",     invert = FALSE),
+  `last-column`  = list(attr = "lastColumn",  invert = FALSE),
+  `band-rows`    = list(attr = "noHBand",     invert = TRUE),
+  `band-columns` = list(attr = "noVBand",     invert = TRUE)
+)
+
+## Setzt (oder erzeugt) w:tblLook-Attribute von w:tblPr fuer die in
+## conditional_options gesetzten Felder (Namen wie in
+## officequarto_tbllook_attrs, jeweils TRUE/FALSE oder NULL/fehlend fuer
+## "nicht konfiguriert, unveraendert lassen").
+oq_set_tbl_look <- function(tbl_pr, ns, conditional_options) {
+  node <- xml2::xml_find_first(tbl_pr, "./w:tblLook", ns)
+  if (is.na(node)) {
+    node <- oq_add_tbl_pr_child(tbl_pr, "tblLook")
+  }
+  for (key in names(conditional_options)) {
+    val <- conditional_options[[key]]
+    if (is.null(val)) next
+    spec <- officequarto_tbllook_attrs[[key]]
+    ooxml_val <- if (isTRUE(spec$invert)) !val else val
+    xml2::xml_attr(node, paste0("w:", spec$attr)) <- if (isTRUE(ooxml_val)) "1" else "0"
+  }
+  invisible(NULL)
+}
+
+## Loest ein einzelnes boolesches officequarto-tables.conditional-Feld auf
+## (canonical Name vs. officedown-Alias, ueber oq_resolve_aliased() bzw. bei
+## invert=TRUE ueber oq_resolve_inverted_aliased()) und validiert das
+## Ergebnis als einzelnen TRUE/FALSE-Wert (fail-loud, Konsistenz mit
+## layout/width in Gruppe 1). key_path ist der volle Konfigurationspfad fuer
+## die Fehlermeldung.
+oq_resolve_table_bool_option <- function(config, canonical_key, alias_key, invert, key_path, warn_fn, fail_fn) {
+  resolved <- if (invert) {
+    oq_resolve_inverted_aliased(config, canonical_key, alias_key, "officequarto-tables.conditional", warn_fn)
+  } else {
+    oq_resolve_aliased(config, canonical_key, alias_key, "officequarto-tables.conditional", warn_fn)
+  }
+  if (!is.null(resolved) && (!is.logical(resolved) || length(resolved) != 1 || is.na(resolved))) {
+    fail_fn("%s muss true oder false sein (erhalten: '%s').", key_path, resolved)
+  }
+  resolved
+}
+
+## Wendet table_options ($style/$layout/$width/$conditional, jeweils
+## optional) auf jede w:tbl in einem geparsten document.xml an (in-place via
+## xml2-Referenzsemantik). $conditional ist eine benannte Liste wie von
+## oq_resolve_table_bool_option() befuellt (Namen aus
+## officequarto_tbllook_attrs). Gibt die Anzahl der bearbeiteten Tabellen
+## zurueck.
 oq_apply_table_options <- function(document_doc, table_options) {
   ns <- xml2::xml_ns(document_doc)
   tables <- xml2::xml_find_all(document_doc, "//w:tbl", ns)
@@ -89,6 +147,11 @@ oq_apply_table_options <- function(document_doc, table_options) {
     if (!is.null(table_options$style)) oq_set_tbl_style(tbl_pr, ns, table_options$style)
     if (!is.null(table_options$layout)) oq_set_tbl_layout(tbl_pr, ns, table_options$layout)
     if (!is.null(table_options$width)) oq_set_tbl_width(tbl_pr, ns, table_options$width)
+    has_conditional <- !is.null(table_options$conditional) &&
+      any(!vapply(table_options$conditional, is.null, logical(1)))
+    if (has_conditional) {
+      oq_set_tbl_look(tbl_pr, ns, table_options$conditional)
+    }
   }
 
   length(tables)

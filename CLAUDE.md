@@ -205,6 +205,34 @@ user). `style`/`layout`/`width` also accept the officedown aliases `tables_style
   !is.null(table_config)`, with `styles_doc`/`document_doc` read once and `document_doc` written
   once at the end, each sub-feature applied conditionally in between.
 
+### Table conditional formatting (`officequarto-tables.conditional`, Gruppe 2)
+
+Maps onto `w:tblLook`, the OOXML element controlling which of a table style's conditional
+formatting variants apply (Word's "Table Style Options" checkboxes: Header Row, Total Row,
+First/Last Column, Banded Rows/Columns) — already present on every Pandoc-rendered table (verified
+empirically, `w:tblLook` with `firstRow`/`lastRow`/`firstColumn`/`lastColumn`/`noHBand`/`noVBand`
+plus a legacy `w:val` bitmask that officequarto deliberately leaves untouched, since modern Word
+reads the individual named attributes, not the legacy bitmask). Each of `first-row`/`first-column`/
+`last-row`/`last-column`/`band-rows`/`band-columns` is independently optional, same per-field
+opt-in philosophy as Gruppe 1.
+
+`band-rows`/`band-columns` are a deliberate polarity flip from officedown's `no_hband`/`no_vband`
+(negative/double-negative naming, confirmed with the user before implementing) — the OOXML
+attributes themselves (`noHBand`/`noVBand`) stay negatively phrased, so the inversion happens only
+at the officequarto option layer: `oq_apply_table_options()`/`oq_set_tbl_look()` in
+`table_mapping.R` hold the resolved values in `officequarto`'s own positive polarity and invert
+only when writing the `noHBand`/`noVBand` OOXML attribute (`officequarto_tbllook_attrs` maps each
+canonical field to its OOXML attribute name plus an `invert` flag).
+
+Because canonical and alias now have *opposite* polarity for `band-rows`/`band-columns`
+(`no_hband: false` means the same thing as `band-rows: true`), the existing `oq_resolve_aliased()`
+doesn't apply as-is — its conflict check compares raw values for equality, which would be
+misleading across a polarity flip. `oq_resolve_inverted_aliased()` (`option_aliases.R`) is the
+same-shaped sibling function for this one case: it negates the alias's raw value before comparing
+against/falling back from the canonical value. `oq_resolve_table_bool_option()` (`table_mapping.R`)
+wraps whichever of the two applies (via an `invert` flag) plus fail-loud boolean-type validation,
+used for all six conditional fields in `writeback.R`.
+
 officedown's `tab.lp`/`fig.lp` (bookdown cross-reference label-prefix options) were deliberately
 **not** ported — researched explicitly before implementing Gruppe 1: they're a source-syntax
 concept for bookdown's `\@ref(tab:xyz)` parser, not a rendering option, and have no integration

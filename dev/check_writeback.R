@@ -112,6 +112,17 @@ if (!identical(tbl_w_type, "pct") || !identical(tbl_w_val, "4000")) {
 }
 ok("Tabelle traegt die konfigurierte Breite 0.8 (officequarto-tables.width, als tblW type='pct' w='4000')")
 
+tbl_look <- xml_find_first(tbl_pr, "./w:tblLook", ns)
+expected_look <- c(firstRow = "1", lastRow = "1", noHBand = "1", noVBand = "0")
+for (attr_name in names(expected_look)) {
+  actual <- xml_attr(tbl_look, attr_name)
+  if (!identical(actual, expected_look[[attr_name]])) {
+    fail("Tabelle: w:tblLook/@%s sollte '%s' sein (officequarto-tables.conditional), gefunden: '%s'",
+         attr_name, expected_look[[attr_name]], actual)
+  }
+}
+ok("Tabelle traegt die konfigurierten Conditional-Formatting-Flags (first-row/last-row/band-rows/band-columns via officequarto-tables.conditional, teils ueber officedown-Alias)")
+
 tbl_pr_children <- xml_name(xml_children(tbl_pr))
 tbl_pr_order <- match(tbl_pr_children, c("tblStyle", "tblW", "tblLayout", "tblLook"))
 if (is.unsorted(tbl_pr_order, na.rm = TRUE)) {

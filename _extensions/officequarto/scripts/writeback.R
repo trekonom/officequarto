@@ -150,6 +150,19 @@ if (!is.null(table_width_val) && (!is.numeric(table_width_val) || length(table_w
   fail("officequarto-tables.width muss eine einzelne positive Zahl sein (erhalten: '%s').", table_width_val)
 }
 
+## Gruppe 2 (officequarto-tables.conditional.*) - jedes Feld unabhaengig
+## optional, canonical Name vs. officedown-Alias (band-rows/band-columns mit
+## umgekehrter Polaritaet zu no_hband/no_vband), siehe table_mapping.R.
+table_conditional_config <- table_config$conditional
+table_conditional_options <- list(
+  `first-row`    = oq_resolve_table_bool_option(table_conditional_config, "first-row", "tables_conditional_first_row", FALSE, "officequarto-tables.conditional.first-row", warn_msg, fail),
+  `first-column` = oq_resolve_table_bool_option(table_conditional_config, "first-column", "tables_conditional_first_column", FALSE, "officequarto-tables.conditional.first-column", warn_msg, fail),
+  `last-row`     = oq_resolve_table_bool_option(table_conditional_config, "last-row", "tables_conditional_last_row", FALSE, "officequarto-tables.conditional.last-row", warn_msg, fail),
+  `last-column`  = oq_resolve_table_bool_option(table_conditional_config, "last-column", "tables_conditional_last_column", FALSE, "officequarto-tables.conditional.last-column", warn_msg, fail),
+  `band-rows`    = oq_resolve_table_bool_option(table_conditional_config, "band-rows", "tables_conditional_no_hband", TRUE, "officequarto-tables.conditional.band-rows", warn_msg, fail),
+  `band-columns` = oq_resolve_table_bool_option(table_conditional_config, "band-columns", "tables_conditional_no_vband", TRUE, "officequarto-tables.conditional.band-columns", warn_msg, fail)
+)
+
 ## Uebertraegt dc:subject, cp:keywords, cp:category aus core_from in core_to und
 ## gibt den (ggf. veraenderten) core_to xml2-Doc zurueck.
 merge_core_properties <- function(core_to, core_from) {
@@ -242,7 +255,7 @@ for (rel_path in docx_outputs) {
     }
 
     if (!is.null(table_config)) {
-      table_options <- list(layout = table_layout_val, width = table_width_val)
+      table_options <- list(layout = table_layout_val, width = table_width_val, conditional = table_conditional_options)
       if (!is.null(table_style_val)) {
         table_style_name_to_id <- oq_style_name_to_id(styles_doc, type = "table")
         table_options$style <- oq_resolve_style_id(table_style_name_to_id, table_style_val, "officequarto-tables.style", fail)

@@ -58,4 +58,35 @@ if (!identical(res, 0.8)) fail("Tabellen-Alias: erwartet 0.8, erhalten '%s'", re
 if (length(warnings_seen) != 0) fail("Tabellen-Alias: unerwartete Warnung(en): %s", paste(warnings_seen, collapse = "; "))
 ok("officequarto-tables.width ueber den officedown-Alias 'tables_width' gesetzt wird korrekt aufgeloest")
 
+## oq_resolve_inverted_aliased(): band-rows vs. officedowns umgekehrt gepoltes
+## no_hband.
+
+## Nur canonical Name gesetzt
+warnings_seen <- character(0)
+res <- oq_resolve_inverted_aliased(list(`band-rows` = TRUE), "band-rows", "tables_conditional_no_hband", "officequarto-tables.conditional", warn_collect)
+if (!identical(res, TRUE)) fail("invertiert, nur canonical gesetzt: erwartet TRUE, erhalten '%s'", res)
+if (length(warnings_seen) != 0) fail("invertiert, nur canonical gesetzt: unerwartete Warnung(en): %s", paste(warnings_seen, collapse = "; "))
+ok("oq_resolve_inverted_aliased(): nur canonical Name gesetzt wird korrekt aufgeloest, keine Warnung")
+
+## Nur Alias gesetzt - Wert wird negiert
+warnings_seen <- character(0)
+res <- oq_resolve_inverted_aliased(list(tables_conditional_no_hband = FALSE), "band-rows", "tables_conditional_no_hband", "officequarto-tables.conditional", warn_collect)
+if (!identical(res, TRUE)) fail("invertiert, nur Alias gesetzt (no_hband=FALSE): erwartet TRUE (Banding an), erhalten '%s'", res)
+if (length(warnings_seen) != 0) fail("invertiert, nur Alias gesetzt: unerwartete Warnung(en): %s", paste(warnings_seen, collapse = "; "))
+ok("oq_resolve_inverted_aliased(): nur Alias gesetzt wird korrekt negiert aufgeloest (no_hband=FALSE -> band-rows=TRUE), keine Warnung")
+
+## Beide gesetzt, gleichbedeutend (unterschiedliche Rohwerte, gleiche Absicht) - keine Warnung
+warnings_seen <- character(0)
+res <- oq_resolve_inverted_aliased(list(`band-rows` = TRUE, tables_conditional_no_hband = FALSE), "band-rows", "tables_conditional_no_hband", "officequarto-tables.conditional", warn_collect)
+if (!identical(res, TRUE)) fail("invertiert, beide gleichbedeutend gesetzt: erwartet TRUE, erhalten '%s'", res)
+if (length(warnings_seen) != 0) fail("invertiert, beide gleichbedeutend gesetzt: unerwartete Warnung(en): %s", paste(warnings_seen, collapse = "; "))
+ok("oq_resolve_inverted_aliased(): canonical und (negierter) Alias mit gleicher Absicht gesetzt: keine Warnung")
+
+## Beide gesetzt, widerspruechlich - canonical gewinnt, genau 1 Warnung
+warnings_seen <- character(0)
+res <- oq_resolve_inverted_aliased(list(`band-rows` = TRUE, tables_conditional_no_hband = TRUE), "band-rows", "tables_conditional_no_hband", "officequarto-tables.conditional", warn_collect)
+if (!identical(res, TRUE)) fail("invertiert, Konflikt: canonical haette gewinnen sollen, erhalten '%s'", res)
+if (length(warnings_seen) != 1) fail("invertiert, Konflikt: erwartet genau 1 Warnung, erhalten %d", length(warnings_seen))
+ok("oq_resolve_inverted_aliased(): bei widerspruechlicher Absicht gewinnt canonical, es wird genau 1 Warnung ausgegeben")
+
 cat("\nAlle Checks bestanden.\n")

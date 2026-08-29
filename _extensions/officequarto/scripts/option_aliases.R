@@ -36,3 +36,32 @@ oq_resolve_aliased <- function(config, canonical_key, alias_key, group_label, wa
   if (!is.null(canonical_val)) return(canonical_val)
   alias_val
 }
+
+## Variante von oq_resolve_aliased() fuer Optionspaare mit ENTGEGENGESETZTER
+## Polaritaet zwischen canonical Name und officedown-Alias (z.B.
+## officequarto-tables.conditional.band-rows, positiv formuliert, vs.
+## officedowns no_hband, negativ formuliert - "band-rows: true" und
+## "no_hband: false" meinen dasselbe). oq_resolve_aliased() selbst eignet
+## sich hierfuer nicht, da dessen Konfliktpruefung Rohwerte auf Gleichheit
+## vergleicht - bei entgegengesetzter Polaritaet waere das irrefuehrend
+## (unterschiedliche Rohwerte koennten trotzdem dieselbe Absicht ausdruecken
+## oder umgekehrt). Der Alias-Wert wird deshalb vor dem Vergleich negiert.
+oq_resolve_inverted_aliased <- function(config, canonical_key, alias_key, group_label, warn_fn) {
+  canonical_val <- config[[canonical_key]]
+  alias_raw <- config[[alias_key]]
+  alias_val <- if (!is.null(alias_raw)) !alias_raw else NULL
+
+  if (!is.null(canonical_val) && !is.null(alias_val) && !identical(canonical_val, alias_val)) {
+    warn_fn(
+      paste0(
+        "%s: sowohl '%s' (%s) als auch der (umgekehrt gepolte) officedown-Alias '%s' (%s, ",
+        "entspricht %s) sind gesetzt und widersprechen sich - '%s' gewinnt, der Alias-Wert wird ",
+        "verworfen."
+      ),
+      group_label, canonical_key, canonical_val, alias_key, alias_raw, alias_val, canonical_key
+    )
+  }
+
+  if (!is.null(canonical_val)) return(canonical_val)
+  alias_val
+}

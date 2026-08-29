@@ -16,3 +16,8 @@ format:
       style: "Tabelle ACME"
       layout: fixed
       tables_width: 0.8         # officedown-Alias fuer width, siehe README
+      conditional:
+        first-row: true
+        tables_conditional_last_row: true   # officedown-Alias fuer last-row
+        band-rows: false
+        tables_conditional_no_vband: false  # officedown-Alias fuer band-columns (umgekehrte Polaritaet -> true)

@@ -169,6 +169,32 @@ cross-references before this hook ever runs. If you need to change the visible "
 caption prefix text, use Quarto's own native `crossref.tbl-title`/`crossref.fig-title` in your
 `_quarto.yml` instead — no `officequarto` option needed for that.
 
+### Table conditional formatting
+
+`officequarto-tables.conditional` controls Word's "Table Style Options" checkboxes (Header Row,
+Total Row, First/Last Column, Banded Rows/Columns) — which variant of the table style's
+conditional formatting gets applied to each table:
+
+```yaml
+format:
+  docx:
+    officequarto-tables:
+      conditional:
+        first-row: true       # highlight header row
+        first-column: false
+        last-row: false
+        last-column: false
+        band-rows: true       # alternating row shading
+        band-columns: false
+```
+
+Each field is independently optional, same as `style`/`layout`/`width`. `band-rows`/`band-columns`
+are officequarto's own, positively-phrased names for officedown's `no_hband`/`no_vband` — the
+officedown aliases (`tables_conditional_no_hband`/`tables_conditional_no_vband`) still work but
+carry the *opposite* polarity (`no_hband: false` means the same thing as `band-rows: true`); the
+hook resolves and negates them correctly, including the conflict warning if both are set to
+contradictory values.
+
 ## Style pruning: keeping only reference-doc styles
 
 Pandoc's docx writer unconditionally adds its own style definitions on top of whatever
@@ -254,6 +280,12 @@ aren't implemented yet.
 | `officequarto-tables.style` | `tables_style` | Word table style name | unset (Pandoc/reference-doc default) |
 | `officequarto-tables.layout` | `tables_layout` | Table layout, `autofit` or `fixed` | unset (Pandoc default) |
 | `officequarto-tables.width` | `tables_width` | Table width relative to page width (0–1) | unset (Pandoc default) |
+| `officequarto-tables.conditional.first-row` | `tables_conditional_first_row` | Highlight header row | unset (Pandoc default) |
+| `officequarto-tables.conditional.first-column` | `tables_conditional_first_column` | Highlight first column | unset (Pandoc default) |
+| `officequarto-tables.conditional.last-row` | `tables_conditional_last_row` | Highlight total row | unset (Pandoc default) |
+| `officequarto-tables.conditional.last-column` | `tables_conditional_last_column` | Highlight last column | unset (Pandoc default) |
+| `officequarto-tables.conditional.band-rows` | `tables_conditional_no_hband` *(inverted)* | Alternating row shading | unset (Pandoc default) |
+| `officequarto-tables.conditional.band-columns` | `tables_conditional_no_vband` *(inverted)* | Alternating column shading | unset (Pandoc default) |
 
 ## Requirements
 
