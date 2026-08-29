@@ -243,6 +243,38 @@ key off; replicating that would mean officequarto tracking heading boundaries an
 own numbering scheme, a substantially larger feature with no direct precedent elsewhere in this
 project.
 
+### All table options together
+
+Every `officequarto-tables` field shown in one place, including `caption.above` (explained in
+[Caption position](#caption-position-captionabove) below — easy to miss if you only skim the
+sections above, since it's documented together with figures rather than repeated per group):
+
+```yaml
+format:
+  docx:
+    officequarto-tables:
+      style: "Tabelle ACME"           # Word table style name
+      layout: fixed                    # "autofit" or "fixed"
+      width: 0.8                       # relative to page width (0..1)
+      conditional:
+        first-row: true                # highlight header row
+        first-column: false            # highlight first column
+        last-row: false                # highlight total row
+        last-column: false             # highlight last column
+        band-rows: true                # alternating row shading
+        band-columns: false            # alternating column shading
+      caption:
+        style: "Beschriftung ACME"     # paragraph style for the caption
+        prefix: "Tab. "                # text before the number
+        separator: " -- "              # text between number and caption
+        number-bold: true              # bold the "prefix + number" portion only
+        above: false                   # move the caption after the table (Pandoc's default is already "above")
+```
+
+Every field here is independently optional — shown together only for reference; normally you'd set
+just the ones you need. See the sections above for what each one does, its default, and its
+officedown alias (also summarized in [Option reference](#option-reference)).
+
 ## Figure options: style, align
 
 `officequarto-plots` controls the paragraph holding each figure — analogous to {officedown}'s
@@ -309,6 +341,28 @@ needs setting when you want to *override* that default, e.g. to force a table's 
 Leave it unset otherwise. `above` lives under `caption` rather than as a top-level
 `officequarto-tables`/`officequarto-plots` field, grouped with the rest of the caption options
 since that's what it affects.
+
+### All figure options together
+
+Every `officequarto-plots` field shown in one place, mirroring [All table options
+together](#all-table-options-together) above:
+
+```yaml
+format:
+  docx:
+    officequarto-plots:
+      style: "Abbildung ACME"                    # paragraph style for the image paragraph
+      align: right                                # "left", "center", or "right"
+      caption:
+        style: "Abbildungsbeschriftung ACME"      # paragraph style for the caption
+        prefix: "Abb. "                            # text before the number
+        separator: " | "                           # text between number and caption
+        number-bold: false                         # explicit "not bold" (overrides any inherited bold)
+        above: true                                 # move the caption before the image (Pandoc's default is already "below")
+```
+
+Every field here is independently optional — shown together only for reference; normally you'd set
+just the ones you need.
 
 ## Free-form style mapping: `officequarto-style-map`
 
