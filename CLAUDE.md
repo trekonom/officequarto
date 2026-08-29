@@ -20,8 +20,9 @@ Render the example project and verify the hook end-to-end:
 ```bash
 cd template
 quarto render report.qmd
-Rscript ../dev/check_writeback.R       # checks header/footer/body/metadata/style-mapping/style-pruning of the result
-Rscript ../dev/check_option_aliases.R  # unit-checks oq_resolve_aliased() (canonical name vs. officedown alias)
+Rscript ../dev/check_writeback.R        # checks header/footer/body/metadata/style-mapping/style-pruning of the result
+Rscript ../dev/check_option_aliases.R   # unit-checks oq_resolve_aliased()/oq_resolve_inverted_aliased()
+Rscript ../dev/check_caption_parsing.R  # unit-checks oq_split_caption_text() (table caption text-splitting)
 ```
 
 `template/report.qmd` includes a small fenced code block specifically so the style-pruning
@@ -72,8 +73,12 @@ _extensions/officequarto/
     │                          its own — called from writeback.R)
     ├── option_aliases.R      canonical-name/officedown-alias resolution (pure functions, no
     │                          side effects of its own — called from writeback.R)
-    └── table_mapping.R       table style/layout/width core logic (pure functions, no side
-                               effects of its own — called from writeback.R)
+    ├── table_mapping.R       table style/layout/width/conditional-formatting core logic
+    │                          (pure functions, no side effects of its own — called from
+    │                          writeback.R)
+    └── table_caption_mapping.R  table caption style/prefix/separator/bold core logic
+                               (pure functions, no side effects of its own — called from
+                               writeback.R)
 
 template/                     example/dev project
 ├── _quarto.yml                project: type: officequarto; format.docx.reference-doc +
@@ -232,6 +237,54 @@ same-shaped sibling function for this one case: it negates the alias's raw value
 against/falling back from the canonical value. `oq_resolve_table_bool_option()` (`table_mapping.R`)
 wraps whichever of the two applies (via an `invert` flag) plus fail-loud boolean-type validation,
 used for all six conditional fields in `writeback.R`.
+
+### Table captions (`officequarto-tables.caption`, `table_caption_mapping.R`, Gruppe 3)
+
+The hardest group implemented so far, because Quarto's docx table captions currently render as
+**static, already-baked-in text** (`"Table 1: My caption"` as a single `<w:r><w:t>` run, verified
+empirically — see `dev/spike-notes.md` for the full trail), not a real Word field. There is no
+live number to reformat around; `officequarto` has to locate and text-parse the already-rendered
+caption instead.
+
+- **Detection**: `oq_find_table_caption_paragraphs()` finds paragraphs with `pStyle="ImageCaption"`
+  (Pandoc's single, fixed style ID shared by table *and* figure captions) whose **parent** element
+  also has a `w:tbl` child — Pandoc wraps every captioned table in a synthetic 1×1 "wrapper" table
+  whose single cell holds the caption paragraph followed by the real, nested table, so this
+  structurally distinguishes table captions from figure captions (which have no such sibling
+  table) without relying on style name alone.
+- **The wrapper table itself is a trap for Gruppe 1/2**: `oq_apply_table_options()`'s table
+  selector is `//w:tbl[not(.//w:tbl)]` (excludes any `w:tbl` containing a nested `w:tbl`) —
+  discovered as a real bug during Gruppe 3 testing: without this filter, `style`/`layout`/`width`/
+  `conditional` were being applied to Pandoc's invisible structural wrapper table too, not just the
+  real data table inside it. `check_writeback.R`'s own table-lookup XPath needed the identical
+  fix.
+- **style** remaps the `ImageCaption` pStyle exactly like `code-block` remaps `SourceCode` (direct
+  equality, not an allowlist — Pandoc's own fixed ID).
+- **prefix/separator/number-bold** require locating the split point between Pandoc's
+  auto-generated prefix and the user's actual caption text within that single run.
+  `oq_split_caption_text()` does this by anchoring on the **number itself**, not the surrounding
+  text — the generated prefix's shape depends on the user's own `crossref.tbl-title`/`title-delim`
+  settings *and* gets reshaped by Pandoc's own smart-typography conversion (verified empirically: a
+  configured `title-delim: "--"` renders as a real "–" character, with a non-breaking space before
+  the number), so reconstructing the expected string from config is unreliable — but digits survive
+  typographic conversion untouched. `officequarto` counts captioned-table paragraphs in document
+  order itself (identical to how Quarto numbers them, since only captioned tables produce a caption
+  paragraph at all) and anchors the split via a digit-boundary lookaround regex (`(?<!
+  [\p{L}\p{N}])N(?![\p{L}\p{N}])`) so e.g. expected number `1` doesn't falsely match inside `1990`
+  appearing in the caption text itself. If the expected number isn't found in the anchorable form,
+  the caption is left untouched rather than guessed at (`matched = FALSE`).
+- **number-bold** splits the single run into two (`oq_write_caption_run()`): the first carries
+  `prefix + number` with an explicit `w:b` (`"1"`/`"0"`, always written when configured — even
+  `false`, to explicitly override any bold inherited from the paragraph style rather than silently
+  no-op), the second carries `separator + rest` with no explicit bold override, so it inherits
+  whatever the (possibly remapped) caption style itself specifies. Any further pre-existing runs
+  after the first (e.g. inline formatting inside a human-authored multi-run caption) are left
+  completely untouched and remain correctly positioned after the new second run, since only the
+  first run's text is ever parsed/split.
+- **Not ported**: officedown's `tnd`/`tns` (per-section numbering depth, e.g. `"2-1"`) — Quarto
+  numbers tables globally, not per heading section, so there's no existing counter to key off of;
+  replicating this would mean officequarto independently tracking heading boundaries and
+  maintaining its own numbering scheme, substantially bigger than anything else in this port.
 
 officedown's `tab.lp`/`fig.lp` (bookdown cross-reference label-prefix options) were deliberately
 **not** ported — researched explicitly before implementing Gruppe 1: they're a source-syntax

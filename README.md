@@ -55,7 +55,8 @@ _extensions/officequarto/
     ├── style_mapping.R       style-mapping core logic, sourced by writeback.R
     ├── style_pruning.R       style-pruning core logic, sourced by writeback.R
     ├── option_aliases.R      canonical-name/officedown-alias resolution, sourced by writeback.R
-    └── table_mapping.R       table style/layout/width core logic, sourced by writeback.R
+    ├── table_mapping.R       table style/layout/width/conditional-formatting logic, sourced by writeback.R
+    └── table_caption_mapping.R  table caption style/prefix/separator/bold logic, sourced by writeback.R
 
 template/                     example project (quarto use template)
 ├── _quarto.yml                project: type: officequarto, format.docx.officequarto-styles
@@ -195,6 +196,46 @@ carry the *opposite* polarity (`no_hband: false` means the same thing as `band-r
 hook resolves and negates them correctly, including the conflict warning if both are set to
 contradictory values.
 
+### Table captions: style, prefix, separator, bold
+
+`officequarto-tables.caption` controls how table captions are formatted — analogous to
+{officedown}'s `tables.caption`:
+
+```yaml
+format:
+  docx:
+    officequarto-tables:
+      caption:
+        style: "Beschriftung ACME"            # paragraph style for the caption
+        prefix: "Tab. "                       # text before the number (officedown: pre)
+        separator: " -- "                     # text between number and caption (officedown: sep)
+        number-bold: true                     # bold the "prefix + number" portion only
+```
+
+Each field is independently optional. `style` remaps Pandoc's fixed `ImageCaption` paragraph role
+(shared by table *and* figure captions — officequarto only touches paragraphs structurally
+identified as table captions, not figure ones) the same way `code-block` remaps `SourceCode`.
+
+`prefix`/`separator`/`number-bold` are inherently more fragile than everything else in
+`officequarto`, and it's worth understanding why: Quarto's docx table captions currently render as
+**static, already-baked-in text** (e.g. `"Table 1: My caption"` as a single text run), not a real
+Word field — there's no live number to hook into. `officequarto` rewrites that text after the fact
+by locating the sequential table number it printed (counting captioned tables in document order,
+the same way Quarto itself numbers them) and splicing in your configured prefix/separator around
+it. The one part of Pandoc's generated text this approach doesn't try to predict is the *shape* of
+the auto-generated prefix itself — it can vary with your own `crossref.tbl-title`/`title-delim`
+settings, and is additionally reshaped by Pandoc's smart-typography conversion (e.g. a configured
+`--` becomes a real "–" character, with a non-breaking space before the number) — so rather than
+reconstructing that string from config, `officequarto` anchors on the number itself (immune to
+typographic conversion) to find the split point. If a caption doesn't match the expected
+"prefix + number + separator + text" shape, it's left untouched rather than guessed at.
+
+officedown's `tnd`/`tns` (per-section numbering depth, e.g. `"2-1"`) are **not** ported — Quarto
+numbers tables globally, not per heading section, so there's no existing per-section counter to
+key off; replicating that would mean officequarto tracking heading boundaries and maintaining its
+own numbering scheme, a substantially larger feature with no direct precedent elsewhere in this
+project.
+
 ## Style pruning: keeping only reference-doc styles
 
 Pandoc's docx writer unconditionally adds its own style definitions on top of whatever
@@ -286,6 +327,10 @@ aren't implemented yet.
 | `officequarto-tables.conditional.last-column` | `tables_conditional_last_column` | Highlight last column | unset (Pandoc default) |
 | `officequarto-tables.conditional.band-rows` | `tables_conditional_no_hband` *(inverted)* | Alternating row shading | unset (Pandoc default) |
 | `officequarto-tables.conditional.band-columns` | `tables_conditional_no_vband` *(inverted)* | Alternating column shading | unset (Pandoc default) |
+| `officequarto-tables.caption.style` | `tables_caption_style` | Paragraph style for the caption | unset (Pandoc's `ImageCaption`) |
+| `officequarto-tables.caption.prefix` | `tables_caption_pre` | Text before the number | unset (Pandoc-generated text) |
+| `officequarto-tables.caption.separator` | `tables_caption_sep` | Text between number and caption | unset (Pandoc-generated text) |
+| `officequarto-tables.caption.number-bold` | `tables_caption_bold` | Bold the prefix+number portion | unset (Pandoc default, not bold) |
 
 ## Requirements
 
@@ -331,8 +376,9 @@ aren't implemented yet.
 ```bash
 cd template
 quarto render report.qmd
-Rscript ../dev/check_writeback.R       # checks header/footer/body/metadata of the result
-Rscript ../dev/check_option_aliases.R  # unit-checks canonical-name/officedown-alias resolution
+Rscript ../dev/check_writeback.R        # checks header/footer/body/metadata of the result
+Rscript ../dev/check_option_aliases.R   # unit-checks canonical-name/officedown-alias resolution
+Rscript ../dev/check_caption_parsing.R  # unit-checks the table-caption text-splitting logic
 ```
 
 `dev/make_sample_docx.R` regenerates the sample template `template/original.docx`, including the

@@ -65,6 +65,7 @@ source(file.path(get_script_dir(), "style_mapping.R"))
 source(file.path(get_script_dir(), "style_pruning.R"))
 source(file.path(get_script_dir(), "option_aliases.R"))
 source(file.path(get_script_dir(), "table_mapping.R"))
+source(file.path(get_script_dir(), "table_caption_mapping.R"))
 
 warn_msg <- function(fmt, ...) log_msg(paste0("Warnung: ", fmt), ...)
 
@@ -163,6 +164,27 @@ table_conditional_options <- list(
   `band-columns` = oq_resolve_table_bool_option(table_conditional_config, "band-columns", "tables_conditional_no_vband", TRUE, "officequarto-tables.conditional.band-columns", warn_msg, fail)
 )
 
+## Gruppe 3 (officequarto-tables.caption.*) - style wird wie body/list-*/
+## code-block gegen die Absatz-Styles von reference-doc aufgeloest (spaeter,
+## sobald name_to_id verfuegbar ist, siehe unten); prefix/separator/
+## number-bold sind reine Werte/Booleans, hier vollstaendig aufloesbar.
+table_caption_config <- table_config$caption
+table_caption_style_val <- if (!is.null(table_caption_config)) {
+  oq_resolve_aliased(table_caption_config, "style", "tables_caption_style", "officequarto-tables.caption", warn_msg)
+} else NULL
+table_caption_prefix_val <- if (!is.null(table_caption_config)) {
+  oq_resolve_aliased(table_caption_config, "prefix", "tables_caption_pre", "officequarto-tables.caption", warn_msg)
+} else NULL
+table_caption_separator_val <- if (!is.null(table_caption_config)) {
+  oq_resolve_aliased(table_caption_config, "separator", "tables_caption_sep", "officequarto-tables.caption", warn_msg)
+} else NULL
+table_caption_bold_val <- if (!is.null(table_caption_config)) {
+  oq_resolve_aliased(table_caption_config, "number-bold", "tables_caption_bold", "officequarto-tables.caption", warn_msg)
+} else NULL
+if (!is.null(table_caption_bold_val) && (!is.logical(table_caption_bold_val) || length(table_caption_bold_val) != 1 || is.na(table_caption_bold_val))) {
+  fail("officequarto-tables.caption.number-bold muss true oder false sein (erhalten: '%s').", table_caption_bold_val)
+}
+
 ## Uebertraegt dc:subject, cp:keywords, cp:category aus core_from in core_to und
 ## gibt den (ggf. veraenderten) core_to xml2-Doc zurueck.
 merge_core_properties <- function(core_to, core_from) {
@@ -219,9 +241,12 @@ for (rel_path in docx_outputs) {
 
     styles_doc <- xml2::read_xml(styles_path)
     document_doc <- xml2::read_xml(document_path)
+    ## name_to_id wird sowohl von der Absatz-Style-Zuordnung unten als auch
+    ## von der Tabellen-Beschriftungs-Style-Zuordnung (Gruppe 3) gebraucht,
+    ## deshalb hier zentral einmal berechnet statt in beiden Bloecken.
+    name_to_id <- oq_style_name_to_id(styles_doc)
 
     if (!is.null(style_config) || !is.null(code_block_config)) {
-      name_to_id <- oq_style_name_to_id(styles_doc)
       style_num_id <- oq_style_num_id(styles_doc)
 
       style_ids <- list()
@@ -262,6 +287,16 @@ for (rel_path in docx_outputs) {
       }
       n_tables <- oq_apply_table_options(document_doc, table_options)
       log_msg("Tabellen-Optionen angewendet: %d Tabelle(n).", n_tables)
+    }
+
+    if (!is.null(table_caption_config)) {
+      caption_options <- list(prefix = table_caption_prefix_val, separator = table_caption_separator_val, number_bold = table_caption_bold_val)
+      if (!is.null(table_caption_style_val)) {
+        caption_options$style <- oq_resolve_style_id(name_to_id, table_caption_style_val, "officequarto-tables.caption.style", fail)
+      }
+      caption_result <- oq_apply_table_captions(document_doc, caption_options)
+      log_msg("Tabellen-Beschriftungen: %d gefunden, %d Text umformatiert.",
+               caption_result$n_found, caption_result$n_text_rewritten)
     }
 
     xml2::write_xml(document_doc, document_path)

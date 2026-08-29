@@ -27,6 +27,8 @@ Fußzeile des Originals erhalten bleiben.
 | Umsatz | 1.234.000 € | 1.456.000 € |
 | Neukunden | 57 | 63 |
 
+: Quartalskennzahlen {#tbl-kennzahlen}
+
 ## Varianten
 
 a. Basisszenario

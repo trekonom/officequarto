@@ -137,7 +137,13 @@ oq_resolve_table_bool_option <- function(config, canonical_key, alias_key, inver
 ## zurueck.
 oq_apply_table_options <- function(document_doc, table_options) {
   ns <- xml2::xml_ns(document_doc)
-  tables <- xml2::xml_find_all(document_doc, "//w:tbl", ns)
+  ## [not(.//w:tbl)] schliesst Pandocs synthetische Wrapper-Tabelle aus, die
+  ## bei captioned tables die eigentliche Tabelle plus die Beschriftung in
+  ## einer 1x1-Huelltabelle zusammenfasst (siehe table_caption_mapping.R) -
+  ## ohne den Filter wuerden style/layout/width/conditional faelschlich auch
+  ## auf diese unsichtbare Struktur-Tabelle angewendet, nicht nur auf die
+  ## eigentliche(n) Datentabelle(n).
+  tables <- xml2::xml_find_all(document_doc, "//w:tbl[not(.//w:tbl)]", ns)
 
   for (tbl in tables) {
     tbl_pr <- xml2::xml_find_first(tbl, "./w:tblPr", ns)

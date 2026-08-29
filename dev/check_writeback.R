@@ -89,7 +89,12 @@ if (any(pstyles == "Normal") || any(pstyles == "Compact") || any(pstyles == "Fir
 }
 ok("keine unumgemappten Pandoc-Standard-Styles (Normal/Compact/FirstParagraph) mehr vorhanden")
 
-tbl_pr <- xml_find_first(document_doc, "//w:tbl/w:tblPr", ns)
+## [not(.//w:tbl)] schliesst Pandocs synthetische Wrapper-Tabelle um
+## Beschriftung+Tabelle aus (siehe table_mapping.R/oq_apply_table_options) -
+## ohne den Filter faende xml_find_first die Wrapper-Tabelle zuerst
+## (Dokumentreihenfolge: Elternelement vor Nachfahren), nicht die eigentliche
+## Datentabelle.
+tbl_pr <- xml_find_first(document_doc, "//w:tbl[not(.//w:tbl)]/w:tblPr", ns)
 if (is.na(tbl_pr)) fail("kein w:tbl/w:tblPr im Ergebnis-Dokument gefunden (erwartet: die Tabelle aus report.qmd)")
 
 tbl_style <- xml_attr(xml_find_first(tbl_pr, "./w:tblStyle", ns), "val")
@@ -129,6 +134,28 @@ if (is.unsorted(tbl_pr_order, na.rm = TRUE)) {
   fail("w:tblPr-Kindelemente sind nicht in Schema-Reihenfolge: %s", paste(tbl_pr_children, collapse = ", "))
 }
 ok("w:tblPr-Kindelemente stehen in Schema-Reihenfolge: %s", paste(tbl_pr_children, collapse = ", "))
+
+caption_p <- xml_find_first(document_doc, "//w:p[w:pPr/w:pStyle/@w:val='BeschriftungACME']", ns)
+if (is.na(caption_p)) fail("keine Tabellen-Beschriftung mit dem konfigurierten Style 'BeschriftungACME' gefunden (officequarto-tables.caption.style)")
+ok("Tabellen-Beschriftung traegt den konfigurierten Style 'BeschriftungACME' (officequarto-tables.caption.style)")
+
+caption_runs <- xml_find_all(caption_p, "./w:r", ns)
+if (length(caption_runs) != 2) {
+  fail("Tabellen-Beschriftung sollte in 2 Laeufe gesplittet sein (Praefix+Zahl fett / Rest normal), gefunden: %d", length(caption_runs))
+}
+caption_first_text <- xml_text(xml_find_first(caption_runs[[1]], "./w:t", ns))
+caption_first_bold <- xml_attr(xml_find_first(caption_runs[[1]], "./w:rPr/w:b", ns), "val")
+caption_second_text <- xml_text(xml_find_first(caption_runs[[2]], "./w:t", ns))
+if (!identical(caption_first_text, "Tab. 1")) {
+  fail("Tabellen-Beschriftung: erster Lauf sollte 'Tab. 1' sein (officequarto-tables.caption.prefix), gefunden: '%s'", caption_first_text)
+}
+if (!identical(caption_first_bold, "1")) {
+  fail("Tabellen-Beschriftung: erster Lauf sollte fett sein (officequarto-tables.caption.number-bold: true), w:b/@val='%s'", caption_first_bold)
+}
+if (!identical(caption_second_text, " -- Quartalskennzahlen")) {
+  fail("Tabellen-Beschriftung: zweiter Lauf sollte ' -- Quartalskennzahlen' sein (officequarto-tables.caption.separator via Alias tables_caption_sep), gefunden: '%s'", caption_second_text)
+}
+ok("Tabellen-Beschriftungstext korrekt umformatiert: fett 'Tab. 1' + ' -- Quartalskennzahlen' (prefix/separator via officequarto-tables.caption, separator ueber officedown-Alias)")
 
 rendered_styles_doc <- read_xml(file.path(tmp, "word", "styles.xml"))
 rendered_style_ids <- xml_attr(xml_find_all(rendered_styles_doc, "//w:style", ns), "styleId")

@@ -257,6 +257,45 @@ OOXML-Schema (`CT_TblPrBase`) *vor* `w:tblLook` stehen muss. Word selbst tolerie
 bestimmt statt blind anzuhaengen — verifiziert per `check_writeback.R`-Assertion auf die konkrete
 resultierende Kindelement-Reihenfolge (`tblStyle, tblW, tblLayout, tblLook`).
 
+## Spike I — Tabellen-Beschriftungen (Gruppe 3), verifiziert am 2026-08-29
+
+Vor der Implementierung von `officequarto-tables.caption` empirisch geprueft, wie Quarto/Pandoc
+Tabellen-Beschriftungen im docx-Output tatsaechlich erzeugen (Testrender: `#tbl-example`-Tabelle
+mit Beschriftung, unabhaengig von officequarto, direkt per `quarto render`):
+
+**Struktur:** eine beschriftete Tabelle wird von Pandoc in eine synthetische 1x1-"Wrapper"-Tabelle
+eingebettet, deren einzige Zelle den Beschriftungsabsatz (`pStyle="ImageCaption"`) gefolgt von der
+eigentlichen, verschachtelten Tabelle enthaelt (plus `w:bookmarkStart`/`w:bookmarkEnd` fuer den
+Crossref-Anker). `ImageCaption` ist dabei ein einziger, fester Pandoc-Style, gemeinsam genutzt von
+Tabellen- UND Abbildungs-Beschriftungen — keine eigene "TableCaption"-Style-ID.
+
+**Wichtiger Fund, der die Gruppe-1/2-Implementierung nachtraeglich betraf:** `oq_apply_table_options()`s
+urspruengliche `//w:tbl`-Selektion traf durch diese Wrapper-Struktur unbeabsichtigt BEIDE Tabellen
+(die unsichtbare Wrapper-Tabelle UND die echte Datentabelle) — verifiziert am eigenen
+Testrender ("Tabellen-Optionen angewendet: 2 Tabelle(n)." statt der erwarteten 1, sobald die
+Test-Tabelle eine Beschriftung bekam). Behoben durch `[not(.//w:tbl)]` in der XPath-Selektion
+(schliesst jede `w:tbl` aus, die selbst eine verschachtelte `w:tbl` enthaelt) — dieselbe Korrektur
+war auch in `check_writeback.R`s eigener Tabellen-Lookup-XPath noetig.
+
+**Kernproblem fuer pre/sep/number-bold:** die Beschriftung ist vollstaendig statischer,
+eingebackener Text — "Table 1: My table caption" als EIN `<w:r><w:t>`-Lauf, kein echtes
+Word-SEQ-Feld (bestaetigt bereits durch die `tab.lp`-Recherche vor Gruppe 1, siehe oben; hier am
+konkreten XML nochmals verifiziert). Versucht: den generierten Praefix aus
+`crossref.tbl-title`/`title-delim` vorherzusagen, um ihn beim Ersetzen gezielt abzuschneiden.
+Empirisch verworfen: ein Testrender mit `crossref: {tbl-title: "Tabelle", title-delim: "--"}`
+erzeugte den Text `"Tabelle\xa01– My table caption"` — Pandocs Smart-Typography-Konvertierung
+wandelt `"--"` in einen echten Halbgeviertstrich ("–") um und setzt ein nicht-brechendes
+Leerzeichen vor die Zahl; der tatsaechlich gerenderte Text weicht damit vom konfigurierten
+Rohwert ab, eine Vorhersage aus der Config waere unzuverlaessig.
+
+**Loesung:** an der Zahl selbst verankern statt am umgebenden Text — Ziffern sind von der
+Typography-Konvertierung nicht betroffen. `officequarto` zaehlt Tabellen-Beschriftungen selbst in
+Dokumentreihenfolge (identisch zu Pandocs eigener Zaehlung, da nur beschriftete Tabellen ueberhaupt
+einen Beschriftungsabsatz erzeugen) und sucht die erwartete Zahl per Wortgrenzen-Lookaround-Regex
+(`(?<![\p{L}\p{N}])N(?![\p{L}\p{N}])`), nicht per einfachem Teilstring-Treffer — verifiziert u.a.
+gegen den Grenzfall, dass die gesuchte Zahl zufaellig auch als Teil einer anderen Zahl im
+eigentlichen Beschriftungstext vorkommt (z.B. "1" in "1990"), siehe `dev/check_caption_parsing.R`.
+
 ## Offene Fragen aus Abschnitt 3 des Konzepts — Status
 
 | Frage | Status |
