@@ -14,13 +14,13 @@
 ##
 ## Wird ein zu entfernender Style noch im gerenderten Inhalt referenziert
 ## (z.B. ein echter Codeblock, der Pandocs SourceCode-Style nutzt, oder -
-## ohne officequarto-styles-Konfiguration - Pandocs eigene Body-/Listen-
-## Rollennamen wie FirstParagraph/Compact, falls das reference-doc diese nicht
-## kennt), wird die Definition trotzdem entfernt; die betroffenen
+## ohne officequarto.styles/.lists-Konfiguration - Pandocs eigene Body-/
+## Listen-Rollennamen wie FirstParagraph/Compact, falls das reference-doc
+## diese nicht kennt), wird die Definition trotzdem entfernt; die betroffenen
 ## Absaetze/Runs fallen dann auf Words Default-Formatierung zurueck. Das wird
 ## nicht verhindert, aber in writeback.R geloggt.
 ##
-## Ausnahme (optional, per `officequarto-styles.code-block: true`
+## Ausnahme (optional, per `officequarto.pandoc-styles.code-block: true`
 ## konfigurierbar): Pandocs Codeblock-Styles koennen gezielt von der
 ## Entfernung ausgenommen werden - siehe oq_is_pandoc_code_style_id() und
 ## deren Verwendung in writeback.R.

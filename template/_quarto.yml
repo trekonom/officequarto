@@ -4,10 +4,54 @@ project:
 format:
   docx:
     reference-doc: original.docx
-    officequarto-keep-rendered: true
-    officequarto-styles:
-      body: "Fließtext ACME"
-      list-bullet: "Aufzählung ACME"
-      list-number: "Nummerierung ACME"
-    officequarto-pandoc-styles:
-      code-block: "Code ACME"
+    officequarto:
+      keep-rendered: true
+      styles:
+        body: "Fließtext ACME"
+      lists:
+        ul_style: "Aufzählung ACME"      # officedown-Alias fuer list-bullet, siehe README
+        list-number: "Nummerierung ACME"
+        list-letter: "Buchstabierung ACME"
+      pandoc-styles:
+        code-block: "Code ACME"
+      tables:
+        style: "Tabelle ACME"
+        layout: fixed
+        tables_width: 0.8         # officedown-Alias fuer width, siehe README
+        conditional:
+          first-row: true
+          tables_conditional_last_row: true   # officedown-Alias fuer last-row
+          band-rows: false
+          tables_conditional_no_vband: false  # officedown-Alias fuer band-columns (umgekehrte Polaritaet -> true)
+        caption:
+          style: "Beschriftung ACME"
+          prefix: "Tab. "
+          tables_caption_sep: " -- "          # officedown-Alias fuer separator
+          number-bold: true
+          above: false                        # gegen Pandocs Default (Tabellen: Beschriftung oben)
+      plots:
+        style: "Abbildung ACME"
+        plots_align: right                    # officedown-Alias fuer align
+        caption:
+          plots_caption_style: "Abbildungsbeschriftung ACME"   # officedown-Alias fuer style
+          prefix: "Abb. "
+          separator: " | "
+          plots_caption_bold: false           # officedown-Alias fuer number-bold
+          plots_topcaption: true               # officedown-Alias fuer above (gegen Pandocs Default: Abbildungen unten)
+      style-map:
+        "Titel ACME": [Title]
+      page:
+        size:
+          width: 11.7
+          height: 8.3
+          page_size_orient: landscape   # officedown-Alias fuer orientation
+        margins:
+          top: 0.75
+          page_margins_bottom: 0.75     # officedown-Alias fuer bottom
+          left: 1
+          right: 1
+          header: 0.4
+          footer: 0.4
+          gutter: 0
+      crossref:
+        reference_num: false   # officedown-Alias fuer numbered
