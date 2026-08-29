@@ -504,6 +504,84 @@ die richtige **Style**-Ebene aus einem konfigurierten Array (`list-bullet: [...]
 das eigentliche vom Nutzer gemeldete Problem, unabhaengig von der (hier ausgeschlossenen)
 Bucket-Frage.
 
+## Spike P — R-Ersatz: Python vs. Deno/TypeScript, verifiziert am 2026-08-29
+
+Motivation: R (+ `xml2`/`jsonlite`) als Post-Render-Hook-Sprache ist eine echte Installationshuerde
+fuer Nutzer, die sonst nur Quarto/Pandoc brauchen. Recherche (Quarto-Doku): Quarto-Projekt-Skripte
+unterstuetzen offiziell vier Sprachen fuer `post-render` — R, Python (`.py`), TypeScript ueber
+Quartos eigenes eingebettetes Deno (`.ts`), und Lua ueber Pandocs eingebettetes Lua. Lua in der
+Diskussion verworfen: kein eingebautes Zip-Handling (muesste wie heute per Shell-Aufruf laufen) und
+kein eingebautes XML-Parsing — hoechstes Umbaurisiko ohne Abhaengigkeitsvorteil gegenueber heute.
+
+Verbleiben zwei Kandidaten mit je einem anderen Tradeoff. Das eigentliche Risiko ist bei beiden
+nicht der Portierungsaufwand, sondern **Round-Trip-Treue**: unser gesamter Ansatz beruht darauf,
+ein echtes docx zu entpacken, gezielt ein paar XML-Knoten zu aendern und wieder zu packen, waehrend
+alles andere byte-fuer-byte unveraendert bleibt (`xml2`/libxml2 leistet das heute zuverlaessig).
+Deshalb empirischer Spike gegen `../hello-wordto`s echtes 476-Style-UU-Template (mittlerweile stark
+erweitert: Codeblock, verschachtelte Listen, Tabelle, Abbildung, Fussnote, Callout,
+`custom-style`-Absatz — ein anspruchsvoller Realwelt-Testfall), NICHT die kleine ACME-Testvorlage.
+Testaufbau: roher Pandoc-Render (ausserhalb eines Quarto-Projekts, damit kein Post-Render-Hook
+laeuft) als gemeinsame Ausgangsbasis, dann in jeder Sprache 4 repraesentative Operationen
+(Style-Pruning in `styles.xml`, `pStyle`-Remap in `document.xml`, `numId`→`abstractNumId`→`numFmt`-
+Auflösung in `numbering.xml` [nur lesend], `dc:subject`-Merge in `docProps/core.xml`), dann Diff
+gegen das Original: unberuehrte Dateien muessen byte-identisch bleiben, veraenderte Dateien duerfen
+nur die beabsichtigte Aenderung zeigen.
+
+**Deno/TypeScript (`jsr:@std/xml`, per `import ... from "jsr:@std/xml"`):**
+- `stdlib/xml` (Quartos eigene Kurzform, dokumentiert unter "stdlib/yaml"-Syntax) existiert **nicht**
+  in Quartos tatsaechlicher `run_import_map.json` (`/Applications/quarto/share/deno_std/`) — die
+  direkte `jsr:`-Angabe funktioniert aber. Erster Aufruf laedt von jsr.io herunter (Netzwerk
+  noetig), danach lokal gecacht — "komplett offline" stimmt also nicht ganz.
+- `parse()` liefert einen vollstaendigen, verlustfreien Baum (Kommentare, Text-/Whitespace-Knoten,
+  Namespace-URIs, Attributreihenfolge alles erhalten) — kein simplifiziertes Objekt.
+- Kein XPath: jede der ~15-20 `xml2`-Abfragen im aktuellen Code wurde im Spike als manuelle
+  Baum-Traversierung nachgebaut — mechanisch, aber realer Mehraufwand gegenueber der R-Version.
+- Ergebnis nach allen 4 Operationen: alle unberuehrten Dateien (auch `footnotes.xml`,
+  `comments.xml`, `numbering.xml`, Header/Footer, Theme, ...) byte-identisch zum Original.
+  Veraenderte Dateien (`styles.xml`, `document.xml`, `core.xml`) zeigen nach Normalisierung exakt
+  nur die beabsichtigte Aenderung — keine verlorenen/verschobenen Attribute, keine verlorenen
+  Kommentare. Einzige kosmetische Abweichungen: `stringify()` entfernt das Leerzeichen vor `/>` bei
+  leeren Elementen (**identisch zum bestehenden Verhalten von R/xml2** — kein neues Risiko, siehe
+  Vergleichstest unten) und laesst den Zeilenumbruch nach der XML-Deklaration weg.
+- Ergebnis-docx: gueltiges Zip, alle 27 Parts vorhanden, alle vier editierten XML-Dateien
+  wohlgeformt.
+
+**Python (`xml.etree.ElementTree`, Stdlib, kein `pip install`):**
+- `zipfile` + `xml.etree.ElementTree` beide in der Standardbibliothek, keine Installation noetig
+  ausser `python3` selbst (deutlich verbreiteter vorinstalliert als R).
+- Namespace-Praefixe muessen vor dem Parsen explizit per `ET.register_namespace()` registriert
+  werden, sonst schreibt ElementTree eigene `ns0:`/`ns1:`-Praefixe statt der Original-Praefixe
+  (`w:`, `mc:`, ...) — im Spike per Regex-Scan der `xmlns:`-Deklarationen geloest.
+  `insert_comments=True`/`insert_pis=True` am `TreeBuilder` noetig, um Kommentare/PIs zu erhalten
+  (Default: werden stillschweigend verworfen) — in den echten Testdateien kamen zwar keine
+  Kommentare vor, aber das waere sonst ein stiller Datenverlust bei anderen reference-docs.
+  Attributreihenfolge blieb entgegen einer ersten (falschen) Vermutung korrekt erhalten (verifiziert:
+  alle 476 behaltenen `<w:style>`-Tags exakt gleiche Attributreihenfolge wie im Original).
+- `.find()`/`.findall()` mit Namespace-Dict deckte alle 4 Testfaelle ab, deutlich naeher an einer
+  1:1-Portierung der bestehenden `xml2`-Logik als Denos manuelle Baum-Traversierung.
+- Ergebnis nach allen 4 Operationen: gleiches Bild wie Deno — unberuehrte Dateien byte-identisch,
+  veraenderte Dateien nur mit der beabsichtigten Aenderung. Kosmetische Abweichungen: XML-Deklaration
+  immer einfach-quotiert (`'1.0'` statt `"1.0"`, in `ET.write()` fest verdrahtet, nicht
+  konfigurierbar) und ein zusaetzlicher Zeilenumbruch nach der Deklaration, den das Original nicht
+  hatte; die Reihenfolge der `xmlns:`-Deklarationen auf dem Root-Element kann von der
+  Registrierungsreihenfolge abweichen (nicht weiter verfolgt, waere mit sorgfaeltigerer
+  Registrierungsreihenfolge vermutlich behebbar).
+- Ergebnis-docx: gueltiges Zip, alle 27 Parts vorhanden, alle vier editierten XML-Dateien
+  wohlgeformt.
+
+**Gegenprobe (Vergleichsbasis):** dieselbe leere-Element-Normalisierung (Leerzeichen vor `/>`
+entfernt) tritt identisch bei `xml2::write_xml()` auf dem heutigen R-Code auf — verifiziert per
+`Rscript`-Roundtrip derselben `styles.xml`. Kein Deno-spezifisches Risiko, sondern generelles
+XML-Serializer-Verhalten, das der bestehende R-Code bereits unbeanstandet produziert.
+
+**Fazit:** Beide Kandidaten sind empirisch sicher — keine Datenverluste, keine stillen
+Beschaedigungen, nur kosmetische (fuer Word/Pandoc bedeutungslose) Formatierungsunterschiede in
+tatsaechlich editierten Dateien. Die Entscheidung ist eine reine Tradeoff-Frage, keine
+Sicherheitsfrage: Deno = echte Null-Installation (Quarto bringt es mit), aber Erstlauf braucht
+Netzwerk und der fehlende XPath bedeutet mehr manuellen Portierungscode. Python = braucht `python3`
+(haeufiger vorhanden als R, aber trotzdem eine zusaetzliche Voraussetzung), dafuer komplett offline
+und naeher an einer 1:1-Portierung der bestehenden `xml2`-Abfragen.
+
 ## Offene Fragen aus Abschnitt 3 des Konzepts — Status
 
 | Frage | Status |
