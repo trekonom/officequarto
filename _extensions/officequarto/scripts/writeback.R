@@ -396,6 +396,22 @@ for (rel_path in docx_outputs) {
     ## deshalb hier zentral einmal berechnet statt in beiden Bloecken.
     name_to_id <- oq_style_name_to_id(styles_doc)
 
+    ## Fuss-/Endnoten (word/footnotes.xml, word/endnotes.xml) existieren nur,
+    ## wenn das gerenderte Dokument tatsaechlich welche enthaelt (file.exists()-
+    ## Guard wie schon beim Referenz-Zaehlen fuer die Style-Pruning weiter
+    ## unten). Werden nur gelesen, wenn tatsaechlich eine der beiden Gruppen
+    ## laeuft, die dort etwas aendern koennten (kuratiertes Body-/Listen-/
+    ## Codeblock-Mapping und das freie officequarto.style-map, siehe Issue #2
+    ## "Footnote/endnote paragraph styling") - Tabellen/Abbildungen/
+    ## Seitenlayout/Crossrefs patchen bewusst weiterhin nur document.xml
+    ## (out of scope, siehe README/CLAUDE.md).
+    notes_needed <- !is.null(style_config) || !is.null(lists_config) ||
+      !is.null(code_block_config) || !is.null(style_map_config)
+    footnotes_path <- file.path(work_dir, "word", "footnotes.xml")
+    endnotes_path <- file.path(work_dir, "word", "endnotes.xml")
+    footnotes_doc <- if (notes_needed && file.exists(footnotes_path)) xml2::read_xml(footnotes_path) else NULL
+    endnotes_doc <- if (notes_needed && file.exists(endnotes_path)) xml2::read_xml(endnotes_path) else NULL
+
     if (!is.null(style_config) || !is.null(lists_config) || !is.null(code_block_config)) {
       style_num_id <- oq_style_num_id(styles_doc)
 
@@ -438,6 +454,31 @@ for (rel_path in docx_outputs) {
       if (result$n_list_clamped > 0) {
         log_msg("Davon %d Listen-Absatz/-Absaetze durch Clamping auf den tiefsten konfigurierten Listen-Style abgebildet (Verschachtelung tiefer als konfiguriert).",
                  result$n_list_clamped)
+      }
+
+      ## Fuss-/Endnoten teilen sich word/numbering.xml mit dem Hauptdokument
+      ## (numId-Raum ist docx-weit) und dieselben aufgeloesten style_ids/
+      ## style_num_id - nur der Absatzselektor unterscheidet sich. Body-Rollen-
+      ## Erkennung (officequarto.styles.body) greift dort strukturell NIE (siehe
+      ## oq_apply_style_mapping()s Doku in style-mapping.R) - n_body bleibt
+      ## deshalb absichtlich ungeloggt, um immer-Null-Rauschen zu vermeiden.
+      ## Listen-/SourceCode-Erkennung greifen aber unveraendert, falls eine
+      ## Fuss-/Endnote selbst eine Liste oder einen Codeblock enthaelt.
+      if (!is.null(footnotes_doc)) {
+        fn_result <- oq_apply_style_mapping(footnotes_doc, num_fmt_map, style_ids, style_num_id,
+                                             paragraph_xpath = oq_note_paragraph_xpath("footnote"))
+        if (fn_result$n_list > 0 || fn_result$n_code > 0) {
+          log_msg("Style-Mapping auf word/footnotes.xml angewendet: %d Listen-Absaetze, %d Codeblock-Absaetze.",
+                   fn_result$n_list, fn_result$n_code)
+        }
+      }
+      if (!is.null(endnotes_doc)) {
+        en_result <- oq_apply_style_mapping(endnotes_doc, num_fmt_map, style_ids, style_num_id,
+                                             paragraph_xpath = oq_note_paragraph_xpath("endnote"))
+        if (en_result$n_list > 0 || en_result$n_code > 0) {
+          log_msg("Style-Mapping auf word/endnotes.xml angewendet: %d Listen-Absaetze, %d Codeblock-Absaetze.",
+                   en_result$n_list, en_result$n_code)
+        }
       }
     }
 
@@ -507,6 +548,28 @@ for (rel_path in docx_outputs) {
       source_to_target <- oq_resolve_style_map(style_map_config, name_to_id, fail)
       n_mapped <- oq_apply_style_map(document_doc, source_to_target)
       log_msg("Freies Style-Mapping (officequarto.style-map) angewendet: %d Absaetze.", n_mapped)
+
+      ## Dieselbe aufgeloeste Zuordnung, nur mit dem Fuss-/Endnoten-
+      ## spezifischen Absatzselektor (schliesst separator/
+      ## continuationSeparator aus - sonst wuerde z.B. eine Regel "X": [Normal]
+      ## auch den pStyle-losen Trennlinien-Absatz einer Fussnote treffen).
+      ## Macht insbesondere FootnoteText/EndnoteText (Pandocs feste, in
+      ## reference-doc ggf. nie definierte Fallback-Style-ID, siehe README
+      ## "Footnotes and endnotes") als ganz normale Quell-IDs adressierbar -
+      ## der eigentliche Loesungsweg fuer Issue #2, bewusst ohne eigene
+      ## Konfigurationsoption (siehe CLAUDE.md).
+      if (!is.null(footnotes_doc)) {
+        n_fn_mapped <- oq_apply_style_map(footnotes_doc, source_to_target, oq_note_paragraph_xpath("footnote"))
+        if (n_fn_mapped > 0) {
+          log_msg("Freies Style-Mapping auf word/footnotes.xml angewendet: %d Absaetze.", n_fn_mapped)
+        }
+      }
+      if (!is.null(endnotes_doc)) {
+        n_en_mapped <- oq_apply_style_map(endnotes_doc, source_to_target, oq_note_paragraph_xpath("endnote"))
+        if (n_en_mapped > 0) {
+          log_msg("Freies Style-Mapping auf word/endnotes.xml angewendet: %d Absaetze.", n_en_mapped)
+        }
+      }
     }
 
     if (!is.null(page_config)) {
@@ -515,6 +578,8 @@ for (rel_path in docx_outputs) {
     }
 
     xml2::write_xml(document_doc, document_path)
+    if (!is.null(footnotes_doc)) xml2::write_xml(footnotes_doc, footnotes_path)
+    if (!is.null(endnotes_doc)) xml2::write_xml(endnotes_doc, endnotes_path)
   }
 
   ref_styles_path <- file.path(orig_dir, "word", "styles.xml")

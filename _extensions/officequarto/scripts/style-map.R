@@ -59,14 +59,20 @@ oq_resolve_style_map <- function(style_map_config, name_to_id, fail_fn) {
 }
 
 ## Wendet die aufgeloeste Quell-pStyle-ID -> Ziel-styleId-Zuordnung auf jeden
-## Absatz eines geparsten document.xml an (in-place via
-## xml2-Referenzsemantik). Absaetze ohne pStyle gelten als "Normal" (wie
-## ueberall sonst in diesem Projekt). Gibt die Anzahl umgemappter Absaetze
-## zurueck.
-oq_apply_style_map <- function(document_doc, source_to_target) {
+## Absatz eines geparsten document.xml (oder, via paragraph_xpath,
+## footnotes.xml/endnotes.xml - siehe oq_note_paragraph_xpath() in
+## style-mapping.R, Issue #2 "Footnote/endnote paragraph styling") an
+## (in-place via xml2-Referenzsemantik). paragraph_xpath default "//w:p" ist
+## bereits Wurzel-agnostisch (kein w:body-Anker), fuer footnotes.xml/
+## endnotes.xml aber ohne die separator/continuationSeparator-Ausschluesse
+## faelschlich auf deren pStyle-losen (= "Normal") Absatz anwendbar - deshalb
+## der Parameter statt einfacher Wiederverwendung des Defaults. Absaetze ohne
+## pStyle gelten als "Normal" (wie ueberall sonst in diesem Projekt). Gibt die
+## Anzahl umgemappter Absaetze zurueck.
+oq_apply_style_map <- function(document_doc, source_to_target, paragraph_xpath = "//w:p") {
   if (length(source_to_target) == 0) return(0L)
   ns <- xml2::xml_ns(document_doc)
-  paragraphs <- xml2::xml_find_all(document_doc, "//w:p", ns)
+  paragraphs <- xml2::xml_find_all(document_doc, paragraph_xpath, ns)
 
   n <- 0L
   for (p in paragraphs) {

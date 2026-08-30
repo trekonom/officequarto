@@ -44,6 +44,7 @@ format:
           plots_topcaption: true               # officedown-Alias fuer above (gegen Pandocs Default: Abbildungen unten)
       style-map:
         "Titel ACME": [Title]
+        "Fußnotentext ACME": [FootnoteText]
       page:
         size:
           width: 11.7
