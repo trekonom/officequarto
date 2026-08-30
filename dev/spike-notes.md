@@ -504,6 +504,47 @@ die richtige **Style**-Ebene aus einem konfigurierten Array (`list-bullet: [...]
 das eigentliche vom Nutzer gemeldete Problem, unabhaengig von der (hier ausgeschlossenen)
 Bucket-Frage.
 
+## Spike P — Bookmark-Struktur um crossref-nummerierte Beschriftungen, verifiziert am 2026-08-30
+
+Vorarbeit fuer eine geplante Funktion "echte" Word-Auto-Nummerierung (live `SEQ`/`REF`-Felder statt
+statisch gebackenem Text fuer Tabellen-/Abbildungs-Beschriftungen und Querverweise, analog zu
+{officedown}s per `officer` erzeugten Feldern). Vor der Implementierung per echtem Render (`quarto
+render report.qmd`, ungepatchtes `report.quarto-rendered.docx` inspiziert) geprueft, was
+`oq_caption_anchor_name()`s bisherige Kommentierung ("ein leeres Bookmark-Paar als Geschwister der
+Beschriftung, zwischen Beschriftung und Tabelle") tatsaechlich in der Roh-XML bedeutet:
+
+**Ergebnis: Die bisherige Beschreibung ist falsch/unvollstaendig.** Das Bookmark ist kein
+eng benachbartes leeres Paar zwischen Beschriftungs-Absatz und Tabelle, sondern umschliesst den
+**gesamten Zellinhalt** (Beschriftung UND echte Tabelle bzw. Abbildung UND Beschriftung):
+
+- **Tabellen** (`{#tbl-kennzahlen}`): `&lt;w:tc&gt;&lt;w:tcPr/&gt;` → `&lt;w:bookmarkStart w:id="23"
+  w:name="tbl-kennzahlen"/&gt;` → Beschriftungs-Absatz (`pStyle="ImageCaption"`, Text `"Table 1:
+  Quartalskennzahlen"`) → die komplette echte, verschachtelte `&lt;w:tbl&gt;` → `&lt;w:bookmarkEnd
+  w:id="23"/&gt;` → ein leerer `&lt;w:p/&gt;` → `&lt;/w:tc&gt;`. Das Bookmark umspannt also
+  Beschriftung UND die gesamte Tabelle, nicht nur eine Luecke dazwischen.
+- **Abbildungen** (`{#fig-umsatz}`): umgekehrte Reihenfolge (Bild vor Beschriftung, wie an anderer
+  Stelle dokumentiert), aber gleiches Prinzip: `&lt;w:bookmarkStart w:name="fig-umsatz"/&gt;` →
+  Bild-Absatz → Beschriftungs-Absatz (`"Figure 1: Umsatzentwicklung"`) → `&lt;w:bookmarkEnd/&gt;`.
+- `w:bookmarkStart`/`w:bookmarkEnd` sind reine Positions-Marker (kein Container-Element), koennen
+  daher beliebig weit auseinanderliegende Geschwister-Positionen markieren — genau das passiert
+  hier, keine Pandoc-Anomalie, sondern Pandocs uebliche Technik fuer Section-/Heading-Bookmarks
+  (dieselbe Technik ist an denselben Ebenen fuer jede Ueberschrift im Dokument zu beobachten, z. B.
+  `w:name="kennzahlen"` umspannt den gesamten Abschnitt "Kennzahlen").
+- **Bestaetigt** (kleiner, aber wichtiger Nebenfund): `w:bookmarkStart/@id` wird wie `@name`/
+  `@anchor`/`@styleId` beim LESEN unpraefixiert gelesen (`xml_attr(node, "id")`, nicht `"w:id"`) -
+  per `Rscript`-Probe direkt verifiziert, exakt dieselbe xml2-Asymmetrie wie an anderer Stelle
+  dokumentiert.
+
+**Konsequenz fuer die geplante SEQ/REF-Feld-Funktion:** `oq_find_caption_bookmark()` darf NICHT
+annehmen, `w:bookmarkEnd` sei der naechste Sibling nach `w:bookmarkStart` oder liege in der Naehe
+des Beschriftungs-Absatzes - es muss ueber die gesamte Zelle nach einem `w:bookmarkEnd` mit
+passender `@id` gesucht werden (XPath `@w:id`-Praedikat, wie andernorts in diesem Codebase ueblich).
+Funktional ist das kein Problem fuer den Plan: das existierende (grosszuegig umspannende) Bookmark
+wird ohnehin entfernt und durch ein neues, eng um die SEQ-Feld-Ziffer gelegtes Paar mit demselben
+Namen ersetzt (praeziser als das Original, nicht weniger praezise) - nur die *Lokalisierung* des
+zu entfernenden Original-Paars muss diese tatsaechliche Struktur beruecksichtigen, nicht die
+urspruenglich angenommene enge Paarung.
+
 ## Offene Fragen aus Abschnitt 3 des Konzepts — Status
 
 | Frage | Status |
