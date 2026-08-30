@@ -26,6 +26,7 @@ Rscript ../dev/check-caption-parsing.R  # unit-checks oq_split_caption_text() (t
 Rscript ../dev/check-style-map.R        # unit-checks oq_resolve_style_map()/oq_apply_style_map()
 Rscript ../dev/check-crossref.R         # unit-checks oq_apply_crossref_text()
 Rscript ../dev/check-list-levels.R      # unit-checks oq_style_for_level()/oq_paragraph_ilvl()/oq_resolve_style_ids()
+Rscript ../dev/check-auto-number.R      # unit-checks live SEQ/REF field construction (oq_convert_caption_to_field()/oq_apply_crossref_fields())
 ```
 
 `template/report.qmd` includes a small fenced code block specifically so the style-pruning
@@ -41,6 +42,17 @@ overwritten) and `report.quarto-rendered.docx` (the pre-write-back debug copy) i
 ```bash
 rm -f template/report.docx template/report.quarto-rendered.docx
 rm -rf template/.quarto template/report_files
+```
+
+`officequarto.crossref.auto-number` has its own dedicated end-to-end fixture,
+`dev/fixtures/auto-number/` (own `_quarto.yml`/`_extensions` symlink, mirroring `template/`'s),
+kept separate since `template/_quarto.yml` sets `crossref.numbered: false` (mutually exclusive with
+`auto-number` by design):
+
+```bash
+cd dev/fixtures/auto-number
+quarto render report.qmd
+Rscript ../../check-auto-number-e2e.R
 ```
 
 Regenerate the sample template (`template/original.docx`), including the nine ACME custom
@@ -582,6 +594,61 @@ directly for Gruppe 3 (table captions, see above): Quarto's docx crossref captio
 as static baked-in text rather than real Word `SEQ` fields (open upstream gap) — this is exactly
 why Gruppe 3's `prefix`/`separator`/`number-bold` had to be implemented as text-parsing rather than
 field manipulation.
+
+### Live numbering (`officequarto.crossref.auto-number`, no Gruppe — officedown has no equivalent)
+
+Closes the "open upstream gap" noted above directly instead of working around it: converts
+crossref-numbered captions and their cross-references into real, live Word `SEQ`/`REF` fields (the
+same mechanism Word's own Insert Caption/Insert Cross-reference produce, and the same mechanism
+{officedown} uses), instead of parsing/rewriting Pandoc's already-baked-in text. Opt-in
+(`officequarto.crossref.auto-number: true`); unset behavior is unchanged. Mutually exclusive with
+`officequarto.crossref.numbered: false` (fail-loud, checked up front, alongside the existing
+`code-block`-validity check) — a live number and "always show descriptive text instead of a number"
+are contradictory display modes.
+
+**Field shapes, grounded in the actual installed {officer} v0.7.3 / {officedown} v0.4.1 R package
+source** (bytecode-introspected via `deparse(body(...))`, not guessed — see `dev/spike-notes.md`
+Spike P): every field is built as exactly **3 runs** (`fldChar begin` → `instrText` → `fldChar
+end`), both `fldChar`s carrying `w:dirty="true"`, deliberately omitting Word's own `fldChar
+type="separate"` + cached-result run. Word computes these "dirty" simple fields on layout/open
+without needing a `w:updateFields` flag in `settings.xml` (confirmed absent from officer's own
+settings-writer) — `officequarto` matches this exactly rather than adding an unverified
+belt-and-suspenders cached value of its own.
+
+- **SEQ caption field** (`oq_convert_caption_to_field()`, `table-caption-mapping.R`): replaces the
+  caption paragraph's first run with a prefix text run, a repositioned bookmark, the 3-run SEQ
+  field (`SEQ Table \* Arabic` / `SEQ Figure \* Arabic` — the sequence identifier is fixed, not
+  user-configurable, matching {officedown}'s own hardcoded convention; the visible `prefix` text
+  stays independently configurable), and a separator+rest text run. Only runs when
+  `oq_split_caption_text()` matched (a real crossref-numbered caption) — a caption is either fully
+  static text or fully field-based, never a hybrid, mirrored by `oq_apply_captions()`'s new
+  `auto_number` branch running *instead of* `oq_write_caption_run()`, not alongside it.
+- **Bookmark repositioning**: Pandoc already places an empty `w:bookmarkStart`/`w:bookmarkEnd`
+  pair (named after the crossref label, e.g. `tbl-kennzahlen`) somewhere in the same wrapper cell —
+  but empirically (Spike P, also cross-checked against `../hello-wordto`'s real template) this pair
+  is NOT a tight adjacent pair sitting between the caption and the table/figure, as originally
+  assumed: it spans the *entire* wrapper cell (caption+table, or image+caption). `w:bookmarkStart`/
+  `w:bookmarkEnd` are position markers, not containers, so a wide span is unremarkable — but it
+  means `oq_find_caption_bookmark()` locates the matching `w:bookmarkEnd` by its `@id` (an XPath
+  `@w:id`-predicate lookup), never by adjacency. The original (wide-spanning) pair is removed
+  entirely and replaced by a new, tight pair wrapping only the SEQ field's numeral (matching
+  {officer}'s `run_autonum(bkm_all = FALSE)` default) — reusing the same `w:name` (and `w:id`, now
+  freed by the removal), so every existing crossref hyperlink's `@w:anchor` stays valid unchanged.
+- **REF crossref field** (`oq_apply_crossref_fields()`, `crossref-mapping.R`): replaces all runs
+  inside a `w:hyperlink[@w:anchor]` whose anchor was field-ified with the 3-run REF field (` REF
+  <anchor> \h `), cloning the original first run's `w:rPr` (e.g. `w:rStyle="Hyperlink"`) onto all
+  three new runs so the reference still looks like a hyperlink before Word's first recalculation.
+  {officedown} confirms clickability comes from the `w:hyperlink` wrapper itself (already how
+  officequarto's `numbered: false` crossref code works), not solely the `\h` switch — only the
+  content *inside* the hyperlink changes.
+- Not ported: {officedown}'s `tnd`/`tns` (per-chapter/section numbering restart, backed by a
+  `STYLEREF <level> \r` field prepended before the SEQ field) — flat, document-wide numbering only
+  for now, matching Quarto's own current numbering scheme; a natural fast-follow now that real
+  fields make heading-relative numbering Word's own problem to track, not officequarto's.
+- Test coverage: `dev/check-auto-number.R` (synthetic XML, mirrors `check-style-map.R`'s pattern)
+  plus a dedicated end-to-end fixture, `dev/fixtures/auto-number/` + `dev/check-auto-number-e2e.R`
+  — kept separate from `template/` since `template/_quarto.yml` sets `crossref.numbered: false`,
+  mutually exclusive with `auto-number` by design.
 
 ### Style pruning (always on by default)
 

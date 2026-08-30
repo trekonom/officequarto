@@ -1,0 +1,10 @@
+project:
+  type: officequarto
+
+format:
+  docx:
+    reference-doc: ../../../template/original.docx
+    officequarto:
+      keep-rendered: true
+      crossref:
+        auto-number: true

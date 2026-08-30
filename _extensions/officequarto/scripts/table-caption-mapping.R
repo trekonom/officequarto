@@ -29,6 +29,15 @@
 ## betroffen, und officequarto zaehlt Tabellen-Beschriftungen selbst in
 ## Dokumentreihenfolge mit - identisch zu Pandocs eigener Zaehlung, da nur
 ## Tabellen MIT Beschriftung ueberhaupt einen Beschriftungsabsatz erzeugen.
+##
+## officequarto.crossref.auto-number (kein officedown-Aequivalent) loest das
+## Kernproblem oben grundsaetzlich statt es zu umgehen: statt den bereits
+## eingebackenen Text zu parsen, wird die Zahl durch ein echtes, live
+## nummerierendes Word-SEQ-Feld ersetzt (siehe oq_convert_caption_to_field()
+## unten, analog zu {officedown}s/{officer}s eigener Felderzeugung,
+## bytecode-introspiziert - siehe dev/spike-notes.md Spike P). Eine
+## Beschriftung ist dabei entweder vollstaendig statischer Text (bisheriges
+## Verhalten) oder vollstaendig feld-basiert - siehe oq_apply_captions().
 
 ## Findet alle Tabellen-Beschriftungsabsaetze in Dokumentreihenfolge.
 ##
@@ -171,6 +180,136 @@ oq_caption_anchor_name <- function(caption_p, ns) {
   xml2::xml_attr(bookmark, "name")
 }
 
+## Wie oq_caption_anchor_name(), aber liefert zusaetzlich die Knoten selbst
+## sowie die Bookmark-ID - fuer oq_convert_caption_to_field() (officequarto.
+## crossref.auto-number), die das bestehende Bookmark-Paar entfernt und durch
+## ein neues ersetzt (siehe dort). WICHTIG (empirisch verifiziert, siehe
+## dev/spike-notes.md Spike P, auch gegengeprueft gegen ../hello-wordto):
+## w:bookmarkStart/w:bookmarkEnd sind reine Positions-Marker, kein eng
+## benachbartes leeres Paar zwischen Beschriftung und Tabelle/Abbildung -
+## Pandocs Bookmark umspannt typischerweise den GESAMTEN Wrapper-Zellinhalt
+## (Beschriftung+Tabelle bzw. Bild+Beschriftung). w:bookmarkEnd wird deshalb
+## ueber die passende @id gesucht, nicht per Adjazenz. Gibt NULL zurueck, wenn
+## kein Bookmark gefunden wird.
+oq_find_caption_bookmark <- function(caption_p, ns) {
+  parent <- xml2::xml_parent(caption_p)
+  start <- xml2::xml_find_first(parent, "./w:bookmarkStart", ns)
+  if (is.na(start)) return(NULL)
+  id <- xml2::xml_attr(start, "id")
+  end <- xml2::xml_find_first(parent, sprintf("./w:bookmarkEnd[@w:id='%s']", id), ns)
+  if (is.na(end)) return(NULL)
+  list(start = start, end = end, id = id, name = xml2::xml_attr(start, "name"))
+}
+
+## Wandelt eine Beschriftung von statischem Text in ein echtes, live
+## nummerierendes Word-SEQ-Feld um (officequarto.crossref.auto-number) -
+## analog zu {officedown}s/{officer}s eigener Felderzeugung (bytecode-
+## introspiziert, nicht geraten): jedes Feld besteht aus genau 3 Laeufen
+## (fldChar begin -> instrText -> fldChar end, beide fldChars mit
+## w:dirty="true"), OHNE fldChar type="separate" und OHNE zwischengespeicherten
+## Ergebnis-Lauf - Word berechnet diese "dirty" einfachen Felder beim Layout/
+## Oeffnen automatisch, ganz ohne w:updateFields in settings.xml (dort bewusst
+## NICHT gesetzt, exakt wie {officedown} - siehe README/CLAUDE.md).
+##
+## Ersetzt den ersten Lauf durch: [Praefix-Text-Lauf] [neues bookmarkStart]
+## [3-Lauf-SEQ-Feld: "SEQ <seq_id> \* Arabic"] [neues bookmarkEnd]
+## [Trenner+Rest-Text-Lauf]. seq_id ist "Table"/"Figure" (fest, nicht
+## konfigurierbar - wie bei {officedown}s eigener Konvention; der sichtbare
+## Praefix-Text bleibt unabhaengig davon ueber $prefix konfigurierbar). Das
+## Bookmark wird vom bestehenden (grosszuegig umspannenden) Pandoc-Bookmark
+## uebernommen (derselbe Name, dieselbe ID - siehe oq_find_caption_bookmark()),
+## aber neu und eng nur um die Ziffer gelegt (entspricht {officer}s
+## run_autonum(bkm_all = FALSE)-Standardverhalten), sodass bestehende
+## Crossref-Hyperlinks mit @w:anchor auf denselben Namen unveraendert
+## funktionieren.
+##
+## Die rPr des urspruenglichen ersten Laufs (falls vorhanden) wird auf den
+## Praefix-Lauf und alle drei Feld-Laeufe geklont (bewahrt die Formatierung
+## des "Praefix+Zahl"-Anteils, der jetzt ueber mehrere Laeufe verteilt ist,
+## statt vormals ein einzelner Lauf zu sein), mit optional erzwungenem w:b bei
+## gesetztem number_bold (analog zum bestehenden 2-Lauf-Fett-Split in
+## oq_write_caption_run()). Der abschliessende Trenner+Rest-Lauf bekommt
+## bewusst KEINE rPr (erbt die Formatierung des - ggf. umgemappten -
+## Beschriftungs-Styles), exakt wie der zweite Lauf in oq_write_caption_run().
+##
+## Gibt NA_character_ zurueck (kein Feld erzeugt, Absatz bleibt unangetastet),
+## wenn kein Bookmark gefunden wird - dieselbe "nicht raten"-Philosophie wie
+## beim matched=FALSE-Fall. Nur aufgerufen, wenn caption_options$auto_number
+## TRUE ist UND split$matched TRUE ist (siehe oq_apply_captions()).
+oq_convert_caption_to_field <- function(caption_p, ns, first_run, split, seq_id, caption_options) {
+  bookmark <- oq_find_caption_bookmark(caption_p, ns)
+  if (is.null(bookmark)) return(NA_character_)
+
+  pre <- if (!is.null(caption_options$prefix)) caption_options$prefix else split$title_prefix
+  sep <- if (!is.null(caption_options$separator)) caption_options$separator else split$generated_sep
+  number_bold <- caption_options$number_bold
+  orig_rpr <- xml2::xml_find_first(first_run, "./w:rPr", ns)
+
+  apply_pr <- function(run) {
+    if (!is.na(orig_rpr)) {
+      rpr <- xml2::xml_add_child(run, orig_rpr, .where = 0)
+    } else if (!is.null(number_bold)) {
+      rpr <- xml2::xml_add_child(run, "w:rPr", .where = 0)
+    } else {
+      return(invisible(NULL))
+    }
+    if (!is.null(number_bold)) {
+      b_node <- xml2::xml_find_first(rpr, "./w:b", ns)
+      if (is.na(b_node)) b_node <- xml2::xml_add_child(rpr, "w:b")
+      xml2::xml_attr(b_node, "w:val") <- if (isTRUE(number_bold)) "1" else "0"
+    }
+    invisible(NULL)
+  }
+
+  anchor <- first_run
+  add_after <- function(tag) {
+    anchor <<- xml2::xml_add_sibling(anchor, tag, .where = "after")
+    anchor
+  }
+
+  prefix_run <- add_after("w:r")
+  prefix_t <- xml2::xml_add_child(prefix_run, "w:t")
+  xml2::xml_attr(prefix_t, "xml:space") <- "preserve"
+  xml2::xml_text(prefix_t) <- pre
+  apply_pr(prefix_run)
+
+  bookmark_start <- add_after("w:bookmarkStart")
+  xml2::xml_attr(bookmark_start, "w:id") <- bookmark$id
+  xml2::xml_attr(bookmark_start, "w:name") <- bookmark$name
+
+  begin_run <- add_after("w:r")
+  apply_pr(begin_run)
+  begin_fld <- xml2::xml_add_child(begin_run, "w:fldChar")
+  xml2::xml_attr(begin_fld, "w:fldCharType") <- "begin"
+  xml2::xml_attr(begin_fld, "w:dirty") <- "true"
+
+  instr_run <- add_after("w:r")
+  apply_pr(instr_run)
+  instr_node <- xml2::xml_add_child(instr_run, "w:instrText")
+  xml2::xml_attr(instr_node, "xml:space") <- "preserve"
+  xml2::xml_text(instr_node) <- sprintf("SEQ %s \\* Arabic", seq_id)
+
+  end_run <- add_after("w:r")
+  apply_pr(end_run)
+  end_fld <- xml2::xml_add_child(end_run, "w:fldChar")
+  xml2::xml_attr(end_fld, "w:fldCharType") <- "end"
+  xml2::xml_attr(end_fld, "w:dirty") <- "true"
+
+  bookmark_end <- add_after("w:bookmarkEnd")
+  xml2::xml_attr(bookmark_end, "w:id") <- bookmark$id
+
+  rest_run <- add_after("w:r")
+  rest_t <- xml2::xml_add_child(rest_run, "w:t")
+  xml2::xml_attr(rest_t, "xml:space") <- "preserve"
+  xml2::xml_text(rest_t) <- paste0(sep, split$rest)
+
+  xml2::xml_remove(first_run)
+  xml2::xml_remove(bookmark$start)
+  xml2::xml_remove(bookmark$end)
+
+  bookmark$name
+}
+
 ## Wendet caption_options ($style/$prefix/$separator/$number_bold/$above,
 ## jeweils optional) auf eine bereits gefundene Menge von
 ## Beschriftungsabsaetzen an (in-place via xml2-Referenzsemantik). Generisch
@@ -202,22 +341,35 @@ oq_caption_anchor_name <- function(caption_p, ns) {
 ## tatsaechliche SCHREIBEN in den Absatz (oq_write_caption_run()) bleibt an
 ## needs_text_rewrite gebunden.
 ##
-## Gibt list(n_found, n_text_rewritten, n_moved, anchor_text) zurueck -
-## n_text_rewritten kann kleiner als n_found sein, wenn eine Beschriftung
-## nicht im erwarteten "Praefix Zahl Trenner Text"-Format vorlag
-## (oq_split_caption_text() konnte die Zahl nicht verankern) und deshalb
-## unangetastet blieb; n_moved kann kleiner als n_found sein, wenn fuer eine
-## Beschriftung kein zugehoeriger Inhaltsknoten gefunden wurde. anchor_text
-## ist eine Named Character Vector Bookmark-Name -> Beschriftungstext (ohne
-## Praefix/Zahl/Trenner), fuer Beschriftungen, bei denen sowohl ein Bookmark
-## als auch ein erfolgreich geparster Text gefunden wurden.
-oq_apply_captions <- function(document_doc, captions, caption_options, content_finder = NULL) {
+## Gibt list(n_found, n_text_rewritten, n_field_converted, n_moved,
+## anchor_text, converted_anchors) zurueck - n_text_rewritten kann kleiner als
+## n_found sein, wenn eine Beschriftung nicht im erwarteten "Praefix Zahl
+## Trenner Text"-Format vorlag (oq_split_caption_text() konnte die Zahl nicht
+## verankern) und deshalb unangetastet blieb; n_moved kann kleiner als
+## n_found sein, wenn fuer eine Beschriftung kein zugehoeriger Inhaltsknoten
+## gefunden wurde. anchor_text ist eine Named Character Vector Bookmark-Name
+## -> Beschriftungstext (ohne Praefix/Zahl/Trenner), fuer Beschriftungen, bei
+## denen sowohl ein Bookmark als auch ein erfolgreich geparster Text gefunden
+## wurden. n_field_converted/converted_anchors: siehe caption_options$auto_number
+## unten - converted_anchors ist ein Character-Vektor der Bookmark-Namen aller
+## erfolgreich in ein SEQ-Feld umgewandelten Beschriftungen (leer, wenn
+## auto_number nicht gesetzt ist), fuer Gruppe "auto-number"s
+## Querverweis-Umwandlung (siehe crossref-mapping.R/oq_apply_crossref_fields()).
+##
+## caption_options$auto_number (officequarto.crossref.auto-number): wenn TRUE,
+## wird pro Beschriftung oq_convert_caption_to_field() ANSTELLE von (nie
+## zusaetzlich zu) oq_write_caption_run() aufgerufen - eine Beschriftung ist
+## entweder vollstaendig statischer Text oder vollstaendig feld-basiert, kein
+## Hybrid. In diesem Fall muss `seq_id` ("Table"/"Figure") mitgegeben werden.
+oq_apply_captions <- function(document_doc, captions, caption_options, content_finder = NULL, seq_id = NULL) {
   ns <- xml2::xml_ns(document_doc)
 
   n_found <- length(captions)
   n_text_rewritten <- 0L
+  n_field_converted <- 0L
   n_moved <- 0L
   anchor_text <- character(0)
+  converted_anchors <- character(0)
 
   needs_text_rewrite <- !is.null(caption_options$prefix) ||
     !is.null(caption_options$separator) ||
@@ -241,7 +393,13 @@ oq_apply_captions <- function(document_doc, captions, caption_options, content_f
           if (!is.na(anchor_name)) {
             anchor_text[[anchor_name]] <- split$rest
           }
-          if (needs_text_rewrite) {
+          if (isTRUE(caption_options$auto_number)) {
+            converted_name <- oq_convert_caption_to_field(p, ns, first_run, split, seq_id, caption_options)
+            if (!is.na(converted_name)) {
+              converted_anchors <- c(converted_anchors, converted_name)
+              n_field_converted <- n_field_converted + 1L
+            }
+          } else if (needs_text_rewrite) {
             final_pre <- if (!is.null(caption_options$prefix)) caption_options$prefix else split$title_prefix
             final_sep <- if (!is.null(caption_options$separator)) caption_options$separator else split$generated_sep
             oq_write_caption_run(first_run, t_node, ns, final_pre, split$number, final_sep, split$rest, caption_options$number_bold)
@@ -260,5 +418,6 @@ oq_apply_captions <- function(document_doc, captions, caption_options, content_f
     }
   }
 
-  list(n_found = n_found, n_text_rewritten = n_text_rewritten, n_moved = n_moved, anchor_text = anchor_text)
+  list(n_found = n_found, n_text_rewritten = n_text_rewritten, n_field_converted = n_field_converted,
+       n_moved = n_moved, anchor_text = anchor_text, converted_anchors = converted_anchors)
 }

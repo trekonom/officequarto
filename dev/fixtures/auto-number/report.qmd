@@ -1,0 +1,25 @@
+---
+title: "Auto-number fixture"
+---
+
+<!-- Dedicated end-to-end fixture for officequarto.crossref.auto-number
+     (dev/check-auto-number-e2e.R), kept separate from template/ since
+     template/_quarto.yml sets crossref.numbered: false, which is mutually
+     exclusive with auto-number by design - see the implementation plan. -->
+
+## Table
+
+| Kennzahl | Wert |
+|---|---|
+| Umsatz | 100 |
+| Wachstum | 5% |
+
+: Eine live nummerierte Tabelle {#tbl-x}
+
+## Figure
+
+![Ein live nummeriertes Diagramm](../../../template/plot.png){#fig-x}
+
+## Querverweise
+
+Siehe @tbl-x und @fig-x.

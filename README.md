@@ -541,6 +541,44 @@ nothing to do otherwise. Setting it (even without touching `officequarto.tables.
 the anchor → text lookup, so expect the same log lines about captions being processed even if you
 haven't configured any caption styling yourself.
 
+## Live numbering: `officequarto.crossref.auto-number`
+
+Everything above (`officequarto.tables.caption`/`officequarto.plots.caption`'s `prefix`/
+`separator`/`number-bold`, and `crossref.numbered: false`) works around the same limitation:
+Quarto's captions and cross-references are static, already-baked-in text — not real Word fields —
+by the time this hook runs, so there's no live number to reformat, only text to parse and rewrite.
+`officequarto.crossref.auto-number: true` closes that gap directly instead of working around it:
+it converts crossref-numbered captions and their cross-references into **real, live Word `SEQ`/
+`REF` fields** — the same mechanism Word's own Insert Caption/Insert Cross-reference commands
+produce, and the same mechanism {officedown} uses (this project ported the field shapes directly
+from {officedown}'s/{officer}'s own source). Numbers then genuinely renumber in Word when tables
+or figures are added, removed, or reordered — no re-render needed.
+
+```yaml
+format:
+  docx:
+    officequarto:
+      crossref:
+        auto-number: true
+```
+
+- Only affects captions that Quarto actually numbers — a crossref-ID'd (`{#tbl-xyz}`/`{#fig-xyz}`)
+  table or figure. Plain (non-crossref) captions have no generated number to begin with and are
+  left as static text, same as always.
+- `prefix`/`separator`/`number-bold`/`style` (under `tables.caption`/`plots.caption`) keep working
+  exactly as documented above — same keys, same meaning — they now style the text runs *around* a
+  live field instead of rewriting static text.
+- **Mutually exclusive with `crossref.numbered: false`** — a live number and "always show
+  descriptive text instead of a number" are contradictory display modes. Setting both aborts the
+  render with an explicit error.
+- **These are now genuinely live fields.** Unlike today's plain static caption/cross-reference
+  text, which you could freely hand-edit in Word, retyping the visible number will be silently
+  overwritten the next time Word recalculates the field (on open, or F9) — Word computes these
+  simple fields automatically during layout, without any forced "update fields" prompt.
+- Not ported: per-chapter/section numbering restart ({officedown}'s `tnd`/`tns`, backed by a
+  `STYLEREF` field) — flat, document-wide numbering only for now, matching Quarto's own current
+  numbering scheme.
+
 ## Style pruning: keeping only reference-doc styles
 
 Pandoc's docx writer unconditionally adds its own style definitions on top of whatever
@@ -662,6 +700,7 @@ group is ported; groups not yet listed here aren't implemented yet.
 | `page.margins.footer` | `page_margins_footer` | Footer distance (inches) | unset (`reference-doc` default) |
 | `page.margins.gutter` | `page_margins_gutter` | Gutter margin (inches) | unset (`reference-doc` default) |
 | `crossref.numbered` | `reference_num` | Show the number (`true`) or caption text (`false`) at cross-references | unset (Pandoc default, already numbered) |
+| `crossref.auto-number` | *(none — {officedown} is always field-based)* | Convert captions/cross-references into live Word `SEQ`/`REF` fields instead of static text | unset (static text, current behavior) |
 | `pandoc-styles.code-block` | *(none — no officedown equivalent)* | Exempt Pandoc's code-block styles from pruning (`true`), or remap the block role to a style (name) | unset (code-block styles are pruned) |
 | `keep-rendered` | *(none — no officedown equivalent)* | Also save the unpatched Pandoc output as `<name>.quarto-rendered.docx` | `false` |
 
@@ -702,6 +741,10 @@ group is ported; groups not yet listed here aren't implemented yet.
   when `officequarto.styles`/`officequarto.lists` isn't configured for that role), that style
   definition is still removed and the content falls back to Word's default formatting — see
   [Style pruning](#style-pruning-keeping-only-reference-doc-styles).
+- `officequarto.crossref.auto-number`'s `SEQ`/`REF` field construction is only verified to be
+  structurally correct (right XML shape); it hasn't been independently verified to render correctly
+  in every Word version. The `SEQ` sequence identifier (`Table`/`Figure`) is fixed, not
+  user-configurable.
 
 ## Development / tests
 
@@ -713,8 +756,20 @@ Rscript ../dev/check-option-aliases.R   # unit-checks canonical-name/officedown-
 Rscript ../dev/check-caption-parsing.R  # unit-checks the table-caption text-splitting logic
 Rscript ../dev/check-style-map.R        # unit-checks officequarto.style-map resolution/application
 Rscript ../dev/check-crossref.R         # unit-checks cross-reference text rewriting
+Rscript ../dev/check-list-levels.R      # unit-checks per-nesting-level list style resolution
+Rscript ../dev/check-auto-number.R      # unit-checks live SEQ/REF field construction
+```
+
+`officequarto.crossref.auto-number` also has a dedicated end-to-end fixture, kept separate from
+`template/` since `template/_quarto.yml` sets `crossref.numbered: false` (mutually exclusive with
+`auto-number` by design):
+
+```bash
+cd dev/fixtures/auto-number
+quarto render report.qmd
+Rscript ../../check-auto-number-e2e.R
 ```
 
 `dev/make-sample-docx.R` regenerates the sample template `template/original.docx`, including the
-five ACME custom styles used for style-mapping (requires the R packages `officer` and `xml2`,
-only for generating the sample template, not for the hook itself).
+ACME custom styles used for style-mapping (requires the R packages `officer` and `xml2`, only for
+generating the sample template, not for the hook itself).

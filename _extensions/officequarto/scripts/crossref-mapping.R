@@ -53,3 +53,71 @@ oq_apply_crossref_text <- function(document_doc, anchor_text) {
 
   n
 }
+
+## Ersetzt den Inhalt jedes w:hyperlink[@w:anchor], dessen Anker in
+## converted_anchors auftaucht (von oq_apply_captions()s Feld-Umwandlung
+## zurueckgegeben, siehe table-caption-mapping.R/oq_convert_caption_to_field()),
+## durch ein echtes, live nummerierendes Word-REF-Feld statt statischem Text -
+## fuer officequarto.crossref.auto-number (kein officedown-Aequivalent,
+## {officedown} ist immer feld-basiert). Feldcode " REF <anchor> \h " (per
+## Hyperlink-Schalter, analog zu {officer}s run_reference() - bytecode-
+## introspiziert, siehe dev/spike-notes.md Spike P), als 3-Lauf-Feld (fldChar
+## begin -> instrText -> fldChar end, beide mit w:dirty="true", KEIN
+## fldChar type="separate", kein zwischengespeicherter Ergebnis-Lauf - exakt
+## dasselbe Muster wie das SEQ-Feld in oq_convert_caption_to_field()).
+## {officedown} bestaetigt: die Klickbarkeit kommt vom w:hyperlink-Element
+## selbst (bereits vorhanden, unveraendert), nicht vom \h-Schalter allein -
+## nur der Inhalt DES Hyperlinks aendert sich.
+##
+## Anders als oq_apply_crossref_text() (die den ersten Lauf wiederverwendet)
+## werden hier SAEMTLICHE vorhandenen Laeufe entfernt, da ihr statischer
+## Text-Inhalt im Feld-Fall nicht weiterverwendet wird - nur die rPr des
+## ersten Laufs (z.B. w:rStyle="Hyperlink") wird auf alle drei neuen
+## Feld-Laeufe uebertragen, damit der Querverweis optisch weiterhin wie ein
+## Hyperlink aussieht, auch bevor Word das Feld bei der naechsten
+## Neuberechnung (automatisch beim Layout/Oeffnen, siehe oben) durch die
+## tatsaechliche Zahl ersetzt. Ein Hyperlink ohne jeden Lauf (atypisches
+## Dokument) bleibt unangetastet, dieselbe defensive Behandlung wie in
+## oq_apply_crossref_text(). Gibt die Anzahl umgewandelter Hyperlinks zurueck.
+oq_apply_crossref_fields <- function(document_doc, converted_anchors) {
+  if (length(converted_anchors) == 0) return(0L)
+  ns <- xml2::xml_ns(document_doc)
+  hyperlinks <- xml2::xml_find_all(document_doc, "//w:hyperlink[@w:anchor]", ns)
+
+  n <- 0L
+  for (link in hyperlinks) {
+    anchor <- xml2::xml_attr(link, "anchor")
+    if (is.na(anchor) || !(anchor %in% converted_anchors)) next
+
+    runs <- xml2::xml_find_all(link, "./w:r", ns)
+    if (length(runs) == 0) next
+
+    orig_rpr <- xml2::xml_find_first(runs[[1]], "./w:rPr", ns)
+    apply_pr <- function(run) {
+      if (!is.na(orig_rpr)) xml2::xml_add_child(run, orig_rpr, .where = 0)
+    }
+    for (r in runs) xml2::xml_remove(r)
+
+    begin_run <- xml2::xml_add_child(link, "w:r")
+    apply_pr(begin_run)
+    begin_fld <- xml2::xml_add_child(begin_run, "w:fldChar")
+    xml2::xml_attr(begin_fld, "w:fldCharType") <- "begin"
+    xml2::xml_attr(begin_fld, "w:dirty") <- "true"
+
+    instr_run <- xml2::xml_add_child(link, "w:r")
+    apply_pr(instr_run)
+    instr_node <- xml2::xml_add_child(instr_run, "w:instrText")
+    xml2::xml_attr(instr_node, "xml:space") <- "preserve"
+    xml2::xml_text(instr_node) <- sprintf(" REF %s \\h ", anchor)
+
+    end_run <- xml2::xml_add_child(link, "w:r")
+    apply_pr(end_run)
+    end_fld <- xml2::xml_add_child(end_run, "w:fldChar")
+    xml2::xml_attr(end_fld, "w:fldCharType") <- "end"
+    xml2::xml_attr(end_fld, "w:dirty") <- "true"
+
+    n <- n + 1L
+  }
+
+  n
+}
