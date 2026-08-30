@@ -6,7 +6,12 @@ title: "Quartalsbericht"
 
 Dieser Absatz wurde von Quarto gerendert und soll nach dem Post-Render-Schritt von
 `officequarto` in den Body von `original.docx` zurückgeschrieben werden, während Kopf- und
-Fußzeile des Originals erhalten bleiben.
+Fußzeile des Originals erhalten bleiben.[^fn-styling]
+
+[^fn-styling]: Testfall für Fußnoten-Absatz-Styling (Issue #2) — `original.docx` definiert keinen
+eigenen Fußnotentext-Style, Pandoc fällt daher auf die feste ID `FootnoteText` zurück (siehe
+README „Footnotes and endnotes"), die hier über `officequarto.style-map` auf `FussnotentextACME`
+umgeleitet wird.
 
 ## Kennzahlen
 

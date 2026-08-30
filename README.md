@@ -141,7 +141,9 @@ You provide the style **name** visible in the Word UI (not the internal style ID
 resolves that itself against `word/styles.xml` of `reference-doc`. Body paragraphs are detected via
 an allowlist of known Pandoc body roles (`Normal`, `FirstParagraph`, `Compact`, `BodyText`/
 `Body Text`). If a configured style name doesn't exist in `reference-doc`, the hook aborts with a
-list of the available paragraph styles instead of silently ignoring the misconfiguration.
+list of the available paragraph styles instead of silently ignoring the misconfiguration. This
+allowlist never matches footnote/endnote text, even though those are otherwise reachable by other
+style-mapping mechanisms — see [Footnotes and endnotes](#footnotes-and-endnotes) below.
 
 ## Lists: bullet, number, letter styles
 
@@ -475,6 +477,43 @@ none of the curated options already touched — but since it matches on whatever
 currently has, it can also be pointed at an already-remapped target name to override it further, if
 you deliberately want that.
 
+## Footnotes and endnotes
+
+`officequarto.lists.*`, `officequarto.pandoc-styles.code-block`, and `officequarto.style-map` are
+all applied to `word/footnotes.xml`/`word/endnotes.xml` in addition to the main body — e.g. a
+bullet list or code block inside a footnote gets the same styling as one in the body.
+
+`officequarto.styles.body` does **not** apply to footnote/endnote text, and this isn't a
+missing-detection gap — it's structural. Pandoc never renders footnote/endnote text under one of
+its context-dependent body role names (`Normal`/`FirstParagraph`/`Compact`/...). Instead, one of
+two things happens, verified against real rendered output:
+
+- If `reference-doc` defines its own built-in footnote-text style, Pandoc already reuses that
+  style's own (possibly localized) ID directly — the same mechanism documented for blockquotes
+  under [Free-form style mapping](#free-form-style-mapping-officequartostyle-map) above. No
+  `officequarto` configuration is needed or possible here; it's already correct.
+- If `reference-doc` defines no footnote-text style at all (like this project's own sample
+  `original.docx`), Pandoc falls back to the fixed, un-localized OOXML reserved style ID
+  `FootnoteText` (`EndnoteText` for endnotes) — a Word built-in style ID recognized natively even
+  without an explicit `<w:style>` definition. To give footnotes your own styling in this case,
+  redirect it like any other Pandoc-invented style via `officequarto.style-map`:
+
+```yaml
+format:
+  docx:
+    officequarto:
+      style-map:
+        "Fußnotentext ACME": [FootnoteText]
+        "Endnotentext ACME": [EndnoteText]
+```
+
+Only the footnote/endnote **paragraph** style (`w:pStyle`, the body-text formatting) is covered.
+The footnote/endnote **marker** character style (`FootnoteReference`/`EndnoteReference`, the small
+superscript number) isn't remapped by `officequarto` — out of scope for now.
+
+`word/comments.xml` is still not touched by any style-mapping mechanism (only read, for
+style-pruning reference counting).
+
 ## Page layout: `officequarto.page`
 
 Page size and margins already carry over from `reference-doc` natively via Pandoc — like
@@ -733,9 +772,12 @@ group is ported; groups not yet listed here aren't implemented yet.
 - The hook overwrites the rendered `.docx` in place. If the file is open in another program at
   that point (e.g. Word), the overwrite can fail, or the program may keep showing the old state
   until manually reloaded.
-- Style-mapping only patches `word/document.xml` (the main body), not footnotes/comments. Body
-  detection relies on an allowlist of known Pandoc role names — a reference-doc that makes Pandoc
-  render body text under a not-yet-listed role name won't be recognized.
+- Style-mapping's body-role detection (`officequarto.styles.body`) relies on an allowlist of known
+  Pandoc role names and will never match footnote/endnote text (structural, not an implementation
+  gap — see [Footnotes and endnotes](#footnotes-and-endnotes)); a reference-doc that makes Pandoc
+  render *body* text under a not-yet-listed role name also won't be recognized.
+- `word/comments.xml` is not reached by any style-mapping mechanism (only read for style-pruning
+  reference counting).
 - Style pruning is unconditional: if content actually uses a Pandoc-added style your `reference-doc`
   doesn't define (typically syntax-highlighted code blocks, or Pandoc's own body/list role names
   when `officequarto.styles`/`officequarto.lists` isn't configured for that role), that style
@@ -758,6 +800,7 @@ Rscript ../dev/check-style-map.R        # unit-checks officequarto.style-map res
 Rscript ../dev/check-crossref.R         # unit-checks cross-reference text rewriting
 Rscript ../dev/check-list-levels.R      # unit-checks per-nesting-level list style resolution
 Rscript ../dev/check-auto-number.R      # unit-checks live SEQ/REF field construction
+Rscript ../dev/check-footnote-styling.R # unit-checks footnote/endnote paragraph selector + list/code/style-map detection
 ```
 
 `officequarto.crossref.auto-number` also has a dedicated end-to-end fixture, kept separate from

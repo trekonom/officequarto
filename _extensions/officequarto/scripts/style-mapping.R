@@ -120,18 +120,53 @@ oq_style_for_level <- function(styles, ilvl) {
   styles[[idx]]
 }
 
-## Wendet das Style-Mapping direkt auf ein geparstes document.xml an (in-place
-## via xml2-Referenzsemantik). style_ids ist eine Liste mit optionalen
-## Eintraegen $body/$code (jeweils eine styleId oder NULL) und
-## $list_bullet/$list_number/$list_letter (jeweils ein Character-Vektor von
-## styleIds, ein Eintrag pro Verschachtelungsebene - Laenge 1 = derselbe Style
-## auf jeder Ebene, kuerzere Vektoren als die tatsaechliche Verschachtelung
-## clampen auf den letzten Eintrag, siehe oq_style_for_level - oder NULL).
-## style_num_id (siehe oq_style_num_id) sagt, welche Ziel-Styles selbst eine
-## Nummerierung mitbringen.
-oq_apply_style_mapping <- function(document_doc, num_fmt_map, style_ids, style_num_id) {
+## XPath-Absatzselektor fuer word/footnotes.xml bzw. word/endnotes.xml
+## (Wurzel w:footnotes/w:endnotes, kein w:body - Absaetze haengen direkt oder,
+## bei einer Tabelle innerhalb einer Fuss-/Endnote, verschachtelt unter
+## w:footnote/w:endnote). Schliesst die beiden von Word selbst erzeugten
+## Infrastruktur-Eintraege mit w:type="separator"/"continuationSeparator"
+## (IDs -1/0, reine Trennlinien-Marker ohne eigene Body-Rolle) aus - deren
+## Absatz traegt in der Praxis KEIN eigenes w:pStyle, faellt also per Default
+## auf "Normal" zurueck und wuerde sonst faelschlich sowohl vom Body-Role-
+## Mapping (officequarto.styles.body) als auch von einer generischen
+## officequarto.style-map-Regel wie "X": [Normal] erfasst - nicht nur
+## defensive Absicherung, sondern notwendig. `container` ist "footnote" oder
+## "endnote". Wird sowohl von oq_apply_style_mapping() hier als auch von
+## oq_apply_style_map() (style-map.R) als paragraph_xpath verwendet (siehe
+## writeback.R, Issue #2 "Footnote/endnote paragraph styling").
+oq_note_paragraph_xpath <- function(container) {
+  excl <- "not(@w:type='separator' or @w:type='continuationSeparator')"
+  sprintf("//w:%1$s[%2$s]/w:p | //w:%1$s[%2$s]//w:tbl//w:p", container, excl)
+}
+
+## Wendet das Style-Mapping direkt auf ein geparstes document.xml (oder,
+## via paragraph_xpath, footnotes.xml/endnotes.xml - siehe
+## oq_note_paragraph_xpath() oben) an (in-place via xml2-Referenzsemantik).
+## style_ids ist eine Liste mit optionalen Eintraegen $body/$code (jeweils
+## eine styleId oder NULL) und $list_bullet/$list_number/$list_letter
+## (jeweils ein Character-Vektor von styleIds, ein Eintrag pro
+## Verschachtelungsebene - Laenge 1 = derselbe Style auf jeder Ebene,
+## kuerzere Vektoren als die tatsaechliche Verschachtelung clampen auf den
+## letzten Eintrag, siehe oq_style_for_level - oder NULL). style_num_id
+## (siehe oq_style_num_id) sagt, welche Ziel-Styles selbst eine Nummerierung
+## mitbringen.
+##
+## Fuer Fuss-/Endnoten (paragraph_xpath = oq_note_paragraph_xpath(...))
+## greift die Body-Rollen-Allowlist (style_ids$body) strukturell NIE: Pandoc
+## rendert Fussnotentext nie unter einer seiner kontextabhaengigen
+## Body-Rollennamen (Normal/FirstParagraph/Compact/...), sondern entweder
+## unter der vom reference-doc bereits korrekt wiederverwendeten eigenen
+## (ggf. lokalisierten) Style-ID, oder - falls reference-doc keine eigene
+## definiert - unter der festen, nie definierten Pandoc/Word-Fallback-ID
+## "FootnoteText"/"EndnoteText" (siehe README "Footnotes and endnotes"). Die
+## Listen-/SourceCode-Erkennung greift dagegen unveraendert, falls eine
+## Fuss-/Endnote selbst eine Liste oder einen Codeblock enthaelt - deshalb ist
+## es sicher, diese Funktion unveraendert auch gegen footnotes.xml/
+## endnotes.xml laufen zu lassen.
+oq_apply_style_mapping <- function(document_doc, num_fmt_map, style_ids, style_num_id,
+                                    paragraph_xpath = "//w:body/w:p | //w:body//w:tbl//w:p") {
   ns <- xml2::xml_ns(document_doc)
-  paragraphs <- xml2::xml_find_all(document_doc, "//w:body/w:p | //w:body//w:tbl//w:p", ns)
+  paragraphs <- xml2::xml_find_all(document_doc, paragraph_xpath, ns)
 
   n_body <- 0L
   n_list <- 0L

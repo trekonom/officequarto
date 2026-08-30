@@ -28,13 +28,24 @@ doc <- doc |> set_doc_properties(
 print(doc, target = "template/original.docx")
 
 ## officer bietet keine High-Level-API zum Definieren neuer Paragraph-/
-## Tabellen-Styles, daher werden 15 ACME-Custom-Paragraph-Styles (die
+## Tabellen-Styles, daher werden 16 ACME-Custom-Paragraph-Styles (die
 ## urspruenglichen neun, plus je zwei weitere Verschachtelungsebenen fuer
 ## Aufzaehlung/Nummerierung/Buchstabierung - officequarto.lists.* als Array
-## statt Skalar, siehe style-mapping.R) plus ein ACME-Custom-Tabellen-Style
-## direkt in word/styles.xml nachgetragen - gleiche unzip/xml2/zip-Technik wie
-## in scripts/writeback.R. Jeder Style hat eine deutlich abweichende
-## Formatierung, damit ein erfolgreiches Mapping auch visuell erkennbar ist.
+## statt Skalar, siehe style-mapping.R - plus ein Fussnotentext-Style fuer
+## Issue #2 "Footnote/endnote paragraph styling", siehe unten) plus ein
+## ACME-Custom-Tabellen-Style direkt in word/styles.xml nachgetragen - gleiche
+## unzip/xml2/zip-Technik wie in scripts/writeback.R. Jeder Style hat eine
+## deutlich abweichende Formatierung, damit ein erfolgreiches Mapping auch
+## visuell erkennbar ist.
+##
+## FussnotentextACME bleibt bewusst UNGENUTZT von Pandocs eigener
+## Fussnotentext-Rolle (original.docx definiert absichtlich KEINEN Style mit
+## "Footnote"/"Fussnote" im Namen) - das ist genau der empirisch verifizierte
+## Fall, in dem Pandoc auf die feste, nie im reference-doc definierte
+## Fallback-ID "FootnoteText" zurueckfaellt (siehe README "Footnotes and
+## endnotes"); template/_quarto.yml leitet diese ueber officequarto.style-map
+## auf FussnotentextACME um, exercised durch die Fussnote in
+## template/report.qmd.
 library(xml2)
 
 custom_styles <- c(
@@ -144,6 +155,13 @@ custom_styles <- c(
      <w:rPr><w:b/><w:sz w:val="48"/><w:color w:val="1A237E"/></w:rPr>
    </w:style>',
   '<w:style xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+     w:type="paragraph" w:customStyle="1" w:styleId="FussnotentextACME">
+     <w:name w:val="Fußnotentext ACME"/>
+     <w:basedOn w:val="Normal"/>
+     <w:qFormat/>
+     <w:rPr><w:i/><w:sz w:val="16"/><w:color w:val="795548"/></w:rPr>
+   </w:style>',
+  '<w:style xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
      w:type="table" w:customStyle="1" w:styleId="TabelleACME">
      <w:name w:val="Tabelle ACME"/>
      <w:basedOn w:val="TableauNormal"/>
@@ -179,4 +197,4 @@ system2("zip", c("-rq", shQuote(target_path), "."))
 setwd(old_wd)
 unlink(work_dir, recursive = TRUE)
 
-cat("Beispiel-Dokument geschrieben: template/original.docx (inkl. 15 ACME-Paragraph-Styles - neun Basis-Styles plus je zwei weitere Verschachtelungsebenen fuer Aufzaehlung/Nummerierung/Buchstabierung - und einem ACME-Tabellen-Style)\n")
+cat("Beispiel-Dokument geschrieben: template/original.docx (inkl. 16 ACME-Paragraph-Styles - neun Basis-Styles plus je zwei weitere Verschachtelungsebenen fuer Aufzaehlung/Nummerierung/Buchstabierung, plus Fussnotentext - und einem ACME-Tabellen-Style)\n")

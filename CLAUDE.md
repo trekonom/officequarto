@@ -27,6 +27,7 @@ Rscript ../dev/check-style-map.R        # unit-checks oq_resolve_style_map()/oq_
 Rscript ../dev/check-crossref.R         # unit-checks oq_apply_crossref_text()
 Rscript ../dev/check-list-levels.R      # unit-checks oq_style_for_level()/oq_paragraph_ilvl()/oq_resolve_style_ids()
 Rscript ../dev/check-auto-number.R      # unit-checks live SEQ/REF field construction (oq_convert_caption_to_field()/oq_apply_crossref_fields())
+Rscript ../dev/check-footnote-styling.R # unit-checks footnote/endnote paragraph selector + list/code/style-map detection
 ```
 
 `template/report.qmd` includes a small fenced code block specifically so the style-pruning
@@ -202,7 +203,13 @@ detection logic in `style-mapping.R`:
   style names (`officequarto_body_role_styles` in `style-mapping.R`: `Normal`, `FirstParagraph`,
   `Compact`, `BodyText`, `Body Text`). A reference-doc that makes Pandoc pick a body role outside
   this list will not be recognized — documented limitation.
-- Only `word/document.xml` (main body) is patched — not footnotes/comments.
+- `word/document.xml`, `word/footnotes.xml`, and `word/endnotes.xml` are all patched for list/
+  code-block detection and `officequarto.style-map` (see the "Free-form style mapping" section
+  below and GH issue #2) — but the body-role allowlist here never matches footnote/endnote text
+  regardless (structural: Pandoc's fixed `FootnoteText`/`EndnoteText` fallback ID, or a
+  reference-doc's own reused built-in-role style, are never one of
+  `Normal`/`FirstParagraph`/`Compact`/...). `word/comments.xml` remains read-only (style-pruning
+  reference counting only).
 
 `list-bullet`/`list-number`/`list-letter` additionally accept an **array** of style names instead
 of a single scalar — one style per nesting level (index 0 = top level), an explicit divergence from
@@ -515,6 +522,52 @@ Runs **last** in `writeback.R`'s style-mapping pipeline, deliberately after `off
 paragraphs none of the curated options already claimed, while a rule deliberately keyed on an
 already-remapped target name can still reach and further override it, since matching is always
 against whatever `pStyle` a paragraph currently has at that point in the pipeline.
+
+**Footnotes/endnotes (GH issue #2 "Footnote/endnote paragraph styling"):** `oq_apply_style_map()`
+gained an optional `paragraph_xpath` parameter (default `"//w:p"` — already root-agnostic, so
+unchanged behavior for `document.xml`), so `writeback.R` can also run it against
+`footnotes.xml`/`endnotes.xml` using `oq_note_paragraph_xpath("footnote"/"endnote")`
+(`style-mapping.R`) as the selector. Deliberately **no** dedicated
+`officequarto.pandoc-styles.footnote` option, unlike `code-block`: `code-block`'s `true` mode
+exists to exempt Pandoc-added `*Tok` styles from *pruning*, and there's no footnote/endnote
+equivalent to exempt — empirically (real render against `template/original.docx`, which defines no
+footnote style), `FootnoteText`/`EndnoteText` are never defined as `<w:style>` nodes in rendered
+`styles.xml` at all, so there's nothing to prune and nothing to opt back into keeping. The
+remaining need — redirect the fixed fallback ID to a custom style — is already exactly
+`style-map`'s existing shape (target display name → source pStyle IDs, direct equality), so
+`FootnoteText`/`EndnoteText` are just two more valid source IDs, no new option needed. Scope is
+paragraph styling only (`w:pStyle`); `FootnoteReference`/`EndnoteReference` (`w:rStyle` on the
+marker run) are out of scope, matching the issue title.
+
+`oq_note_paragraph_xpath(container)` (`style-mapping.R`) excludes `w:footnote`/`w:endnote` entries
+with `w:type="separator"`/`"continuationSeparator"` (the always-present infrastructure entries,
+`w:id="-1"`/`"0"`) — their paragraph has no `w:pStyle` of its own (defaults to `"Normal"`), which
+would otherwise be falsely caught both by the body-role allowlist and by any `style-map` rule keyed
+on `Normal` (a realistic rule, since `Normal` is Pandoc's real no-pStyle fallback in `document.xml`
+too) — verified with a dedicated regression test in `dev/check-footnote-styling.R`, not just
+reasoned about. Same xpath is reused by `oq_apply_style_mapping()`'s new optional `paragraph_xpath`
+parameter (default `"//w:body/w:p | //w:body//w:tbl//w:p"`, unchanged for `document.xml`) so
+`officequarto.lists.*`/`officequarto.pandoc-styles.code-block` also apply inside a footnote/endnote
+that itself contains a list or code block — the body-role branch structurally never fires there
+either way, so running the unmodified function against `footnotes.xml`/`endnotes.xml` is safe by
+construction.
+
+`writeback.R` reads `footnotes_doc`/`endnotes_doc` (guarded by both `file.exists()` and a narrower
+`notes_needed` gate nested inside the outer block gate) right after `document_doc`, applies the
+same `style_ids`/`style_num_id`/`num_fmt_map` (shared — `numId` is docx-wide, not per-part) with
+the note-specific xpath, and writes them back **before** the style-pruning block re-reads
+`footnotes.xml`/`endnotes.xml` from disk for `oq_referenced_style_ids()` — ordering matters here.
+
+Real end-to-end coverage exercises the actual target scenario (a `reference-doc` with no footnote
+style of its own) directly: `template/original.docx` gained a 16th ACME custom style,
+`FussnotentextACME`, deliberately named so Pandoc's built-in-role matching does *not* pick it up on
+its own (verified empirically — the pre-patch `report.quarto-rendered.docx` still shows the raw
+`FootnoteText` fallback, confirming the new style doesn't accidentally short-circuit the test);
+`template/report.qmd` gained a real footnote, and `template/_quarto.yml`'s `style-map` redirects
+`FootnoteText` to it. Also verified against `../hello-wordto` (which *does* define its own,
+already-correctly-reused localized footnote style, `Voetnoottekst`) that this change is fully
+inert there with no `style-map` rule configured for it — confirms the two empirically-distinct
+cases documented in README's "Footnotes and endnotes" don't interfere with each other.
 
 ### Page layout (`officequarto.page`, `page-mapping.R`, Gruppe 8)
 

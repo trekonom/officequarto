@@ -76,6 +76,32 @@ if (n_title != 1) fail("erwartet 1 Titel-Absatz mit Style 'TitelACME' (officequa
 if ("Title" %in% pstyles) fail("es sollte kein unumgemappter 'Title'-Absatz mehr vorhanden sein (officequarto.style-map)")
 ok("%d Titel-Absatz traegt den ueber officequarto.style-map konfigurierten Style 'TitelACME' (freies Style-Mapping, Gruppe 7)", n_title)
 
+## Fuss-/Endnoten-Absatz-Styling (Issue #2): officequarto.style-map wird auch
+## auf word/footnotes.xml angewendet - original.docx definiert bewusst
+## keinen eigenen Fussnotentext-Style, Pandoc faellt daher auf die feste ID
+## "FootnoteText" zurueck, die per style-map auf "FussnotentextACME"
+## umgeleitet wird (siehe README "Footnotes and endnotes").
+footnotes_doc <- read_xml(file.path(tmp, "word", "footnotes.xml"))
+footnotes_ns <- xml_ns(footnotes_doc)
+footnote_pstyles <- xml_attr(xml_find_all(footnotes_doc, "//w:p/w:pPr/w:pStyle", footnotes_ns), "val")
+
+if (!("FussnotentextACME" %in% footnote_pstyles)) {
+  fail("kein Fussnoten-Absatz traegt den ueber officequarto.style-map konfigurierten Style 'FussnotentextACME' (gefunden: %s)",
+       paste(unique(footnote_pstyles), collapse = ", "))
+}
+ok("Fussnoten-Absatz traegt den ueber officequarto.style-map konfigurierten Style 'FussnotentextACME' (freies Style-Mapping erreicht jetzt auch word/footnotes.xml)")
+
+if ("FootnoteText" %in% footnote_pstyles) {
+  fail("es sollte kein unumgemappter Pandoc-Fallback-Style 'FootnoteText' mehr vorhanden sein (officequarto.style-map)")
+}
+ok("kein unumgemappter Pandoc-Fallback-Style 'FootnoteText' mehr vorhanden")
+
+separator_footnote <- xml_find_first(footnotes_doc, "//w:footnote[@w:type='separator']", footnotes_ns)
+if (is.na(separator_footnote)) fail("die von Word/Pandoc erzeugte separator-Fussnote (w:id=-1) fehlt unerwartet")
+separator_pstyle <- xml_attr(xml_find_first(separator_footnote, ".//w:pStyle", footnotes_ns), "val")
+if (!is.na(separator_pstyle)) fail("die separator-Fussnote sollte kein w:pStyle tragen (nicht vom Style-Mapping erfasst), gefunden: '%s'", separator_pstyle)
+ok("die separator-Fussnote (w:type='separator') bleibt vom Style-Mapping unberuehrt")
+
 ## Verschachtelungsebene pro Listen-Absatz (officequarto.lists.* als Array,
 ## siehe report.qmd "Kennzahlen"/"Naechste Schritte"/"Varianten" und
 ## dev/spike-notes.md Spike O). w:ilvl faellt bei fehlendem Element auf 0
