@@ -233,6 +233,31 @@ oq_find_caption_bookmark <- function(caption_p, ns) {
   list(start = start, end = end, id = id, name = xml2::xml_attr(start, "name"))
 }
 
+## Klont (falls vorhanden) orig_rpr als erstes Kind von `run` und setzt
+## optional w:b explizit (number_bold: NULL = unveraendert/nicht angelegt,
+## TRUE/FALSE = expliziter Fett-Schalter) - gemeinsame Hilfsfunktion fuer die
+## rPr-Uebertragung beim Bau neuer Feld-Laeufe, damit die Klon+Bold-Logik nicht
+## zweifach gepflegt werden muss: von oq_convert_caption_to_field() hier
+## (SEQ-Feld, number_bold moeglich) UND von oq_apply_crossref_fields() in
+## crossref-mapping.R (REF-Feld, immer mit number_bold = NULL, d.h. reines
+## rPr-Klonen ohne Fett-Override) verwendet. Legt kein w:rPr-Kind an, wenn
+## weder orig_rpr vorhanden noch number_bold gesetzt ist.
+oq_clone_rpr_with_bold <- function(run, orig_rpr, ns, number_bold = NULL) {
+  if (!is.na(orig_rpr)) {
+    rpr <- xml2::xml_add_child(run, orig_rpr, .where = 0)
+  } else if (!is.null(number_bold)) {
+    rpr <- xml2::xml_add_child(run, "w:rPr", .where = 0)
+  } else {
+    return(invisible(NULL))
+  }
+  if (!is.null(number_bold)) {
+    b_node <- xml2::xml_find_first(rpr, "./w:b", ns)
+    if (is.na(b_node)) b_node <- xml2::xml_add_child(rpr, "w:b")
+    xml2::xml_attr(b_node, "w:val") <- if (isTRUE(number_bold)) "1" else "0"
+  }
+  invisible(NULL)
+}
+
 ## Wandelt eine Beschriftung von statischem Text in ein echtes, live
 ## nummerierendes Word-SEQ-Feld um (officequarto.crossref.auto-number) -
 ## analog zu {officedown}s/{officer}s eigener Felderzeugung (bytecode-
@@ -264,10 +289,12 @@ oq_find_caption_bookmark <- function(caption_p, ns) {
 ## bewusst KEINE rPr (erbt die Formatierung des - ggf. umgemappten -
 ## Beschriftungs-Styles), exakt wie der zweite Lauf in oq_write_caption_run().
 ##
-## Gibt NA_character_ zurueck (kein Feld erzeugt, Absatz bleibt unangetastet),
-## wenn kein Bookmark gefunden wird - dieselbe "nicht raten"-Philosophie wie
-## beim matched=FALSE-Fall. Nur aufgerufen, wenn caption_options$auto_number
-## TRUE ist UND split$matched TRUE ist (siehe oq_apply_captions()).
+## Gibt NA_character_ zurueck (kein Feld erzeugt, Absatz bleibt unangetastet -
+## der Aufrufer faellt in diesem Fall auf oq_write_caption_run() zurueck,
+## siehe oq_apply_captions()), wenn kein Bookmark gefunden wird - dieselbe
+## "nicht raten"-Philosophie wie beim matched=FALSE-Fall. Nur aufgerufen, wenn
+## caption_options$auto_number TRUE ist UND split$matched TRUE ist (siehe
+## oq_apply_captions()).
 oq_convert_caption_to_field <- function(caption_p, ns, first_run, split, seq_id, caption_options) {
   bookmark <- oq_find_caption_bookmark(caption_p, ns)
   if (is.null(bookmark)) return(NA_character_)
@@ -276,22 +303,7 @@ oq_convert_caption_to_field <- function(caption_p, ns, first_run, split, seq_id,
   sep <- if (!is.null(caption_options$separator)) caption_options$separator else split$generated_sep
   number_bold <- caption_options$number_bold
   orig_rpr <- xml2::xml_find_first(first_run, "./w:rPr", ns)
-
-  apply_pr <- function(run) {
-    if (!is.na(orig_rpr)) {
-      rpr <- xml2::xml_add_child(run, orig_rpr, .where = 0)
-    } else if (!is.null(number_bold)) {
-      rpr <- xml2::xml_add_child(run, "w:rPr", .where = 0)
-    } else {
-      return(invisible(NULL))
-    }
-    if (!is.null(number_bold)) {
-      b_node <- xml2::xml_find_first(rpr, "./w:b", ns)
-      if (is.na(b_node)) b_node <- xml2::xml_add_child(rpr, "w:b")
-      xml2::xml_attr(b_node, "w:val") <- if (isTRUE(number_bold)) "1" else "0"
-    }
-    invisible(NULL)
-  }
+  apply_pr <- function(run) oq_clone_rpr_with_bold(run, orig_rpr, ns, number_bold)
 
   anchor <- first_run
   add_after <- function(tag) {
@@ -419,6 +431,12 @@ oq_convert_caption_to_field <- function(caption_p, ns, first_run, split, seq_id,
 ## zusaetzlich zu) oq_write_caption_run() aufgerufen - eine Beschriftung ist
 ## entweder vollstaendig statischer Text oder vollstaendig feld-basiert, kein
 ## Hybrid. In diesem Fall muss `seq_id` ("Table"/"Figure") mitgegeben werden.
+## Liefert oq_convert_caption_to_field() NA_character_ (kein passendes
+## Bookmark gefunden, siehe dort), faellt die Beschriftung auf
+## oq_write_caption_run() zurueck, sofern prefix/separator/number_bold
+## konfiguriert sind (needs_text_rewrite) - eine fehlgeschlagene
+## Feld-Umwandlung soll nicht bedeuten, dass die Beschriftung komplett
+## unangetastet bleibt.
 oq_apply_captions <- function(document_doc, captions, caption_options, content_finder = NULL, seq_id = NULL) {
   ns <- xml2::xml_ns(document_doc)
 
@@ -454,13 +472,22 @@ oq_apply_captions <- function(document_doc, captions, caption_options, content_f
           split <- oq_split_caption_text(xml2::xml_text(t_node), numbered_count)
           if (isTRUE(split$matched)) {
             anchor_text[[anchor_name]] <- split$rest
-            if (isTRUE(caption_options$auto_number)) {
-              converted_name <- oq_convert_caption_to_field(p, ns, first_run, split, seq_id, caption_options)
-              if (!is.na(converted_name)) {
-                converted_anchors <- c(converted_anchors, converted_name)
-                n_field_converted <- n_field_converted + 1L
-              }
+            converted_name <- if (isTRUE(caption_options$auto_number)) {
+              oq_convert_caption_to_field(p, ns, first_run, split, seq_id, caption_options)
+            } else {
+              NA_character_
+            }
+            if (!is.na(converted_name)) {
+              converted_anchors <- c(converted_anchors, converted_name)
+              n_field_converted <- n_field_converted + 1L
             } else if (needs_text_rewrite) {
+              ## Falls auto_number gesetzt war, aber die Feld-Umwandlung
+              ## fehlschlug (z.B. kein passendes Bookmark gefunden, siehe
+              ## oq_convert_caption_to_field()), faellt die Beschriftung hier
+              ## auf denselben statischen Text-Rewrite zurueck wie ohne
+              ## auto_number - sie soll nie kommentarlos Pandocs unformatierten
+              ## Rohtext behalten, nur weil die Feld-Umwandlung nicht moeglich
+              ## war.
               final_pre <- if (!is.null(caption_options$prefix)) caption_options$prefix else split$title_prefix
               final_sep <- if (!is.null(caption_options$separator)) caption_options$separator else split$generated_sep
               oq_write_caption_run(first_run, t_node, ns, final_pre, split$number, final_sep, split$rest, caption_options$number_bold)

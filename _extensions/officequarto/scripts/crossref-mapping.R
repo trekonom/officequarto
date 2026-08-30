@@ -73,12 +73,16 @@ oq_apply_crossref_text <- function(document_doc, anchor_text) {
 ## werden hier SAEMTLICHE vorhandenen Laeufe entfernt, da ihr statischer
 ## Text-Inhalt im Feld-Fall nicht weiterverwendet wird - nur die rPr des
 ## ersten Laufs (z.B. w:rStyle="Hyperlink") wird auf alle drei neuen
-## Feld-Laeufe uebertragen, damit der Querverweis optisch weiterhin wie ein
-## Hyperlink aussieht, auch bevor Word das Feld bei der naechsten
-## Neuberechnung (automatisch beim Layout/Oeffnen, siehe oben) durch die
-## tatsaechliche Zahl ersetzt. Ein Hyperlink ohne jeden Lauf (atypisches
-## Dokument) bleibt unangetastet, dieselbe defensive Behandlung wie in
-## oq_apply_crossref_text(). Gibt die Anzahl umgewandelter Hyperlinks zurueck.
+## Feld-Laeufe uebertragen (via oq_clone_rpr_with_bold() aus
+## table-caption-mapping.R, derselben Hilfsfunktion, die
+## oq_convert_caption_to_field() fuer das SEQ-Feld verwendet - hier ohne
+## number_bold, also reines rPr-Klonen ohne Fett-Override), damit der
+## Querverweis optisch weiterhin wie ein Hyperlink aussieht, auch bevor Word
+## das Feld bei der naechsten Neuberechnung (automatisch beim Layout/Oeffnen,
+## siehe oben) durch die tatsaechliche Zahl ersetzt. Ein Hyperlink ohne jeden
+## Lauf (atypisches Dokument) bleibt unangetastet, dieselbe defensive
+## Behandlung wie in oq_apply_crossref_text(). Gibt die Anzahl umgewandelter
+## Hyperlinks zurueck.
 oq_apply_crossref_fields <- function(document_doc, converted_anchors) {
   if (length(converted_anchors) == 0) return(0L)
   ns <- xml2::xml_ns(document_doc)
@@ -93,9 +97,7 @@ oq_apply_crossref_fields <- function(document_doc, converted_anchors) {
     if (length(runs) == 0) next
 
     orig_rpr <- xml2::xml_find_first(runs[[1]], "./w:rPr", ns)
-    apply_pr <- function(run) {
-      if (!is.na(orig_rpr)) xml2::xml_add_child(run, orig_rpr, .where = 0)
-    }
+    apply_pr <- function(run) oq_clone_rpr_with_bold(run, orig_rpr, ns)
     for (r in runs) xml2::xml_remove(r)
 
     begin_run <- xml2::xml_add_child(link, "w:r")

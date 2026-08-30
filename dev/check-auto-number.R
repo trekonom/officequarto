@@ -213,6 +213,38 @@ if (!is.na(converted_no_bm)) fail("erwartet NA_character_, wenn kein Bookmark ex
 if (length(xml_find_all(doc_no_bm, "//w:instrText", ns_no_bm)) != 0) fail("ohne Bookmark sollte kein Feld erzeugt worden sein")
 ok("oq_convert_caption_to_field() no-opt (NA_character_), wenn kein Bookmark gefunden wird")
 
+## --- Fallback auf Text-Rewrite: auto_number=TRUE, die Beschriftung IST
+## bookmarkiert (anchor_name loest auf, nimmt also am Zaehler/Parsing teil -
+## siehe oben), aber oq_find_caption_bookmark() findet kein passendes
+## w:bookmarkEnd zur @id (z.B. weil es fehlt) - oq_convert_caption_to_field()
+## liefert NA_character_. oq_apply_captions() darf die Beschriftung dann
+## NICHT unangetastet lassen, sondern muss auf denselben statischen
+## Text-Rewrite zurueckfallen wie ohne auto_number (Regressionstest fuer den
+## Review-Fund: vorher blieb die Beschriftung in diesem Fall stillschweigend
+## Pandocs Rohtext).
+doc_fallback <- read_xml(paste0(
+  '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:tbl><w:tr><w:tc>',
+  '<w:bookmarkStart w:id="7" w:name="tbl-x"/>',
+  '<w:p><w:pPr><w:pStyle w:val="ImageCaption"/></w:pPr><w:r><w:t xml:space="preserve">Table 1: Ohne Bookmark</w:t></w:r></w:p>',
+  '<w:tbl><w:tr><w:tc><w:p/></w:tc></w:tr></w:tbl>',
+  ## Kein w:bookmarkEnd mit @id="7" - oq_find_caption_bookmark() findet also
+  ## kein passendes Ende und liefert NULL.
+  '</w:tc></w:tr></w:tbl></w:body></w:document>'
+))
+ns_fallback <- xml_ns(doc_fallback)
+fallback_captions <- xml_find_all(doc_fallback, "//w:p[w:pPr/w:pStyle/@w:val='ImageCaption']", ns_fallback)
+fallback_result <- oq_apply_captions(
+  doc_fallback, fallback_captions,
+  list(auto_number = TRUE, prefix = "Tab. ", separator = ": "),
+  seq_id = "Table"
+)
+if (fallback_result$n_field_converted != 0) fail("erwartet 0 Feld-Umwandlungen ohne Bookmark, erhalten %d", fallback_result$n_field_converted)
+if (fallback_result$n_text_rewritten != 1) fail("erwartet 1 Text-Rewrite als Fallback, erhalten %d", fallback_result$n_text_rewritten)
+if (length(xml_find_all(doc_fallback, "//w:instrText", ns_fallback)) != 0) fail("Fallback sollte kein SEQ-Feld erzeugen")
+fallback_text <- xml_text(fallback_captions[[1]])
+if (!identical(fallback_text, "Tab. 1: Ohne Bookmark")) fail("erwartet 'Tab. 1: Ohne Bookmark' nach Fallback-Rewrite, erhalten '%s'", fallback_text)
+ok("oq_apply_captions() faellt bei fehlgeschlagener Feld-Umwandlung (kein Bookmark) auf statischen Text-Rewrite zurueck, statt die Beschriftung unangetastet zu lassen (Review-Fund)")
+
 ## --- REF-Feld: Grundform + Hyperlink-Style-Erhalt ---
 ref_doc <- read_xml('<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:hyperlink w:anchor="tbl-x"><w:r><w:rPr><w:rStyle w:val="Hyperlink"/></w:rPr><w:t>Table 1</w:t></w:r></w:hyperlink></w:p></w:body></w:document>')
 ref_ns <- xml_ns(ref_doc)
