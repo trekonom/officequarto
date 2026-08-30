@@ -50,4 +50,44 @@ res_no_match <- oq_split_caption_text("Some caption without any number", 1)
 if (isTRUE(res_no_match$matched)) fail("kein Treffer erwartet: matched sollte FALSE sein, ist aber TRUE")
 ok("kein Treffer erwartet (Zahl nicht im Text): matched=FALSE, Text bleibt dem Aufrufer zufolge unveraendert")
 
+## Regressionstest fuer GH-Issue #3 ("Caption digit-anchoring false positive
+## on plain (non-crossref) captions"): eine schlichte Beschriftung ohne
+## Crossref-ID hat KEINE Pandoc-Wrapper-Zelle (Elternelement ist w:body,
+## nicht w:tc) und wird von Quarto ueberhaupt nicht nummeriert. Ihr eigener,
+## vom Nutzer verfasster Text koennte zufaellig eine Ziffer enthalten, die mit
+## officequartos intern mitgezaehlter laufender Beschriftungsnummer
+## uebereinstimmt - das war das im Issue beschriebene Risiko eines
+## faelschlich verankerten Splits, sobald prefix/separator/number-bold
+## konfiguriert sind.
+##
+## Inzwischen bereits (als Nebeneffekt des Spike-Q-Zaehler-Fixes fuer
+## officequarto.crossref.auto-number, siehe oq_apply_captions() in
+## table-caption-mapping.R) strukturell ausgeschlossen: oq_apply_captions()
+## ruft oq_split_caption_text() ueberhaupt nur auf, wenn
+## oq_caption_anchor_name() ein echtes Bookmark auflöst - und das ist
+## empirisch nur fuer eine echte, per Wrapper-Zelle crossref-nummerierte
+## Beschriftung der Fall (siehe CLAUDE.md/Spike Q). Eine schlichte
+## Beschriftung wird deshalb komplett uebersprungen, bevor ueberhaupt geparst
+## wird - unabhaengig davon, welche Ziffern ihr Text enthaelt. Dieser Test
+## prueft das end-to-end ueber oq_apply_captions() (nicht nur
+## oq_split_caption_text() isoliert wie oben), da genau diese Gate-Logik in
+## oq_apply_captions() selbst sitzt.
+doc_issue3 <- xml2::read_xml(paste0(
+  '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>',
+  '<w:p><w:pPr><w:pStyle w:val="TableCaption"/></w:pPr><w:r><w:t xml:space="preserve">Sales grew 1 percent in 2020</w:t></w:r></w:p>',
+  '<w:tbl><w:tr><w:tc><w:p/></w:tc></w:tr></w:tbl>',
+  '</w:body></w:document>'
+))
+ns_issue3 <- xml2::xml_ns(doc_issue3)
+captions_issue3 <- xml2::xml_find_all(doc_issue3, "//w:p[w:pPr/w:pStyle/@w:val='TableCaption']", ns_issue3)
+result_issue3 <- oq_apply_captions(doc_issue3, captions_issue3, list(prefix = "Tab. ", separator = ": "))
+if (result_issue3$n_text_rewritten != 0) {
+  fail("Issue #3: schlichte Beschriftung mit zufaellig passender Ziffer haette unveraendert bleiben sollen, n_text_rewritten=%d", result_issue3$n_text_rewritten)
+}
+text_after_issue3 <- xml2::xml_text(captions_issue3[[1]])
+if (!identical(text_after_issue3, "Sales grew 1 percent in 2020")) {
+  fail("Issue #3: Text haette unveraendert bleiben sollen, ist aber '%s'", text_after_issue3)
+}
+ok("Issue #3 (Regressionstest): schlichte (nicht-crossref) Beschriftung mit zufaellig passender Ziffer im Text bleibt trotz konfiguriertem prefix/separator unangetastet - oq_caption_anchor_name()s Bookmark-Gate schliesst jeden Parsing-Versuch fuer nicht crossref-nummerierte Beschriftungen von vornherein aus")
+
 cat("\nAlle Checks bestanden.\n")
