@@ -25,6 +25,7 @@ Rscript ../dev/check_option_aliases.R   # unit-checks oq_resolve_aliased()/oq_re
 Rscript ../dev/check_caption_parsing.R  # unit-checks oq_split_caption_text() (table caption text-splitting)
 Rscript ../dev/check_style_map.R        # unit-checks oq_resolve_style_map()/oq_apply_style_map()
 Rscript ../dev/check_crossref.R         # unit-checks oq_apply_crossref_text()
+Rscript ../dev/check_list_levels.R      # unit-checks oq_style_for_level()/oq_paragraph_ilvl()/oq_resolve_style_ids()
 ```
 
 `template/report.qmd` includes a small fenced code block specifically so the style-pruning
@@ -184,14 +185,35 @@ detection logic in `style_mapping.R`:
   `w:numFmt`. `bullet` → `list-bullet`; `lowerLetter`/`upperLetter` (produced by Pandoc from
   markdown `a.`/`A.` list markers — verified empirically, see `dev/spike-notes.md`) →
   `list-letter` (`officequarto_letter_num_fmts` in `style_mapping.R`; officequarto-only, no
-  officedown equivalent); anything else (`decimal`, roman numerals, ...) → `list-number`. One
-  style per list *type*, not per nesting level — matches {officedown}'s `ol.style`/`ul.style`
-  design.
+  officedown equivalent); anything else (`decimal`, roman numerals, ...) → `list-number`.
 - **Body paragraphs** (no `<w:numPr>`) are matched against an allowlist of known Pandoc body-role
   style names (`officequarto_body_role_styles` in `style_mapping.R`: `Normal`, `FirstParagraph`,
   `Compact`, `BodyText`, `Body Text`). A reference-doc that makes Pandoc pick a body role outside
   this list will not be recognized — documented limitation.
 - Only `word/document.xml` (main body) is patched — not footnotes/comments.
+
+`list-bullet`/`list-number`/`list-letter` additionally accept an **array** of style names instead
+of a single scalar — one style per nesting level (index 0 = top level), an explicit divergence from
+{officedown}'s `ol.style`/`ul.style` (which, like the original officequarto design, only ever had
+one style per list type). `oq_paragraph_ilvl()` reads each list paragraph's own `w:ilvl`
+(`w:pPr/w:numPr/w:ilvl`, defaulting to `0` when absent — Pandoc always sets it explicitly in
+practice, verified in `dev/spike-notes.md` Spike O); `oq_style_for_level()` then indexes into the
+configured vector, **clamping** to the deepest configured entry when the actual nesting goes
+deeper than what's configured (mirrors Word's own built-in convention — nothing beyond `List
+Bullet 3` either, deeper indents just keep reusing it). A scalar config value is just a length-1
+vector, so it needs no separate code path and keeps working unchanged (always resolves to the same
+style regardless of level). `oq_resolve_style_ids()` (`style_mapping.R`) is the vectorized sibling
+of `oq_resolve_style_id()` used to fail-loud-resolve each array entry.
+
+Spike O also settled a related question: whether a single `numId`'s bucket-type lookup (`bullet`/
+`list-letter`/`list-number`, currently always read from that `numId`'s level-0 `w:numFmt`) could
+be wrong for a paragraph whose *own* level uses a different format. Verified empirically that it
+cannot, for Pandoc-authored lists: Pandoc mints a **separate `numId`/`abstractNum` per nesting
+level** of a list (never reuses one `numId` across levels, even for a same-format nested list), and
+each such `abstractNum` carries the identical `w:numFmt` at all 9 of its `w:lvl` entries — so the
+existing level-0-only lookup in `oq_num_fmt_map()` already returns the correct bucket for every
+paragraph that references a given `numId`, regardless of that paragraph's `w:ilvl`. Left
+unchanged, documented rather than "fixed."
 
 ### Option aliases (`option_aliases.R`)
 

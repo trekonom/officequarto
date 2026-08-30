@@ -10,14 +10,27 @@ Fußzeile des Originals erhalten bleiben.
 
 ## Kennzahlen
 
+<!-- Verschachtelte Bullet-Liste fuer den officequarto.lists.list-bullet-Array-Testfall
+     (3 Absaetze Ebene 0, 2 Absaetze Ebene 1, 2 Absaetze Ebene 2 - siehe dev/check_writeback.R) -->
 - Umsatz: 1.234.000 €
+  - Vormonat: 1.180.000 €
+  - Vorjahresquartal: 1.050.000 €
+    - Veränderung ggü. Vorjahresquartal: +17,5 %
+    - Veränderung ggü. Vormonat: +4,6 %
 - Wachstum: 8,4 %
 - Neukunden: 57
 
 ## Nächste Schritte
 
+<!-- Verschachtelte Nummern-Liste fuer den officequarto.lists.list-number-Array-Testfall
+     (3 Absaetze Ebene 0, 3 Absaetze Ebene 1, 2 Absaetze Ebene 2 - siehe dev/check_writeback.R) -->
 1. Budget für Q1 freigeben
+   1. Freigabe Finanzausschuss einholen
+   2. Freigabe Geschäftsführung einholen
+      1. Protokoll archivieren
+      2. Freigabe an Teams kommunizieren
 2. Vertriebsteam aufstocken
+   1. Stellenausschreibung veröffentlichen
 3. Marketingkampagne starten
 
 ## Tabelle
@@ -51,7 +64,12 @@ Crossref-verwaltete Tabellen/Abbildungen, siehe `dev/spike-notes.md`.
 
 ## Varianten
 
+<!-- Buchstaben-Liste mit einer verschachtelten Unterebene bei nur EINEM konfigurierten
+     Style (officequarto.lists.list-letter bleibt skalar) - testet das Clamping auf den
+     einzigen konfigurierten Style statt eines eigenen Ebene-2-Styles
+     (3 Absaetze Ebene 0, 1 Absatz Ebene 1 - siehe dev/check_writeback.R) -->
 a. Basisszenario
+   a. Sensitivität: Rohstoffpreise
 b. Optimistisches Szenario
 c. Pessimistisches Szenario
 

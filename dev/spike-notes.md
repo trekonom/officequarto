@@ -469,6 +469,41 @@ Hinweis ergaenzt: vor dem Einsatz von `style-map` fuer eingebaute-Rollen-Content
 gerenderten `pStyle` per `officequarto.keep-rendered: true` nachschlagen, statt eine feste ID wie
 `BlockQuote` anzunehmen.
 
+## Spike O — `numId`/`ilvl`-Vergabe bei verschachtelten Listen, verifiziert am 2026-08-30
+
+Vorarbeit fuer die Listen-Style-pro-Verschachtelungsebene-Funktion
+(`officequarto.lists.list-bullet`/`list-number`/`list-letter` als Array statt Skalar). Zwei Fragen
+vorab per echtem Render geklaert (Scratch-`.qmd` mit 3-stufig verschachtelter Bullet-Liste,
+3-stufig verschachtelter Nummern-Liste, und einer `a.`-Buchstaben-Liste mit `i.`-Roemisch-Zahlen-
+Unterliste, gegen `original.docx` gerendert, `word/numbering.xml`/`word/document.xml` des
+ungepatchten Pandoc-Ergebnisses inspiziert):
+
+- **`w:ilvl` ist bei JEDEM Listen-Absatz explizit gesetzt**, auch auf der obersten Ebene
+  (`w:ilvl="0"` steht immer da) — die urspruengliche Annahme "fehlt `w:ilvl` implizit Ebene 0"
+  ist fuer Pandoc-erzeugte Listen gar nicht relevant, da Pandoc es nie wegLaesst. Trotzdem bleibt
+  ein Default-auf-0-Fallback in `oq_paragraph_ilvl()` sinnvoll (defensiv, ECMA-376-konform, falls
+  ein Absatz je aus anderer Quelle stammt).
+- **Pandoc vergibt pro Verschachtelungsebene einen komplett eigenen `numId` (und damit auch einen
+  eigenen `abstractNum`)** — z. B. die 3-stufige Bullet-Liste bekam `numId` 1001/1002/1003 fuer
+  Ebene 0/1/2, jeweils mit eigenem `abstractNum`. Es wird NIE ein einzelner `numId` ueber mehrere
+  Ebenen hinweg wiederverwendet.
+- **Jeder so erzeugte `abstractNum` definiert an ALLEN 9 `w:lvl`-Eintraegen denselben `w:numFmt`**
+  (z. B. `abstractNum` 991 fuer die verschachtelte Bullet-Ebene: `bullet` an Ebene 0 bis 8
+  identisch; ebenso bei Nummern- und Buchstaben-Listen). Auch der Uebergang von einer
+  `lowerLetter`-Liste zu einer verschachtelten `lowerRoman`-Unterliste (`a.` → `i.`) erzeugt
+  zwei voellig getrennte `numId`/`abstractNum`-Paare (1007/99711 rein `lowerLetter`, 1008/99511
+  rein `lowerRoman`) statt eines gemeinsamen `abstractNum` mit gemischten Formaten pro Ebene.
+
+**Konsequenz:** Die beim Planen befuerchtete Bucket-Fehlklassifizierung (ein Absatz wird anhand von
+Ebene 0 des `numId` eingeordnet, obwohl seine eigene Ebene ein anderes `numFmt` hat) ist bei
+Pandoc-erzeugten Listen **strukturell unerreichbar** — jeder `numId` traegt exakt ein `numFmt` ueber
+alle Ebenen hinweg, Ebene-0-Lookup ist also fuer jeden Absatz, der diesen `numId` referenziert,
+bereits korrekt. `oq_num_fmt_map()` bleibt deshalb unveraendert (Ebene-0-Lookup); es gibt keinen
+`oq_num_fmt_for()`. Was tatsaechlich noetig ist und umgesetzt wird: `w:ilvl` pro Absatz lesen, um
+die richtige **Style**-Ebene aus einem konfigurierten Array (`list-bullet: [...]`) auszuwaehlen -
+das eigentliche vom Nutzer gemeldete Problem, unabhaengig von der (hier ausgeschlossenen)
+Bucket-Frage.
+
 ## Offene Fragen aus Abschnitt 3 des Konzepts — Status
 
 | Frage | Status |

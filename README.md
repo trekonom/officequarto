@@ -163,8 +163,24 @@ default styles. List paragraphs are detected via the presence of `<w:numPr>` (no
 since Pandoc uses the same style regardless of list type). List type is distinguished via
 `word/numbering.xml` (`w:numFmt`): `bullet` → `list-bullet`; `lowerLetter`/`upperLetter` (from
 markdown `a.`/`A.` markers) → `list-letter`; anything else (`decimal`, roman numerals, ...) →
-`list-number` — exactly as in {officedown}, there is **one style per list type, not per nesting
-level**.
+`list-number`.
+
+### Per-nesting-level styles
+
+Each of `list-bullet`/`list-number`/`list-letter` also accepts an **array** of style names instead
+of a single value — one style per nesting level, index 0 = the top level:
+
+```yaml
+officequarto:
+  lists:
+    list-bullet: ["Aufzählung ACME", "Aufzählung ACME 2", "Aufzählung ACME 3"]
+```
+
+A nesting level deeper than the array clamps to the deepest configured entry — the same convention
+Word's own built-in styles use (`List Bullet`/`List Bullet 2`/`List Bullet 3`: nothing beyond
+level 3 either, deeper indents just keep reusing it). A plain scalar still works exactly as before
+(the same style at every level) — this is an **officequarto-only extension**, {officedown} has no
+per-nesting-level equivalent for `ol.style`/`ul.style`.
 
 ### officedown aliases
 
@@ -610,9 +626,9 @@ group is ported; groups not yet listed here aren't implemented yet.
 | New name (under `officequarto.`) | officedown alias | Meaning | Default |
 |---|---|---|---|
 | `styles.body` | *(none — officedown maps `Normal` implicitly)* | Word style for body paragraphs | unset (Pandoc default) |
-| `lists.list-bullet` | `ul_style` | Word style for bullet-list paragraphs | unset (Pandoc default) |
-| `lists.list-number` | `ol_style` | Word style for numbered-list paragraphs (decimal, roman, ...) | unset (Pandoc default) |
-| `lists.list-letter` | *(none — no officedown equivalent)* | Word style for lettered-list paragraphs (`a.`/`b.`/... or `A.`/`B.`/...) | unset (Pandoc default) |
+| `lists.list-bullet` | `ul_style` | Word style for bullet-list paragraphs — scalar, or array indexed by nesting level (see [Per-nesting-level styles](#per-nesting-level-styles)) | unset (Pandoc default) |
+| `lists.list-number` | `ol_style` | Word style for numbered-list paragraphs (decimal, roman, ...) — scalar, or array indexed by nesting level | unset (Pandoc default) |
+| `lists.list-letter` | *(none — no officedown equivalent)* | Word style for lettered-list paragraphs (`a.`/`b.`/... or `A.`/`B.`/...) — scalar, or array indexed by nesting level | unset (Pandoc default) |
 | `tables.style` | `tables_style` | Word table style name | unset (Pandoc/reference-doc default) |
 | `tables.layout` | `tables_layout` | Table layout, `autofit` or `fixed` | unset (Pandoc default) |
 | `tables.width` | `tables_width` | Table width relative to page width (0–1) | unset (Pandoc default) |
@@ -678,10 +694,9 @@ group is ported; groups not yet listed here aren't implemented yet.
 - The hook overwrites the rendered `.docx` in place. If the file is open in another program at
   that point (e.g. Word), the overwrite can fail, or the program may keep showing the old state
   until manually reloaded.
-- Style-mapping only patches `word/document.xml` (the main body), not footnotes/comments, and
-  offers one style per list type (bullet/numbered) rather than per nesting level. Body detection
-  relies on an allowlist of known Pandoc role names — a reference-doc that makes Pandoc render body
-  text under a not-yet-listed role name won't be recognized.
+- Style-mapping only patches `word/document.xml` (the main body), not footnotes/comments. Body
+  detection relies on an allowlist of known Pandoc role names — a reference-doc that makes Pandoc
+  render body text under a not-yet-listed role name won't be recognized.
 - Style pruning is unconditional: if content actually uses a Pandoc-added style your `reference-doc`
   doesn't define (typically syntax-highlighted code blocks, or Pandoc's own body/list role names
   when `officequarto.styles`/`officequarto.lists` isn't configured for that role), that style

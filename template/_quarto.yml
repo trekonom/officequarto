@@ -9,8 +9,12 @@ format:
       styles:
         body: "Fließtext ACME"
       lists:
-        ul_style: "Aufzählung ACME"      # officedown-Alias fuer list-bullet, siehe README
-        list-number: "Nummerierung ACME"
+        # Array = ein Style pro Verschachtelungsebene (Index 0 = oberste Ebene), ueber den
+        # officedown-Alias ul_style getestet, siehe README "Lists" und dev/spike-notes.md Spike O
+        ul_style: ["Aufzählung ACME", "Aufzählung ACME 2", "Aufzählung ACME 3"]
+        list-number: ["Nummerierung ACME", "Nummerierung ACME 2", "Nummerierung ACME 3"]
+        # bleibt bewusst skalar - testet Rueckwaertskompatibilitaet + Clamping auf den
+        # einzigen konfigurierten Style bei tieferer Verschachtelung, siehe report.qmd "Varianten"
         list-letter: "Buchstabierung ACME"
       pandoc-styles:
         code-block: "Code ACME"
