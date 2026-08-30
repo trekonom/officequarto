@@ -312,6 +312,29 @@ if (!is.null(crossref_numbered_val) && (!is.logical(crossref_numbered_val) || le
 }
 crossref_rewrite_needed <- isFALSE(crossref_numbered_val)
 
+## officequarto.crossref.auto-number (kein officedown-Aequivalent -
+## {officedown} ist immer feld-basiert, hat also keinen entsprechenden
+## Schalter, exakt dieselbe Situation wie officequarto.lists.list-letter) -
+## wandelt Beschriftungen/Querverweise in echte, live nummerierende Word-
+## SEQ/REF-Felder um statt sie als statischen Text umzuschreiben. Siehe
+## table-caption-mapping.R (oq_convert_caption_to_field()) und
+## crossref-mapping.R (oq_apply_crossref_fields()) fuer die Kernlogik,
+## dev/spike-notes.md Spike P fuer die empirisch verifizierte
+## Bookmark-Struktur, die das ausnutzt. Schliesst sich mit
+## officequarto.crossref.numbered: false aus (ein lebendiges Feld und "immer
+## Beschriftungstext statt Nummer zeigen" sind widerspruechliche
+## Anzeigemodi) - fail-loud, analog zum bestehenden code-block-Gueltigkeits-
+## Check oben, bewusst ohne eigene dev/check-*.R-Testabdeckung (wie die
+## anderen inline-Config-Validitaetschecks in dieser Datei auch keine haben).
+crossref_auto_number_val <- if (!is.null(crossref_config)) crossref_config[["auto-number"]] else NULL
+if (!is.null(crossref_auto_number_val) && (!is.logical(crossref_auto_number_val) || length(crossref_auto_number_val) != 1 || is.na(crossref_auto_number_val))) {
+  fail("officequarto.crossref.auto-number muss true oder false sein (erhalten: '%s').", crossref_auto_number_val)
+}
+if (isTRUE(crossref_auto_number_val) && isFALSE(crossref_numbered_val)) {
+  fail("officequarto.crossref.auto-number und officequarto.crossref.numbered: false schliessen sich gegenseitig aus (ein lebendiges SEQ/REF-Feld und 'immer Beschriftungstext statt Nummer zeigen' sind widerspruechliche Anzeigemodi) - waehlen Sie eines von beiden.")
+}
+crossref_auto_number_needed <- isTRUE(crossref_auto_number_val)
+
 ## Uebertraegt dc:subject, cp:keywords, cp:category aus core_from in core_to und
 ## gibt den (ggf. veraenderten) core_to xml2-Doc zurueck.
 merge_core_properties <- function(core_to, core_from) {
@@ -361,7 +384,7 @@ for (rel_path in docx_outputs) {
     file.copy(custom_from_path, file.path(work_dir, "docProps", "custom.xml"), overwrite = TRUE)
   }
 
-  if (!is.null(style_config) || !is.null(lists_config) || !is.null(code_block_config) || !is.null(table_config) || !is.null(plot_config) || !is.null(style_map_config) || !is.null(page_config) || crossref_rewrite_needed) {
+  if (!is.null(style_config) || !is.null(lists_config) || !is.null(code_block_config) || !is.null(table_config) || !is.null(plot_config) || !is.null(style_map_config) || !is.null(page_config) || crossref_rewrite_needed || crossref_auto_number_needed) {
     styles_path <- file.path(work_dir, "word", "styles.xml")
     document_path <- file.path(work_dir, "word", "document.xml")
     numbering_path <- file.path(work_dir, "word", "numbering.xml")
@@ -434,15 +457,17 @@ for (rel_path in docx_outputs) {
     ## aber oq_apply_captions() liefert trotzdem das fuer Gruppe 9 benoetigte
     ## anchor_text (siehe table-caption-mapping.R).
     crossref_anchor_text <- character(0)
-    if (!is.null(table_caption_config) || crossref_rewrite_needed) {
-      caption_options <- list(prefix = table_caption_prefix_val, separator = table_caption_separator_val, number_bold = table_caption_bold_val, above = table_caption_above_val)
+    crossref_converted_anchors <- character(0)
+    if (!is.null(table_caption_config) || crossref_rewrite_needed || crossref_auto_number_needed) {
+      caption_options <- list(prefix = table_caption_prefix_val, separator = table_caption_separator_val, number_bold = table_caption_bold_val, above = table_caption_above_val, auto_number = crossref_auto_number_needed)
       if (!is.null(table_caption_style_val)) {
         caption_options$style <- oq_resolve_style_id(name_to_id, table_caption_style_val, "officequarto.tables.caption.style", fail)
       }
-      caption_result <- oq_apply_captions(document_doc, oq_find_table_caption_paragraphs(document_doc, xml2::xml_ns(document_doc)), caption_options, oq_table_caption_content)
-      log_msg("Tabellen-Beschriftungen: %d gefunden, %d Text umformatiert, %d verschoben.",
-               caption_result$n_found, caption_result$n_text_rewritten, caption_result$n_moved)
+      caption_result <- oq_apply_captions(document_doc, oq_find_table_caption_paragraphs(document_doc, xml2::xml_ns(document_doc)), caption_options, oq_table_caption_content, seq_id = "Table")
+      log_msg("Tabellen-Beschriftungen: %d gefunden, %d Text umformatiert, %d Feld(er) umgewandelt, %d verschoben.",
+               caption_result$n_found, caption_result$n_text_rewritten, caption_result$n_field_converted, caption_result$n_moved)
       crossref_anchor_text <- c(crossref_anchor_text, caption_result$anchor_text)
+      crossref_converted_anchors <- c(crossref_converted_anchors, caption_result$converted_anchors)
     }
 
     if (!is.null(plot_config)) {
@@ -454,20 +479,24 @@ for (rel_path in docx_outputs) {
       log_msg("Abbildungs-Optionen angewendet: %d Abbildung(en).", n_plots)
     }
 
-    if (!is.null(plot_caption_config) || crossref_rewrite_needed) {
-      plot_caption_options <- list(prefix = plot_caption_prefix_val, separator = plot_caption_separator_val, number_bold = plot_caption_bold_val, above = plot_caption_above_val)
+    if (!is.null(plot_caption_config) || crossref_rewrite_needed || crossref_auto_number_needed) {
+      plot_caption_options <- list(prefix = plot_caption_prefix_val, separator = plot_caption_separator_val, number_bold = plot_caption_bold_val, above = plot_caption_above_val, auto_number = crossref_auto_number_needed)
       if (!is.null(plot_caption_style_val)) {
         plot_caption_options$style <- oq_resolve_style_id(name_to_id, plot_caption_style_val, "officequarto.plots.caption.style", fail)
       }
-      plot_caption_result <- oq_apply_captions(document_doc, oq_find_plot_caption_paragraphs(document_doc, xml2::xml_ns(document_doc)), plot_caption_options, oq_plot_caption_content)
-      log_msg("Abbildungs-Beschriftungen: %d gefunden, %d Text umformatiert, %d verschoben.",
-               plot_caption_result$n_found, plot_caption_result$n_text_rewritten, plot_caption_result$n_moved)
+      plot_caption_result <- oq_apply_captions(document_doc, oq_find_plot_caption_paragraphs(document_doc, xml2::xml_ns(document_doc)), plot_caption_options, oq_plot_caption_content, seq_id = "Figure")
+      log_msg("Abbildungs-Beschriftungen: %d gefunden, %d Text umformatiert, %d Feld(er) umgewandelt, %d verschoben.",
+               plot_caption_result$n_found, plot_caption_result$n_text_rewritten, plot_caption_result$n_field_converted, plot_caption_result$n_moved)
       crossref_anchor_text <- c(crossref_anchor_text, plot_caption_result$anchor_text)
+      crossref_converted_anchors <- c(crossref_converted_anchors, plot_caption_result$converted_anchors)
     }
 
     if (crossref_rewrite_needed) {
       n_crossref <- oq_apply_crossref_text(document_doc, crossref_anchor_text)
       log_msg("Querverweise auf Beschriftungstext umgestellt (officequarto.crossref.numbered: false): %d.", n_crossref)
+    } else if (crossref_auto_number_needed) {
+      n_crossref_fields <- oq_apply_crossref_fields(document_doc, crossref_converted_anchors)
+      log_msg("Querverweise auf SEQ/REF-Felder umgestellt (officequarto.crossref.auto-number: true): %d.", n_crossref_fields)
     }
 
     ## Bewusst als letzter Schritt (siehe style-map.R): trifft dadurch
