@@ -556,6 +556,58 @@ Beschriftungs-/Bild-Absatz, `w:bookmarkEnd` erst nach dem gesamten Zellinhalt, e
 Reihenfolge Tabelle (Beschriftung→Tabelle) vs. Abbildung (Bild→Beschriftung). Keine Abweichung
 diesmal - die Struktur ist stabil ueber beide getesteten reference-docs hinweg.
 
+## Spike Q — Zwei echte Bugs in der Live-Nummerierung, gefunden per Realrender gegen ../hello-wordto, behoben am 2026-08-30
+
+Anders als Spike P (Struktur an sich stabil) fand dieser Test zwei echte Implementierungsfehler in
+`oq_caption_anchor_name()`/`oq_find_caption_bookmark()`/`oq_apply_captions()` - beide nur durch die
+Inhaltsvielfalt von `../hello-wordto` (echte Ueberschriften-Bookmarks, ein Mix aus schlichten und
+crossref-nummerierten Beschriftungen) aufgedeckt, kein Synthetik-Test haette sie gefunden. Nach
+`hello-wordto.qmd` ergaenzt: ein Abschnitt "Example of a crossref-numbered table and figure" mit
+echtem `{#tbl-crossref-check}`/`{#fig-crossref-check}` (siehe Spike P) plus `officequarto.crossref.
+auto-number: true` in dessen `_quarto.yml` - erster Realtest der neuen Funktion ueberhaupt.
+
+**Bug 1 - fremdes Bookmark gestohlen:** `oq_caption_anchor_name()`/`oq_find_caption_bookmark()`
+suchten das ERSTE `w:bookmarkStart` im Elternelement der Beschriftung, OHNE zu pruefen, ob dieses
+Elternelement ueberhaupt eine Pandoc-Wrapper-Zelle ist. Bei einer SCHLICHTEN (Nicht-Crossref-)
+Beschriftung ist das Elternelement stattdessen `w:body` selbst (kein Wrapper-Table im Nicht-
+Crossref-Fall) - dort liegen ALLE Bookmarks des Dokuments als Geschwister, u.a. jedes
+Ueberschriften-Anker-Bookmark (Quarto generiert fuer jede Ueberschrift automatisch einen Slug-
+Bookmark, z.B. `example-of-plain-formatted-text`). Ohne Guard griff die Funktion faelschlich das
+naechstgelegene, voellig unabhaengige Ueberschriften-Bookmark, `oq_convert_caption_to_field()`
+ENTFERNTE es dann als vermeintliches altes Beschriftungs-Bookmark und baute darunter ein SEQ-Feld
+auf - zerstoerte damit ein echtes Sprungziel im Dokument (verifiziert: 3 falsche `SEQ Figure`-Felder
+mit den Namen dreier zufaellig benachbarter Ueberschriften-Bookmarks statt gar keinem Fund).
+**Fix:** beide Funktionen pruefen jetzt zuerst `xml_name(xml_parent(caption_p)) == "tc"` - nur
+innerhalb einer echten Wrapper-Zelle wird ueberhaupt nach einem Bookmark gesucht. Das ist
+strukturell exakt die Bedingung, unter der Pandoc ueberhaupt ein Beschriftungs-Bookmark anlegt.
+
+**Bug 2 - Zaehler durch schlichte Beschriftungen aus dem Tritt gebracht:** `oq_apply_captions()`
+zaehlte JEDE gefundene Beschriftung (schlicht oder crossref-nummeriert) in einem gemeinsamen,
+1-basierten Zaehler, der als "erwartete Zahl" an `oq_split_caption_text()` ging - unter der Annahme,
+das entspreche Pandocs/Quartos eigener Zaehlung (so im Code-Kommentar dokumentiert, aber nie gegen
+einen Dokumentaufbau mit schlichter Beschriftung VOR einer crossref-nummerierten Beschriftung
+DERSELBEN Art getestet). Tatsaechlich nummeriert Quarto schlichte Beschriftungen ueberhaupt nicht
+mit - sie verbrauchen keinen Nummernkreis-Schritt. Stand in `hello-wordto.qmd` eine schlichte
+Tabellen-Beschriftung ("Table 1 Caption", reiner Platzhaltertext ohne echte Nummer) VOR der einzigen
+echten crossref-nummerierten Tabelle ("Table 1: ..."), bekam letztere von officequarto die erwartete
+Zahl 2 zugewiesen (zweite gefundene Beschriftung), obwohl ihre tatsaechlich eingebackene Zahl 1 war
+(sie ist die einzige echte nummerierte Tabelle) - `oq_split_caption_text()` matchte folglich NICHT,
+und die Beschriftung blieb bei JEDEM Feature (prefix/separator/number-bold, crossref.numbered:
+false, crossref.auto-number) still unangetastet. **Fix:** der Zaehler in `oq_apply_captions()` wird
+jetzt nur fuer tatsaechlich bookmark-markierte Beschriftungen hochgezaehlt (`oq_caption_anchor_name()`
+liefert NA fuer schlichte Beschriftungen, siehe Bug 1s Fix) - schlichte Beschriftungen nehmen
+ueberhaupt nicht mehr am Zaehler/Parsing teil, exakt wie Quartos eigenes Verhalten.
+
+**Wichtig:** Bug 2 betraf nicht nur die neue `auto-number`-Funktion, sondern war ein bereits
+bestehender, latenter Fehler in der schon laenger existierenden Beschriftungs-Logik (`prefix`/
+`separator`/`number-bold`, `crossref.numbered: false`) - nur unbemerkt, weil `officequarto`s eigenes
+Test-Template (`template/report.qmd`) die crossref-nummerierte Tabelle immer VOR der schlichten
+platziert (die umgekehrte Reihenfolge, die den Bug ausloest, kam dort nie vor). Beide Bugs jetzt mit
+dedizierten Regressionstests in `dev/check-auto-number.R` abgedeckt (synthetischer Nachbau beider
+Szenarien) und end-to-end gegen `../hello-wordto` erneut verifiziert - keine falschen Feld-
+Umwandlungen mehr, alle 18 Ueberschriften-Bookmarks unangetastet, genau 1 `SEQ Table` + 1
+`SEQ Figure` (statt vorher 1 + 3).
+
 ## Offene Fragen aus Abschnitt 3 des Konzepts — Status
 
 | Frage | Status |

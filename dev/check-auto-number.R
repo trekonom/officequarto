@@ -128,6 +128,75 @@ if (result$n_field_converted != 0) fail("plain caption: erwartet 0 umgewandelte 
 if (length(xml_find_all(doc_plain, "//w:instrText", ns_plain)) != 0) fail("plain caption: es sollte kein SEQ-Feld erzeugt worden sein")
 ok("oq_apply_captions() mit auto_number=TRUE laesst eine nicht-crossref-nummerierte Beschriftung (matched=FALSE) unangetastet")
 
+## --- Regressionstest fuer einen echten, per Render gegen ../hello-wordto
+## gefundenen Bug: eine crossref-nummerierte Beschriftung OHNE Wrapper-Zelle
+## (Elternelement ist w:body, nicht w:tc) neben einem voellig unabhaengigen
+## Ueberschriften-Bookmark im selben Elternelement. Vor dem Fix griff
+## oq_find_caption_bookmark() faelschlich dieses fremde Bookmark, entfernte es
+## und baute darunter ein SEQ-Feld auf - zerstoerte damit ein echtes,
+## unabhaengiges Sprungziel. Der xml_name(parent) == "tc"-Guard muss das
+## verhindern: kein Bookmark-Fund, kein entferntes fremdes Bookmark, kein
+## erzeugtes Feld.
+doc_foreign_bm <- read_xml(paste0(
+  '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>',
+  '<w:bookmarkStart w:id="24" w:name="ein-unabhaengiges-kapitel"/>',
+  '<w:p><w:pPr><w:pStyle w:val="ImageCaption"/></w:pPr><w:r><w:t xml:space="preserve">Figure 1: Zufaellig danebenliegende Beschriftung</w:t></w:r></w:p>',
+  '<w:bookmarkEnd w:id="24"/>',
+  '</w:body></w:document>'
+))
+ns_foreign <- xml_ns(doc_foreign_bm)
+p_foreign <- xml_find_first(doc_foreign_bm, "//w:p", ns_foreign)
+fr_foreign <- xml_find_first(p_foreign, "./w:r", ns_foreign)
+split_foreign <- oq_split_caption_text(xml_text(xml_find_first(fr_foreign, "./w:t", ns_foreign)), 1)
+if (!isTRUE(split_foreign$matched)) fail("Vorbereitung: erwartet matched=TRUE (die Zahl 1 sollte gefunden werden)")
+anchor_foreign <- oq_caption_anchor_name(p_foreign, ns_foreign)
+if (!is.na(anchor_foreign)) fail("oq_caption_anchor_name() sollte NA liefern, wenn das Elternelement keine Wrapper-Zelle ist (erhalten: '%s')", anchor_foreign)
+converted_foreign <- oq_convert_caption_to_field(p_foreign, ns_foreign, fr_foreign, split_foreign, "Figure", list())
+if (!is.na(converted_foreign)) fail("oq_convert_caption_to_field() sollte NA_character_ liefern, nicht das fremde Bookmark stehlen (erhalten: '%s')", converted_foreign)
+if (length(xml_find_all(doc_foreign_bm, "//w:instrText", ns_foreign)) != 0) fail("es sollte kein Feld erzeugt worden sein")
+remaining_foreign_bm <- xml_find_first(doc_foreign_bm, "//w:bookmarkStart[@w:name='ein-unabhaengiges-kapitel']", ns_foreign)
+if (is.na(remaining_foreign_bm)) fail("das fremde, unabhaengige Bookmark haette NICHT entfernt werden duerfen")
+ok("oq_caption_anchor_name()/oq_convert_caption_to_field() ignorieren ein fremdes Bookmark ausserhalb einer Wrapper-Zelle, statt es zu stehlen/entfernen (Regressionstest, gefunden gegen ../hello-wordto)")
+
+## --- Regressionstest fuer einen zweiten, verwandten echten Bug (ebenfalls
+## per Realrender gegen ../hello-wordto gefunden): eine schlichte
+## (Nicht-Crossref-)Beschriftung, die VOR einer crossref-nummerierten
+## Beschriftung DERSELBEN Art im Dokument steht. Quarto nummeriert die
+## schlichte Beschriftung ueberhaupt nicht mit - die urspruengliche
+## Implementierung zaehlte aber JEDE gefundene Beschriftung (auch schlichte)
+## in EINEM gemeinsamen Zaehler, sodass die crossref-nummerierte Beschriftung
+## einen um 1 zu hohen erwarteten Zahlenwert bekam, oq_split_caption_text()
+## faelschlich nicht matchte und die Beschriftung stillschweigend
+## unangetastet blieb - bei JEDEM Feature (prefix/separator/number-bold,
+## crossref.numbered: false, crossref.auto-number). Der Zaehler darf nur fuer
+## tatsaechlich bookmark-markierte (= von Quarto wirklich nummerierte)
+## Beschriftungen hochgezaehlt werden.
+doc_mixed <- read_xml(paste0(
+  '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>',
+  '<w:p><w:pPr><w:pStyle w:val="TableCaption"/></w:pPr><w:r><w:t xml:space="preserve">Table 1 Caption</w:t></w:r></w:p>',
+  '<w:tbl><w:tr><w:tc><w:p/></w:tc></w:tr></w:tbl>',
+  '<w:tbl><w:tr><w:tc>',
+  '<w:bookmarkStart w:id="48" w:name="tbl-crossref-check"/>',
+  '<w:p><w:pPr><w:pStyle w:val="ImageCaption"/></w:pPr><w:r><w:t xml:space="preserve">Table 1: A crossref-numbered table</w:t></w:r></w:p>',
+  '<w:tbl><w:tr><w:tc><w:p/></w:tc></w:tr></w:tbl>',
+  '<w:bookmarkEnd w:id="48"/>',
+  '</w:tc></w:tr></w:tbl>',
+  '</w:body></w:document>'
+))
+ns_mixed <- xml_ns(doc_mixed)
+mixed_captions <- xml_find_all(doc_mixed, "//w:p[w:pPr/w:pStyle/@w:val='TableCaption' or w:pPr/w:pStyle/@w:val='ImageCaption']", ns_mixed)
+if (length(mixed_captions) != 2) fail("Vorbereitung: erwartet 2 gefundene Beschriftungen, erhalten %d", length(mixed_captions))
+mixed_result <- oq_apply_captions(doc_mixed, mixed_captions, list(auto_number = TRUE), seq_id = "Table")
+if (mixed_result$n_field_converted != 1) {
+  fail("gemischte Beschriftungen: erwartet genau 1 in ein Feld umgewandelte Beschriftung (die crossref-nummerierte), erhalten %d", mixed_result$n_field_converted)
+}
+plain_text_after <- xml_text(mixed_captions[[1]])
+if (!identical(plain_text_after, "Table 1 Caption")) fail("die schlichte Beschriftung haette unveraendert bleiben sollen, ist aber '%s'", plain_text_after)
+if (length(xml_find_all(doc_mixed, "//w:bookmarkStart[@w:name='tbl-crossref-check']", ns_mixed)) != 1) {
+  fail("die crossref-nummerierte Beschriftung haette korrekt in ein SEQ-Feld umgewandelt werden sollen")
+}
+ok("oq_apply_captions() zaehlt eine vorausgehende schlichte Beschriftung nicht mit - die nachfolgende crossref-nummerierte Beschriftung wird trotzdem korrekt erkannt (Regressionstest, gefunden gegen ../hello-wordto)")
+
 ## --- Beschriftung ohne Bookmark: oq_convert_caption_to_field() liefert NA ---
 doc_no_bm <- read_xml(paste0(
   '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>',

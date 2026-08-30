@@ -634,6 +634,33 @@ belt-and-suspenders cached value of its own.
   entirely and replaced by a new, tight pair wrapping only the SEQ field's numeral (matching
   {officer}'s `run_autonum(bkm_all = FALSE)` default) — reusing the same `w:name` (and `w:id`, now
   freed by the removal), so every existing crossref hyperlink's `@w:anchor` stays valid unchanged.
+- **Two real bugs found and fixed via a render against `../hello-wordto`** (Spike Q) — neither was
+  reachable by any synthetic test, both needed real content variety (genuine heading bookmarks, a
+  mix of plain and crossref-numbered captions of the same type) that `template/report.qmd` never
+  happened to produce:
+  - `oq_caption_anchor_name()`/`oq_find_caption_bookmark()` originally searched for *any*
+    `w:bookmarkStart` sibling of the caption's parent, without checking that the parent is actually
+    a Pandoc wrapper cell. A plain (non-crossref) caption's parent is `w:body` itself — which also
+    holds every heading's auto-generated slug bookmark as a sibling. Without a guard, the search
+    grabbed the nearest unrelated heading bookmark, and `oq_convert_caption_to_field()` then
+    *deleted* it and reused its name for a bogus SEQ field — destroying a real, independent jump
+    target in the document. Fixed by requiring `xml_name(xml_parent(caption_p)) == "tc"` before
+    even attempting a bookmark search — structurally exactly the condition under which Pandoc ever
+    creates a caption bookmark in the first place.
+  - `oq_apply_captions()` counted *every* found caption paragraph (plain or crossref-numbered)
+    toward the running "expected number" passed to `oq_split_caption_text()`, assuming this matches
+    Quarto's own count — but Quarto never numbers plain captions at all, so they don't consume a
+    counter step on Quarto's side. A plain caption appearing before a crossref-numbered one of the
+    same type threw the counter off by one, so the real caption's embedded number no longer matched
+    the expected value, and it was silently left untouched — for *every* caption feature
+    (`prefix`/`separator`/`number-bold`, `crossref.numbered: false`, and `auto-number`), not just
+    the new one. This was a pre-existing, latent bug, only exposed because `hello-wordto.qmd` mixes
+    a plain caption before a crossref-numbered one of the same type; `template/report.qmd` always
+    orders them the other way around. Fixed by only incrementing the counter for captions with a
+    real bookmark (`oq_caption_anchor_name()` non-`NA`) — plain captions no longer participate in
+    counting or parsing at all.
+  - Both fixed with dedicated regression tests in `dev/check-auto-number.R` reproducing each
+    scenario synthetically, and re-verified end-to-end against `../hello-wordto`.
 - **REF crossref field** (`oq_apply_crossref_fields()`, `crossref-mapping.R`): replaces all runs
   inside a `w:hyperlink[@w:anchor]` whose anchor was field-ified with the 3-run REF field (` REF
   <anchor> \h `), cloning the original first run's `w:rPr` (e.g. `w:rStyle="Hyperlink"`) onto all
