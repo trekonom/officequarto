@@ -517,14 +517,14 @@ Beschriftung, zwischen Beschriftung und Tabelle") tatsaechlich in der Roh-XML be
 eng benachbartes leeres Paar zwischen Beschriftungs-Absatz und Tabelle, sondern umschliesst den
 **gesamten Zellinhalt** (Beschriftung UND echte Tabelle bzw. Abbildung UND Beschriftung):
 
-- **Tabellen** (`{#tbl-kennzahlen}`): `&lt;w:tc&gt;&lt;w:tcPr/&gt;` → `&lt;w:bookmarkStart w:id="23"
-  w:name="tbl-kennzahlen"/&gt;` → Beschriftungs-Absatz (`pStyle="ImageCaption"`, Text `"Table 1:
-  Quartalskennzahlen"`) → die komplette echte, verschachtelte `&lt;w:tbl&gt;` → `&lt;w:bookmarkEnd
-  w:id="23"/&gt;` → ein leerer `&lt;w:p/&gt;` → `&lt;/w:tc&gt;`. Das Bookmark umspannt also
+- **Tabellen** (`{#tbl-kennzahlen}`): `<w:tc><w:tcPr/>` → `<w:bookmarkStart w:id="23"
+  w:name="tbl-kennzahlen"/>` → Beschriftungs-Absatz (`pStyle="ImageCaption"`, Text `"Table 1:
+  Quartalskennzahlen"`) → die komplette echte, verschachtelte `<w:tbl>` → `<w:bookmarkEnd
+  w:id="23"/>` → ein leerer `<w:p/>` → `</w:tc>`. Das Bookmark umspannt also
   Beschriftung UND die gesamte Tabelle, nicht nur eine Luecke dazwischen.
 - **Abbildungen** (`{#fig-umsatz}`): umgekehrte Reihenfolge (Bild vor Beschriftung, wie an anderer
-  Stelle dokumentiert), aber gleiches Prinzip: `&lt;w:bookmarkStart w:name="fig-umsatz"/&gt;` →
-  Bild-Absatz → Beschriftungs-Absatz (`"Figure 1: Umsatzentwicklung"`) → `&lt;w:bookmarkEnd/&gt;`.
+  Stelle dokumentiert), aber gleiches Prinzip: `<w:bookmarkStart w:name="fig-umsatz"/>` →
+  Bild-Absatz → Beschriftungs-Absatz (`"Figure 1: Umsatzentwicklung"`) → `<w:bookmarkEnd/>`.
 - `w:bookmarkStart`/`w:bookmarkEnd` sind reine Positions-Marker (kein Container-Element), koennen
   daher beliebig weit auseinanderliegende Geschwister-Positionen markieren — genau das passiert
   hier, keine Pandoc-Anomalie, sondern Pandocs uebliche Technik fuer Section-/Heading-Bookmarks
@@ -544,6 +544,17 @@ wird ohnehin entfernt und durch ein neues, eng um die SEQ-Feld-Ziffer gelegtes P
 Namen ersetzt (praeziser als das Original, nicht weniger praezise) - nur die *Lokalisierung* des
 zu entfernenden Original-Paars muss diese tatsaechliche Struktur beruecksichtigen, nicht die
 urspruenglich angenommene enge Paarung.
+
+**Cross-Check gegen `../hello-wordto`s echtes UU-Template (2026-08-30):** Da `hello-wordto.qmd`
+bislang keine crossref-nummerierten Tabellen/Abbildungen enthielt (nur einfache Beschriftungen ohne
+`{#tbl-...}`/`{#fig-...}`-ID), wurde ein kleiner, dauerhaft im Dokument verbleibender Testfall
+("Example of a crossref-numbered table and figure", Abschnitt "Additional officequarto test
+cases") ergaenzt, um die obige Struktur auch gegen das komplexere Realwelt-Template zu pruefen
+(dieselbe Vorsicht, die bereits Spike L/M dort echte, in der kleinen ACME-Vorlage nicht sichtbare
+Bugs gefunden hat). Ergebnis: **identische Struktur** wie oben - `w:bookmarkStart` vor dem
+Beschriftungs-/Bild-Absatz, `w:bookmarkEnd` erst nach dem gesamten Zellinhalt, exakt dieselbe
+Reihenfolge Tabelle (Beschriftung→Tabelle) vs. Abbildung (Bild→Beschriftung). Keine Abweichung
+diesmal - die Struktur ist stabil ueber beide getesteten reference-docs hinweg.
 
 ## Offene Fragen aus Abschnitt 3 des Konzepts — Status
 
