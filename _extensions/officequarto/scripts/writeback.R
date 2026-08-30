@@ -29,6 +29,11 @@
 ## scripts/option_aliases.R fuer die Aufloesungslogik inkl. Konfliktregel.
 ## `list-letter` (Buchstaben-Listen, a/b/c bzw. A/B/C) ist eine
 ## officequarto-eigene Ergaenzung ohne officedown-Vorbild, daher ohne Alias.
+## Alle drei Listen-Optionen akzeptieren zusaetzlich ein Array statt eines
+## Skalars - ein Style pro Verschachtelungsebene (Index 0 = oberste Ebene),
+## tiefer verschachtelte Absaetze clampen auf den letzten Array-Eintrag - siehe
+## scripts/style_mapping.R (oq_style_for_level()/oq_paragraph_ilvl()) und
+## dev/spike-notes.md Spike O.
 ##
 ## Der Hook ueberschreibt die von Quarto/Pandoc erzeugte .docx direkt an Ort
 ## und Stelle - es entsteht keine zweite Ausgabedatei. Wer das reine,
@@ -375,16 +380,24 @@ for (rel_path in docx_outputs) {
       if (!is.null(style_config$body)) {
         style_ids$body <- oq_resolve_style_id(name_to_id, style_config$body, "officequarto.styles.body", fail)
       }
+      ## list-bullet/list-number/list-letter akzeptieren einen Skalar (ein
+      ## Style fuer jede Verschachtelungsebene, unveraendertes Verhalten) oder
+      ## ein Array (ein Style pro Ebene, Index 0 = oberste Ebene) - beide
+      ## Formen kommen aus quarto inspects JSON als Character-Vektor an
+      ## (Laenge 1 bzw. Laenge n), oq_resolve_aliased()s identical()-basierter
+      ## Konfliktcheck funktioniert dafuer unveraendert. oq_resolve_style_ids()
+      ## loest jeden Eintrag einzeln, fail-loud, unter Beibehaltung der
+      ## Reihenfolge auf.
       list_bullet_val <- oq_resolve_aliased(lists_config, "list-bullet", "ul_style", "officequarto.lists", warn_msg)
       if (!is.null(list_bullet_val)) {
-        style_ids$list_bullet <- oq_resolve_style_id(name_to_id, list_bullet_val, "officequarto.lists.list-bullet", fail)
+        style_ids$list_bullet <- oq_resolve_style_ids(name_to_id, list_bullet_val, "officequarto.lists.list-bullet", fail)
       }
       list_number_val <- oq_resolve_aliased(lists_config, "list-number", "ol_style", "officequarto.lists", warn_msg)
       if (!is.null(list_number_val)) {
-        style_ids$list_number <- oq_resolve_style_id(name_to_id, list_number_val, "officequarto.lists.list-number", fail)
+        style_ids$list_number <- oq_resolve_style_ids(name_to_id, list_number_val, "officequarto.lists.list-number", fail)
       }
       if (!is.null(lists_config$`list-letter`)) {
-        style_ids$list_letter <- oq_resolve_style_id(name_to_id, lists_config$`list-letter`, "officequarto.lists.list-letter", fail)
+        style_ids$list_letter <- oq_resolve_style_ids(name_to_id, lists_config$`list-letter`, "officequarto.lists.list-letter", fail)
       }
       if (is.character(code_block_config) && nzchar(code_block_config)) {
         style_ids$code <- oq_resolve_style_id(name_to_id, code_block_config, "officequarto.pandoc-styles.code-block", fail)
@@ -399,6 +412,10 @@ for (rel_path in docx_outputs) {
       result <- oq_apply_style_mapping(document_doc, num_fmt_map, style_ids, style_num_id)
       log_msg("Style-Mapping angewendet: %d Body-Absaetze, %d Listen-Absaetze, %d Codeblock-Absaetze.",
                result$n_body, result$n_list, result$n_code)
+      if (result$n_list_clamped > 0) {
+        log_msg("Davon %d Listen-Absatz/-Absaetze durch Clamping auf den tiefsten konfigurierten Listen-Style abgebildet (Verschachtelung tiefer als konfiguriert).",
+                 result$n_list_clamped)
+      }
     }
 
     if (!is.null(table_config)) {

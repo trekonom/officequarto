@@ -28,11 +28,13 @@ doc <- doc |> set_doc_properties(
 print(doc, target = "template/original.docx")
 
 ## officer bietet keine High-Level-API zum Definieren neuer Paragraph-/
-## Tabellen-Styles, daher werden die neun ACME-Custom-Paragraph-Styles plus
-## ein ACME-Custom-Tabellen-Style (fuer den Style-Mapping-Test) direkt in
-## word/styles.xml nachgetragen - gleiche unzip/xml2/zip-Technik wie in
-## scripts/writeback.R. Jeder Style hat eine deutlich abweichende Formatierung,
-## damit ein erfolgreiches Mapping auch visuell erkennbar ist.
+## Tabellen-Styles, daher werden 15 ACME-Custom-Paragraph-Styles (die
+## urspruenglichen neun, plus je zwei weitere Verschachtelungsebenen fuer
+## Aufzaehlung/Nummerierung/Buchstabierung - officequarto.lists.* als Array
+## statt Skalar, siehe style_mapping.R) plus ein ACME-Custom-Tabellen-Style
+## direkt in word/styles.xml nachgetragen - gleiche unzip/xml2/zip-Technik wie
+## in scripts/writeback.R. Jeder Style hat eine deutlich abweichende
+## Formatierung, damit ein erfolgreiches Mapping auch visuell erkennbar ist.
 library(xml2)
 
 custom_styles <- c(
@@ -51,11 +53,39 @@ custom_styles <- c(
      <w:rPr><w:color w:val="A6192E"/></w:rPr>
    </w:style>',
   '<w:style xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+     w:type="paragraph" w:customStyle="1" w:styleId="AufzaehlungACME2">
+     <w:name w:val="Aufzählung ACME 2"/>
+     <w:basedOn w:val="Normal"/>
+     <w:qFormat/>
+     <w:rPr><w:i/><w:color w:val="D32F2F"/></w:rPr>
+   </w:style>',
+  '<w:style xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+     w:type="paragraph" w:customStyle="1" w:styleId="AufzaehlungACME3">
+     <w:name w:val="Aufzählung ACME 3"/>
+     <w:basedOn w:val="Normal"/>
+     <w:qFormat/>
+     <w:rPr><w:b/><w:i/><w:color w:val="F06292"/></w:rPr>
+   </w:style>',
+  '<w:style xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
      w:type="paragraph" w:customStyle="1" w:styleId="NummerierungACME">
      <w:name w:val="Nummerierung ACME"/>
      <w:basedOn w:val="Normal"/>
      <w:qFormat/>
      <w:rPr><w:b/><w:color w:val="2E7D32"/></w:rPr>
+   </w:style>',
+  '<w:style xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+     w:type="paragraph" w:customStyle="1" w:styleId="NummerierungACME2">
+     <w:name w:val="Nummerierung ACME 2"/>
+     <w:basedOn w:val="Normal"/>
+     <w:qFormat/>
+     <w:rPr><w:i/><w:color w:val="66BB6A"/></w:rPr>
+   </w:style>',
+  '<w:style xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+     w:type="paragraph" w:customStyle="1" w:styleId="NummerierungACME3">
+     <w:name w:val="Nummerierung ACME 3"/>
+     <w:basedOn w:val="Normal"/>
+     <w:qFormat/>
+     <w:rPr><w:b/><w:i/><w:color w:val="A5D6A7"/></w:rPr>
    </w:style>',
   '<w:style xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
      w:type="paragraph" w:customStyle="1" w:styleId="CodeACME">
@@ -70,6 +100,20 @@ custom_styles <- c(
      <w:basedOn w:val="Normal"/>
      <w:qFormat/>
      <w:rPr><w:u w:val="single"/><w:color w:val="E65100"/></w:rPr>
+   </w:style>',
+  '<w:style xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+     w:type="paragraph" w:customStyle="1" w:styleId="BuchstabierungACME2">
+     <w:name w:val="Buchstabierung ACME 2"/>
+     <w:basedOn w:val="Normal"/>
+     <w:qFormat/>
+     <w:rPr><w:u w:val="double"/><w:color w:val="FB8C00"/></w:rPr>
+   </w:style>',
+  '<w:style xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+     w:type="paragraph" w:customStyle="1" w:styleId="BuchstabierungACME3">
+     <w:name w:val="Buchstabierung ACME 3"/>
+     <w:basedOn w:val="Normal"/>
+     <w:qFormat/>
+     <w:rPr><w:u w:val="wave"/><w:color w:val="FFB74D"/></w:rPr>
    </w:style>',
   '<w:style xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
      w:type="paragraph" w:customStyle="1" w:styleId="BeschriftungACME">
@@ -135,4 +179,4 @@ system2("zip", c("-rq", shQuote(target_path), "."))
 setwd(old_wd)
 unlink(work_dir, recursive = TRUE)
 
-cat("Beispiel-Dokument geschrieben: template/original.docx (inkl. neun ACME-Paragraph-Styles und einem ACME-Tabellen-Style)\n")
+cat("Beispiel-Dokument geschrieben: template/original.docx (inkl. 15 ACME-Paragraph-Styles - neun Basis-Styles plus je zwei weitere Verschachtelungsebenen fuer Aufzaehlung/Nummerierung/Buchstabierung - und einem ACME-Tabellen-Style)\n")

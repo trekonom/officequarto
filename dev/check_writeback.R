@@ -76,17 +76,44 @@ if (n_title != 1) fail("erwartet 1 Titel-Absatz mit Style 'TitelACME' (officequa
 if ("Title" %in% pstyles) fail("es sollte kein unumgemappter 'Title'-Absatz mehr vorhanden sein (officequarto.style-map)")
 ok("%d Titel-Absatz traegt den ueber officequarto.style-map konfigurierten Style 'TitelACME' (freies Style-Mapping, Gruppe 7)", n_title)
 
-n_bullet <- sum(pstyles == "AufzaehlungACME")
-if (n_bullet != 3) fail("erwartet 3 Bullet-Absaetze mit Style 'AufzaehlungACME', gefunden %d", n_bullet)
-ok("%d Bullet-Absaetze tragen den konfigurierten Style", n_bullet)
+## Verschachtelungsebene pro Listen-Absatz (officequarto.lists.* als Array,
+## siehe report.qmd "Kennzahlen"/"Naechste Schritte"/"Varianten" und
+## dev/spike-notes.md Spike O). w:ilvl faellt bei fehlendem Element auf 0
+## zurueck (wie oq_paragraph_ilvl()), ist bei Pandoc-Listen aber immer gesetzt.
+list_paragraphs <- xml_find_all(document_doc, "//w:p[./w:pPr/w:numPr]", ns)
+list_pstyle <- xml_attr(xml_find_first(list_paragraphs, "./w:pPr/w:pStyle", ns), "val")
+list_ilvl_val <- xml_attr(xml_find_first(list_paragraphs, "./w:pPr/w:numPr/w:ilvl", ns), "val")
+list_ilvl <- ifelse(is.na(list_ilvl_val), 0L, as.integer(list_ilvl_val))
+n_at_level <- function(style, ilvl) sum(list_pstyle == style & list_ilvl == ilvl)
 
-n_number <- sum(pstyles == "NummerierungACME")
-if (n_number != 3) fail("erwartet 3 nummerierte Absaetze mit Style 'NummerierungACME', gefunden %d", n_number)
-ok("%d nummerierte Absaetze tragen den konfigurierten Style", n_number)
+n_bullet0 <- n_at_level("AufzaehlungACME", 0L)
+n_bullet1 <- n_at_level("AufzaehlungACME2", 1L)
+n_bullet2 <- n_at_level("AufzaehlungACME3", 2L)
+if (n_bullet0 != 3 || n_bullet1 != 2 || n_bullet2 != 2) {
+  fail("erwartet 3/2/2 Bullet-Absaetze mit Style 'AufzaehlungACME'/'AufzaehlungACME2'/'AufzaehlungACME3' auf Ebene 0/1/2, gefunden %d/%d/%d",
+       n_bullet0, n_bullet1, n_bullet2)
+}
+ok("%d/%d/%d Bullet-Absaetze tragen den pro Verschachtelungsebene konfigurierten Style", n_bullet0, n_bullet1, n_bullet2)
 
-n_letter <- sum(pstyles == "BuchstabierungACME")
-if (n_letter != 3) fail("erwartet 3 Buchstaben-Listen-Absaetze mit Style 'BuchstabierungACME', gefunden %d", n_letter)
-ok("%d Buchstaben-Listen-Absaetze tragen den konfigurierten Style", n_letter)
+n_number0 <- n_at_level("NummerierungACME", 0L)
+n_number1 <- n_at_level("NummerierungACME2", 1L)
+n_number2 <- n_at_level("NummerierungACME3", 2L)
+if (n_number0 != 3 || n_number1 != 3 || n_number2 != 2) {
+  fail("erwartet 3/3/2 nummerierte Absaetze mit Style 'NummerierungACME'/'NummerierungACME2'/'NummerierungACME3' auf Ebene 0/1/2, gefunden %d/%d/%d",
+       n_number0, n_number1, n_number2)
+}
+ok("%d/%d/%d nummerierte Absaetze tragen den pro Verschachtelungsebene konfigurierten Style", n_number0, n_number1, n_number2)
+
+n_letter0 <- n_at_level("BuchstabierungACME", 0L)
+n_letter1_clamped <- n_at_level("BuchstabierungACME", 1L)
+if (n_letter0 != 3 || n_letter1_clamped != 1) {
+  fail("erwartet 3 Buchstaben-Listen-Absaetze auf Ebene 0 und 1 (per Clamping) auf Ebene 1 mit demselben Style 'BuchstabierungACME' (officequarto.lists.list-letter bleibt skalar), gefunden %d/%d",
+       n_letter0, n_letter1_clamped)
+}
+if ("BuchstabierungACME2" %in% list_pstyle) {
+  fail("'BuchstabierungACME2' sollte nicht vorkommen - list-letter ist skalar konfiguriert, Ebene 1 muss auf 'BuchstabierungACME' clampen")
+}
+ok("%d/%d Buchstaben-Listen-Absaetze auf Ebene 0/1 tragen (per Clamping) denselben konfigurierten Style", n_letter0, n_letter1_clamped)
 
 if (any(pstyles == "Normal") || any(pstyles == "Compact") || any(pstyles == "FirstParagraph")) {
   fail("es sind noch unbenannte Pandoc-Standard-Styles im Ergebnis vorhanden: %s",
