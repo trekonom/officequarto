@@ -339,12 +339,17 @@ caption instead.
   paragraph's immediately-following-sibling `w:tbl` directly, instead of searching the parent for
   *a* `w:tbl` child (which, in the non-wrapped case, could return an unrelated table elsewhere in
   the body). Plain (non-crossref) captions are also never numbered by Quarto at all — the caption
-  text is the user's own, with no generated "Table N:" prefix — which matters for
-  `oq_split_caption_text()`'s digit-anchoring below: a plain caption's text could in principle
-  contain a digit that accidentally matches officequarto's own running caption count, causing a
-  spurious (harmless but semantically meaningless) split; documented as a known edge case, not
-  fixed, since it doesn't misapply anything when `prefix`/`separator`/`number-bold` aren't
-  configured for that caption.
+  text is the user's own, with no generated "Table N:" prefix — which once meant
+  `oq_split_caption_text()`'s digit-anchoring below could, in theory, be tricked by a plain
+  caption's own text accidentally containing a digit that matches officequarto's running caption
+  count, causing a spurious (harmless but semantically meaningless) split (GH issue #3). **Since
+  closed as an unintended side effect of the Spike Q caption-counting fix** (see "Live numbering"
+  below): `oq_apply_captions()` only ever calls `oq_split_caption_text()` on a caption whose
+  `oq_caption_anchor_name()` resolves a real bookmark — and that's structurally only ever true for
+  a genuinely crossref-numbered caption (parent = a Pandoc wrapper cell, `w:tc`). A plain caption's
+  parent is always `w:body` directly, so it's skipped entirely before parsing is ever attempted,
+  regardless of its text — provably unreachable now, not just "harmless in practice." Regression
+  test: `dev/check-caption-parsing.R`.
 - **The wrapper table itself is a trap for Gruppe 1/2**: `oq_apply_table_options()`'s table
   selector is `//w:tbl[not(.//w:tbl)]` (excludes any `w:tbl` containing a nested `w:tbl`) —
   discovered as a real bug during Gruppe 3 testing: without this filter, `style`/`layout`/`width`/
