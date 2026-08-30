@@ -2,7 +2,7 @@
 ## Ports: officequarto.style-map (officedown: mapstyles). Wird von
 ## writeback.R per source() eingebunden, keine eigenstaendige Ausfuehrung.
 ## Benoetigt: xml2, oq_resolve_style_id()/oq_set_pstyle() aus
-## style_mapping.R (muss vor dieser Datei gesourced sein).
+## style-mapping.R (muss vor dieser Datei gesourced sein).
 ##
 ## Anders als officequarto.styles/.tables/.plots (feste, kuratierte Rollen
 ## mit Pandoc-spezifischer Erkennungslogik: numPr fuer Listen, w:drawing fuer
@@ -12,7 +12,7 @@
 ## Nutzer gibt die genauen Style-IDs an, die umgemappt werden sollen.
 ##
 ## Quell- und Ziel-Seite werden bewusst asymmetrisch behandelt (wie schon bei
-## SourceCode/code-block in style_mapping.R): die Quell-Seite sind Pandocs
+## SourceCode/code-block in style-mapping.R): die Quell-Seite sind Pandocs
 ## eigene, stabile, technische Style-IDs (z.B. "Normal", "BlockQuote",
 ## "Heading1") - direkter Gleichheitsvergleich, keine Aufloesung noetig, und
 ## kein Fehler, wenn eine Quell-ID im konkreten Dokument gar nicht vorkommt

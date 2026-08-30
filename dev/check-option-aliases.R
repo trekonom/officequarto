@@ -1,10 +1,10 @@
 ## Unit-Check fuer oq_resolve_aliased() (canonical Name vs. officedown-Alias,
-## siehe scripts/option_aliases.R). Im Gegensatz zu check_writeback.R
+## siehe scripts/option-aliases.R). Im Gegensatz zu check-writeback.R
 ## eigenstaendig ausfuehrbar, ohne vorherigen `quarto render` - reine
-## Funktionslogik, kein Docx-Zugriff. Wie check_writeback.R aus template/
-## heraus aufzurufen (`Rscript ../dev/check_option_aliases.R`), damit der
+## Funktionslogik, kein Docx-Zugriff. Wie check-writeback.R aus template/
+## heraus aufzurufen (`Rscript ../dev/check-option-aliases.R`), damit der
 ## relative Pfad zu _extensions/ (Symlink) aufgeht.
-source("_extensions/officequarto/scripts/option_aliases.R")
+source("_extensions/officequarto/scripts/option-aliases.R")
 
 fail <- function(...) {
   cat("FAIL:", sprintf(...), "\n")

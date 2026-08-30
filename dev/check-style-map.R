@@ -1,13 +1,13 @@
 ## Unit-Check fuer oq_resolve_style_map()/oq_apply_style_map() (siehe
-## scripts/style_map.R, Gruppe 7 / officequarto.style-map). Eigenstaendig
+## scripts/style-map.R, Gruppe 7 / officequarto.style-map). Eigenstaendig
 ## ausfuehrbar, ohne vorherigen `quarto render` - reine Funktionslogik, kein
 ## Docx-Zugriff (bis auf ein minimales xml2-Dokument fuer
-## oq_apply_style_map()). Wie check_option_aliases.R aus template/ heraus
-## aufzurufen (`Rscript ../dev/check_style_map.R`), damit der relative Pfad
+## oq_apply_style_map()). Wie check-option-aliases.R aus template/ heraus
+## aufzurufen (`Rscript ../dev/check-style-map.R`), damit der relative Pfad
 ## zu _extensions/ (Symlink) aufgeht.
 library(xml2)
-source("_extensions/officequarto/scripts/style_mapping.R")  # fuer oq_resolve_style_id()/oq_set_pstyle()
-source("_extensions/officequarto/scripts/style_map.R")
+source("_extensions/officequarto/scripts/style-mapping.R")  # fuer oq_resolve_style_id()/oq_set_pstyle()
+source("_extensions/officequarto/scripts/style-map.R")
 
 fail <- function(...) {
   cat("FAIL:", sprintf(...), "\n")

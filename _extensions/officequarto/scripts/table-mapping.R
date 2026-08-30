@@ -3,7 +3,7 @@
 ## officedown-Options-Ports. Wird von writeback.R per source() eingebunden,
 ## keine eigenstaendige Ausfuehrung. Benoetigt: xml2 (bereits von writeback.R
 ## geprueft) sowie oq_resolve_aliased()/oq_resolve_inverted_aliased() aus
-## option_aliases.R (muss vor dieser Datei gesourced sein).
+## option-aliases.R (muss vor dieser Datei gesourced sein).
 ##
 ## `caption-above` (officedown: topcaption) ist bewusst NICHT Teil dieser
 ## Datei - es hat erst mit echten Tabellen-Beschriftungen (Gruppe 3) einen
@@ -82,7 +82,7 @@ oq_set_tbl_width <- function(tbl_pr, ns, width_fraction) {
 ## OOXML selbst kennt aber nur die negativ gepolten noHBand/noVBand - die
 ## Invertierung passiert hier beim Schreiben, nicht schon bei der
 ## Options-Aufloesung (die haelt canonical Werte in ihrer eigenen, positiven
-## Polaritaet, siehe oq_resolve_inverted_aliased() in option_aliases.R).
+## Polaritaet, siehe oq_resolve_inverted_aliased() in option-aliases.R).
 officequarto_tbllook_attrs <- list(
   `first-row`    = list(attr = "firstRow",    invert = FALSE),
   `first-column` = list(attr = "firstColumn", invert = FALSE),
@@ -141,7 +141,7 @@ oq_apply_table_options <- function(document_doc, table_options) {
   ## Tabellen UND Abbildungen fasst Pandoc Beschriftung + eigentlichen Inhalt
   ## in einer 1x1-Huelltabelle zusammen, deren einzige Zelle direkt einen
   ## Absatz mit pStyle "ImageCaption" enthaelt (siehe
-  ## table_caption_mapping.R) - dieses Merkmal identifiziert die
+  ## table-caption-mapping.R) - dieses Merkmal identifiziert die
   ## Wrapper-Tabelle direkt und zuverlaessig, unabhaengig davon, ob sie eine
   ## echte Tabelle oder eine Abbildung umschliesst (eine fruehere Version
   ## filterte stattdessen nur Tabellen mit einer verschachtelten w:tbl heraus

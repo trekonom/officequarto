@@ -15,7 +15,7 @@ officequarto_body_role_styles <- c("Normal", "FirstParagraph", "Compact", "BodyT
 
 ## styles.xml (xml2-Dokument) -> Named Character Vector: Anzeigename -> styleId.
 ## type ist der OOXML-Style-Typ ("paragraph" fuer Body/Listen/Codeblock-Styles,
-## "table" fuer Tabellen-Styles, siehe table_mapping.R).
+## "table" fuer Tabellen-Styles, siehe table-mapping.R).
 oq_style_name_to_id <- function(styles_doc, type = "paragraph") {
   ns <- xml2::xml_ns(styles_doc)
   nodes <- xml2::xml_find_all(styles_doc, sprintf("//w:style[@w:type='%s']", type), ns)
@@ -187,7 +187,7 @@ oq_apply_style_mapping <- function(document_doc, num_fmt_map, style_ids, style_n
     ## denselben kontextabhaengigen Rollennamen wie echte Body-Absaetze (z.B.
     ## "Compact", verifiziert empirisch) - waeren also sonst faelschlich vom
     ## Body-Role-Mapping erfasst. Werden hier ausgenommen und stattdessen
-    ## dediziert von oq_apply_plot_options() (plot_mapping.R,
+    ## dediziert von oq_apply_plot_options() (plot-mapping.R,
     ## officequarto.plots.style) behandelt.
     if (!is.na(xml2::xml_find_first(p, ".//w:drawing", ns))) next
 

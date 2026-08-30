@@ -9,8 +9,8 @@
 ## group_label: fuer die Warnmeldung (z.B. "officequarto.tables"). warn_fn:
 ## Funktion(fmt, ...), die bei einem Konflikt aufgerufen wird - wie fail_fn bei
 ## oq_resolve_style_id() wird auch hier eine Callback-Funktion statt eines
-## direkten log_msg()-Aufrufs verwendet, damit diese Datei wie style_mapping.R
-## und style_pruning.R eine reine Funktionssammlung ohne eigene Seiteneffekte
+## direkten log_msg()-Aufrufs verwendet, damit diese Datei wie style-mapping.R
+## und style-pruning.R eine reine Funktionssammlung ohne eigene Seiteneffekte
 ## bleibt.
 ##
 ## Sind canonical Name und Alias gleichzeitig gesetzt und widersprechen sich

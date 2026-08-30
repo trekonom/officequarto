@@ -31,7 +31,7 @@ print(doc, target = "template/original.docx")
 ## Tabellen-Styles, daher werden 15 ACME-Custom-Paragraph-Styles (die
 ## urspruenglichen neun, plus je zwei weitere Verschachtelungsebenen fuer
 ## Aufzaehlung/Nummerierung/Buchstabierung - officequarto.lists.* als Array
-## statt Skalar, siehe style_mapping.R) plus ein ACME-Custom-Tabellen-Style
+## statt Skalar, siehe style-mapping.R) plus ein ACME-Custom-Tabellen-Style
 ## direkt in word/styles.xml nachgetragen - gleiche unzip/xml2/zip-Technik wie
 ## in scripts/writeback.R. Jeder Style hat eine deutlich abweichende
 ## Formatierung, damit ein erfolgreiches Mapping auch visuell erkennbar ist.

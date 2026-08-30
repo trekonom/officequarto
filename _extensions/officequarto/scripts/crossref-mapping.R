@@ -11,7 +11,7 @@
 ## (w:hyperlink mit w:anchor auf den Beschriftungs-Bookmark, empirisch
 ## verifiziert bei der tab.lp-Recherche vor Gruppe 1) - es gibt kein
 ## lebendiges Feld, das umgeschaltet werden koennte, nur Text, der ersetzt
-## wird. anchor_text (siehe oq_apply_captions() in table_caption_mapping.R)
+## wird. anchor_text (siehe oq_apply_captions() in table-caption-mapping.R)
 ## liefert dafuer bereits die noetige Bookmark-Name -> Beschriftungstext-
 ## Zuordnung, gesammelt waehrend der Beschriftungsverarbeitung (Gruppe 3/5) -
 ## unabhaengig davon, ob diese selbst konfiguriert sind (writeback.R stellt

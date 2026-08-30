@@ -1,11 +1,11 @@
-## Unit-Check fuer oq_apply_crossref_text() (siehe scripts/crossref_mapping.R,
+## Unit-Check fuer oq_apply_crossref_text() (siehe scripts/crossref-mapping.R,
 ## Gruppe 9 / officequarto.crossref.numbered). Eigenstaendig ausfuehrbar,
 ## ohne vorherigen `quarto render` - reine Funktionslogik anhand kleiner
-## xml2-Testdokumente. Wie check_option_aliases.R aus template/ heraus
-## aufzurufen (`Rscript ../dev/check_crossref.R`), damit der relative Pfad
+## xml2-Testdokumente. Wie check-option-aliases.R aus template/ heraus
+## aufzurufen (`Rscript ../dev/check-crossref.R`), damit der relative Pfad
 ## zu _extensions/ (Symlink) aufgeht.
 library(xml2)
-source("_extensions/officequarto/scripts/crossref_mapping.R")
+source("_extensions/officequarto/scripts/crossref-mapping.R")
 
 fail <- function(...) {
   cat("FAIL:", sprintf(...), "\n")

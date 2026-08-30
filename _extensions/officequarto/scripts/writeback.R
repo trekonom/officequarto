@@ -22,17 +22,17 @@
 ## list-number/list-letter, eigener Abschnitt, getrennt von `styles`, da es
 ## sich konzeptionell um eine eigene Gruppe handelt): Body- und Listen-
 ## Absaetze werden auf vom Nutzer benannte, echte Styles des reference-doc
-## umgemappt (siehe scripts/style_mapping.R fuer die Kernlogik). Fuer
+## umgemappt (siehe scripts/style-mapping.R fuer die Kernlogik). Fuer
 ## officedown-Umsteiger:innen akzeptieren die Listen-Optionen zusaetzlich die
 ## alten officedown-Namen (`ol_style`/`ul_style`) als Alias zu den neuen,
 ## sprechenderen Namen (`list-number`/`list-bullet`) - siehe
-## scripts/option_aliases.R fuer die Aufloesungslogik inkl. Konfliktregel.
+## scripts/option-aliases.R fuer die Aufloesungslogik inkl. Konfliktregel.
 ## `list-letter` (Buchstaben-Listen, a/b/c bzw. A/B/C) ist eine
 ## officequarto-eigene Ergaenzung ohne officedown-Vorbild, daher ohne Alias.
 ## Alle drei Listen-Optionen akzeptieren zusaetzlich ein Array statt eines
 ## Skalars - ein Style pro Verschachtelungsebene (Index 0 = oberste Ebene),
 ## tiefer verschachtelte Absaetze clampen auf den letzten Array-Eintrag - siehe
-## scripts/style_mapping.R (oq_style_for_level()/oq_paragraph_ilvl()) und
+## scripts/style-mapping.R (oq_style_for_level()/oq_paragraph_ilvl()) und
 ## dev/spike-notes.md Spike O.
 ##
 ## Der Hook ueberschreibt die von Quarto/Pandoc erzeugte .docx direkt an Ort
@@ -44,17 +44,17 @@
 ##
 ## Zusaetzlich, optional per `officequarto.tables` konfigurierbar: Tabellen-
 ## Style/-Layout/-Breite werden auf jede w:tbl im Dokument angewendet (siehe
-## scripts/table_mapping.R fuer die Kernlogik; Gruppe 1 des officedown-
+## scripts/table-mapping.R fuer die Kernlogik; Gruppe 1 des officedown-
 ## Options-Ports, siehe README). Wie bei den Listen-Optionen akzeptieren
 ## style/layout/width zusaetzlich die officedown-Aliase tables_style/
-## tables_layout/tables_width (siehe scripts/option_aliases.R).
+## tables_layout/tables_width (siehe scripts/option-aliases.R).
 ##
 ## Zusaetzlich, immer aktiv: Pandocs docx-Writer fuegt beim Rendern eigene
 ## Style-Definitionen hinzu, die im reference-doc gar nicht existieren (z.B.
 ## Syntax-Highlighting-Styles fuer Codebloecke, unabhaengig davon, ob welche
 ## vorkommen). Diese werden standardmaessig wieder entfernt, das Ergebnis-docx
 ## enthaelt dann ausschliesslich Styles aus dem reference-doc (siehe
-## scripts/style_pruning.R fuer die Kernlogik). Per
+## scripts/style-pruning.R fuer die Kernlogik). Per
 ## `officequarto.pandoc-styles.code-block` (eigener Abschnitt, unabhaengig von
 ## `officequarto.styles`) lassen sich Pandocs Codeblock-Styles davon ausnehmen:
 ## `true` behaelt sie unveraendert (volles Syntax-Highlighting), ein
@@ -73,16 +73,16 @@ get_script_dir <- function() {
   }
   "."
 }
-source(file.path(get_script_dir(), "style_mapping.R"))
-source(file.path(get_script_dir(), "style_pruning.R"))
-source(file.path(get_script_dir(), "option_aliases.R"))
-source(file.path(get_script_dir(), "table_mapping.R"))
-source(file.path(get_script_dir(), "table_caption_mapping.R"))
-source(file.path(get_script_dir(), "plot_mapping.R"))
-source(file.path(get_script_dir(), "plot_caption_mapping.R"))
-source(file.path(get_script_dir(), "style_map.R"))
-source(file.path(get_script_dir(), "page_mapping.R"))
-source(file.path(get_script_dir(), "crossref_mapping.R"))
+source(file.path(get_script_dir(), "style-mapping.R"))
+source(file.path(get_script_dir(), "style-pruning.R"))
+source(file.path(get_script_dir(), "option-aliases.R"))
+source(file.path(get_script_dir(), "table-mapping.R"))
+source(file.path(get_script_dir(), "table-caption-mapping.R"))
+source(file.path(get_script_dir(), "plot-mapping.R"))
+source(file.path(get_script_dir(), "plot-caption-mapping.R"))
+source(file.path(get_script_dir(), "style-map.R"))
+source(file.path(get_script_dir(), "page-mapping.R"))
+source(file.path(get_script_dir(), "crossref-mapping.R"))
 
 warn_msg <- function(fmt, ...) log_msg(paste0("Warnung: ", fmt), ...)
 
@@ -176,7 +176,7 @@ if (!is.null(table_width_val) && (!is.numeric(table_width_val) || length(table_w
 
 ## Gruppe 2 (officequarto.tables.conditional.*) - jedes Feld unabhaengig
 ## optional, canonical Name vs. officedown-Alias (band-rows/band-columns mit
-## umgekehrter Polaritaet zu no_hband/no_vband), siehe table_mapping.R.
+## umgekehrter Polaritaet zu no_hband/no_vband), siehe table-mapping.R.
 table_conditional_config <- table_config$conditional
 table_conditional_options <- list(
   `first-row`    = oq_resolve_table_bool_option(table_conditional_config, "first-row", "tables_conditional_first_row", FALSE, "officequarto.tables.conditional.first-row", warn_msg, fail),
@@ -219,7 +219,7 @@ if (!is.null(table_caption_above_val) && (!is.logical(table_caption_above_val) |
 }
 
 ## Gruppe 4 (officequarto.plots.style/align) - fig.lp bewusst nicht portiert
-## (siehe plot_mapping.R), topcaption zurueckgestellt (siehe oben).
+## (siehe plot-mapping.R), topcaption zurueckgestellt (siehe oben).
 plot_config <- officequarto_config$plots
 plot_style_val <- if (!is.null(plot_config)) {
   oq_resolve_aliased(plot_config, "style", "plots_style", "officequarto.plots", warn_msg)
@@ -257,7 +257,7 @@ if (!is.null(plot_caption_above_val) && (!is.logical(plot_caption_above_val) || 
 }
 
 ## Gruppe 7 (officequarto.style-map, officedown: mapstyles) - freies
-## Style-Mapping, siehe style_map.R. Nur grobe Formvalidierung hier (benannte
+## Style-Mapping, siehe style-map.R. Nur grobe Formvalidierung hier (benannte
 ## Liste); die eigentliche Aufloesung (Ziel-Style gegen reference-doc) passiert
 ## pro Ausgabedatei weiter unten, da sie name_to_id braucht.
 style_map_config <- officequarto_config$`style-map`
@@ -266,7 +266,7 @@ if (!is.null(style_map_config) && (!is.list(style_map_config) || is.null(names(s
 }
 
 ## Gruppe 8 (officequarto.page.size/.margins) - Werte in Zoll, siehe
-## page_mapping.R fuer die Twips-Umrechnung und die Begruendung, warum diese
+## page-mapping.R fuer die Twips-Umrechnung und die Begruendung, warum diese
 ## Gruppe (anders als alle anderen) Section Properties statt Styles betrifft.
 page_config <- officequarto_config$page
 
@@ -297,7 +297,7 @@ for (f in names(page_margin_fields)) {
 }
 
 ## Gruppe 9 (officequarto.crossref.numbered, officedown: reference_num) -
-## siehe crossref_mapping.R. Pandocs eigener Default entspricht bereits
+## siehe crossref-mapping.R. Pandocs eigener Default entspricht bereits
 ## "numbered" (Querverweise zeigen die Nummer) - nur explizites `false`
 ## loest ueberhaupt eine Verarbeitung aus (siehe unten, wo dies zusaetzlich
 ## dazu fuehrt, dass die Beschriftungs-Erkennung/-Textzerlegung aus Gruppe
@@ -432,7 +432,7 @@ for (rel_path in docx_outputs) {
     ## mitlaufen, wenn officequarto.tables.caption selbst nicht konfiguriert
     ## ist - caption_options bleibt dann leer (keine Style-/Text-Aenderung),
     ## aber oq_apply_captions() liefert trotzdem das fuer Gruppe 9 benoetigte
-    ## anchor_text (siehe table_caption_mapping.R).
+    ## anchor_text (siehe table-caption-mapping.R).
     crossref_anchor_text <- character(0)
     if (!is.null(table_caption_config) || crossref_rewrite_needed) {
       caption_options <- list(prefix = table_caption_prefix_val, separator = table_caption_separator_val, number_bold = table_caption_bold_val, above = table_caption_above_val)
@@ -470,7 +470,7 @@ for (rel_path in docx_outputs) {
       log_msg("Querverweise auf Beschriftungstext umgestellt (officequarto.crossref.numbered: false): %d.", n_crossref)
     }
 
-    ## Bewusst als letzter Schritt (siehe style_map.R): trifft dadurch
+    ## Bewusst als letzter Schritt (siehe style-map.R): trifft dadurch
     ## standardmaessig nur noch von den obigen Schritten unberuehrte
     ## Absaetze, kann bei Bedarf aber auch gezielt bereits umgemappte
     ## Ziel-Styles noch einmal ueberschreiben.
