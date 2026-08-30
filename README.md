@@ -52,18 +52,18 @@ _extensions/officequarto/
 │                                                       post-render: [scripts/writeback.R] } }
 └── scripts/
     ├── writeback.R           post-render hook (orchestration)
-    ├── style_mapping.R       style-mapping core logic, sourced by writeback.R
-    ├── style_pruning.R       style-pruning core logic, sourced by writeback.R
-    ├── option_aliases.R      canonical-name/officedown-alias resolution, sourced by writeback.R
-    ├── table_mapping.R       table style/layout/width/conditional-formatting logic, sourced by writeback.R
-    ├── table_caption_mapping.R  table caption style/prefix/separator/bold logic (also the
-    │                          shared, generic caption-rewriting logic reused by plot_caption_mapping.R),
+    ├── style-mapping.R       style-mapping core logic, sourced by writeback.R
+    ├── style-pruning.R       style-pruning core logic, sourced by writeback.R
+    ├── option-aliases.R      canonical-name/officedown-alias resolution, sourced by writeback.R
+    ├── table-mapping.R       table style/layout/width/conditional-formatting logic, sourced by writeback.R
+    ├── table-caption-mapping.R  table caption style/prefix/separator/bold logic (also the
+    │                          shared, generic caption-rewriting logic reused by plot-caption-mapping.R),
     │                          sourced by writeback.R
-    ├── plot_mapping.R        figure style/align logic, sourced by writeback.R
-    ├── plot_caption_mapping.R   figure caption paragraph detection, sourced by writeback.R
-    ├── style_map.R           free-form style-map (mapstyles) logic, sourced by writeback.R
-    ├── page_mapping.R        page size/margins (section properties) logic, sourced by writeback.R
-    └── crossref_mapping.R    cross-reference text rewriting logic, sourced by writeback.R
+    ├── plot-mapping.R        figure style/align logic, sourced by writeback.R
+    ├── plot-caption-mapping.R   figure caption paragraph detection, sourced by writeback.R
+    ├── style-map.R           free-form style-map (mapstyles) logic, sourced by writeback.R
+    ├── page-mapping.R        page size/margins (section properties) logic, sourced by writeback.R
+    └── crossref-mapping.R    cross-reference text rewriting logic, sourced by writeback.R
 
 template/                     example project (quarto use template)
 ├── _quarto.yml                project: type: officequarto, format.docx.officequarto
@@ -708,13 +708,13 @@ group is ported; groups not yet listed here aren't implemented yet.
 ```bash
 cd template
 quarto render report.qmd
-Rscript ../dev/check_writeback.R        # checks header/footer/body/metadata of the result
-Rscript ../dev/check_option_aliases.R   # unit-checks canonical-name/officedown-alias resolution
-Rscript ../dev/check_caption_parsing.R  # unit-checks the table-caption text-splitting logic
-Rscript ../dev/check_style_map.R        # unit-checks officequarto.style-map resolution/application
-Rscript ../dev/check_crossref.R         # unit-checks cross-reference text rewriting
+Rscript ../dev/check-writeback.R        # checks header/footer/body/metadata of the result
+Rscript ../dev/check-option-aliases.R   # unit-checks canonical-name/officedown-alias resolution
+Rscript ../dev/check-caption-parsing.R  # unit-checks the table-caption text-splitting logic
+Rscript ../dev/check-style-map.R        # unit-checks officequarto.style-map resolution/application
+Rscript ../dev/check-crossref.R         # unit-checks cross-reference text rewriting
 ```
 
-`dev/make_sample_docx.R` regenerates the sample template `template/original.docx`, including the
+`dev/make-sample-docx.R` regenerates the sample template `template/original.docx`, including the
 five ACME custom styles used for style-mapping (requires the R packages `officer` and `xml2`,
 only for generating the sample template, not for the hook itself).

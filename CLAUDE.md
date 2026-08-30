@@ -20,12 +20,12 @@ Render the example project and verify the hook end-to-end:
 ```bash
 cd template
 quarto render report.qmd
-Rscript ../dev/check_writeback.R        # checks header/footer/body/metadata/style-mapping/style-pruning of the result
-Rscript ../dev/check_option_aliases.R   # unit-checks oq_resolve_aliased()/oq_resolve_inverted_aliased()
-Rscript ../dev/check_caption_parsing.R  # unit-checks oq_split_caption_text() (table caption text-splitting)
-Rscript ../dev/check_style_map.R        # unit-checks oq_resolve_style_map()/oq_apply_style_map()
-Rscript ../dev/check_crossref.R         # unit-checks oq_apply_crossref_text()
-Rscript ../dev/check_list_levels.R      # unit-checks oq_style_for_level()/oq_paragraph_ilvl()/oq_resolve_style_ids()
+Rscript ../dev/check-writeback.R        # checks header/footer/body/metadata/style-mapping/style-pruning of the result
+Rscript ../dev/check-option-aliases.R   # unit-checks oq_resolve_aliased()/oq_resolve_inverted_aliased()
+Rscript ../dev/check-caption-parsing.R  # unit-checks oq_split_caption_text() (table caption text-splitting)
+Rscript ../dev/check-style-map.R        # unit-checks oq_resolve_style_map()/oq_apply_style_map()
+Rscript ../dev/check-crossref.R         # unit-checks oq_apply_crossref_text()
+Rscript ../dev/check-list-levels.R      # unit-checks oq_style_for_level()/oq_paragraph_ilvl()/oq_resolve_style_ids()
 ```
 
 `template/report.qmd` includes a small fenced code block specifically so the style-pruning
@@ -48,7 +48,7 @@ paragraph styles used to test style-mapping (body/bullet/number/letter/code-bloc
 plot/plot-caption/title):
 
 ```bash
-Rscript dev/make_sample_docx.R   # needs R packages: officer, xml2
+Rscript dev/make-sample-docx.R   # needs R packages: officer, xml2
 ```
 
 To verify the extension also works as a genuine external install (not just via the dev symlink),
@@ -70,31 +70,31 @@ _extensions/officequarto/
 │                                                       post-render: [scripts/writeback.R] } }
 └── scripts/
     ├── writeback.R           post-render hook: orchestration (env vars, quarto inspect,
-    │                         metadata merge, zip/unzip), sources style_mapping.R + style_pruning.R
-    ├── style_mapping.R       style-mapping core logic (pure functions, no side effects of
+    │                         metadata merge, zip/unzip), sources style-mapping.R + style-pruning.R
+    ├── style-mapping.R       style-mapping core logic (pure functions, no side effects of
     │                          its own — called from writeback.R)
-    ├── style_pruning.R       style-pruning core logic (pure functions, no side effects of
+    ├── style-pruning.R       style-pruning core logic (pure functions, no side effects of
     │                          its own — called from writeback.R)
-    ├── option_aliases.R      canonical-name/officedown-alias resolution (pure functions, no
+    ├── option-aliases.R      canonical-name/officedown-alias resolution (pure functions, no
     │                          side effects of its own — called from writeback.R)
-    ├── table_mapping.R       table style/layout/width/conditional-formatting core logic
+    ├── table-mapping.R       table style/layout/width/conditional-formatting core logic
     │                          (pure functions, no side effects of its own — called from
     │                          writeback.R)
-    ├── table_caption_mapping.R  table caption style/prefix/separator/bold core logic
+    ├── table-caption-mapping.R  table caption style/prefix/separator/bold core logic
     │                          (pure functions, no side effects of its own — called from
     │                          writeback.R)
-    ├── plot_mapping.R        figure style/align core logic (pure functions, no side
+    ├── plot-mapping.R        figure style/align core logic (pure functions, no side
     │                          effects of its own — called from writeback.R)
-    ├── plot_caption_mapping.R  figure caption paragraph detection (pure functions, no
+    ├── plot-caption-mapping.R  figure caption paragraph detection (pure functions, no
     │                          side effects of its own — called from writeback.R; the
-    │                          actual text-rewriting logic lives in table_caption_mapping.R
+    │                          actual text-rewriting logic lives in table-caption-mapping.R
     │                          and is shared, not duplicated)
-    ├── style_map.R           free-form style-map (officedown: mapstyles) core logic
+    ├── style-map.R           free-form style-map (officedown: mapstyles) core logic
     │                          (pure functions, no side effects of its own — called from
     │                          writeback.R)
-    ├── page_mapping.R        page size/margins core logic (pure functions, no side
+    ├── page-mapping.R        page size/margins core logic (pure functions, no side
     │                          effects of its own — called from writeback.R)
-    └── crossref_mapping.R    cross-reference text rewriting core logic (pure functions,
+    └── crossref-mapping.R    cross-reference text rewriting core logic (pure functions,
                                no side effects of its own — called from writeback.R)
 
 template/                     example/dev project
@@ -121,7 +121,7 @@ template/                     example/dev project
      `cp:category`) and copies `docProps/custom.xml` from the original — these are the properties
      Pandoc does *not* carry over from `reference-doc` (it writes fresh, largely empty ones).
    - If `officequarto.styles`/`officequarto.lists` is configured, applies style-mapping to
-     `word/document.xml` (see below) via `style_mapping.R`.
+     `word/document.xml` (see below) via `style-mapping.R`.
    - Always (unconditionally, no config): removes every style definition in the rendered
      `word/styles.xml` whose ID isn't present in `reference-doc`'s own `word/styles.xml` (see
      "Style pruning" below).
@@ -169,7 +169,7 @@ sibling subsection, `officequarto.lists: { list-bullet, list-number, list-letter
 from a single combined `styles` section specifically so it could mirror `officequarto.tables`/
 `officequarto.plots` as its own named group (see "Configuration namespace" above). All fields
 across both subsections are optional, independent. Values are Word **display names** (`w:name`),
-not internal style IDs — `style_mapping.R` resolves those against `word/styles.xml` of the
+not internal style IDs — `style-mapping.R` resolves those against `word/styles.xml` of the
 rendered output and aborts with the list of available paragraph styles if a configured name isn't
 found (fail loud, no silent fallback).
 
@@ -178,16 +178,16 @@ Pandoc docs — see `dev/spike-notes.md` Spike D): Pandoc does **not** use one f
 body text and one for lists. It picks context-dependent style names that must already exist in
 `reference-doc` (e.g. `FirstParagraph` for the paragraph right after a heading, `Compact` for
 tight-list items — used for **both** bullet and numbered lists identically). Consequences for the
-detection logic in `style_mapping.R`:
+detection logic in `style-mapping.R`:
 
 - **List paragraphs** are detected by the presence of `<w:numPr>`, never by style name.
 - List type is resolved via `word/numbering.xml`: `numId` → `abstractNumId` → level-0
   `w:numFmt`. `bullet` → `list-bullet`; `lowerLetter`/`upperLetter` (produced by Pandoc from
   markdown `a.`/`A.` list markers — verified empirically, see `dev/spike-notes.md`) →
-  `list-letter` (`officequarto_letter_num_fmts` in `style_mapping.R`; officequarto-only, no
+  `list-letter` (`officequarto_letter_num_fmts` in `style-mapping.R`; officequarto-only, no
   officedown equivalent); anything else (`decimal`, roman numerals, ...) → `list-number`.
 - **Body paragraphs** (no `<w:numPr>`) are matched against an allowlist of known Pandoc body-role
-  style names (`officequarto_body_role_styles` in `style_mapping.R`: `Normal`, `FirstParagraph`,
+  style names (`officequarto_body_role_styles` in `style-mapping.R`: `Normal`, `FirstParagraph`,
   `Compact`, `BodyText`, `Body Text`). A reference-doc that makes Pandoc pick a body role outside
   this list will not be recognized — documented limitation.
 - Only `word/document.xml` (main body) is patched — not footnotes/comments.
@@ -202,7 +202,7 @@ configured vector, **clamping** to the deepest configured entry when the actual 
 deeper than what's configured (mirrors Word's own built-in convention — nothing beyond `List
 Bullet 3` either, deeper indents just keep reusing it). A scalar config value is just a length-1
 vector, so it needs no separate code path and keeps working unchanged (always resolves to the same
-style regardless of level). `oq_resolve_style_ids()` (`style_mapping.R`) is the vectorized sibling
+style regardless of level). `oq_resolve_style_ids()` (`style-mapping.R`) is the vectorized sibling
 of `oq_resolve_style_id()` used to fail-loud-resolve each array entry.
 
 Spike O also settled a related question: whether a single `numId`'s bucket-type lookup (`bullet`/
@@ -215,7 +215,7 @@ existing level-0-only lookup in `oq_num_fmt_map()` already returns the correct b
 paragraph that references a given `numId`, regardless of that paragraph's `w:ilvl`. Left
 unchanged, documented rather than "fixed."
 
-### Option aliases (`option_aliases.R`)
+### Option aliases (`option-aliases.R`)
 
 `officequarto`'s own option names (`officequarto.lists.list-bullet`/`list-number`, and future
 ported {officedown} option groups) are deliberately **not** a mechanical 1:1 translation of
@@ -225,17 +225,17 @@ without prior {officedown} knowledge. To ease migration for {officedown} users, 
 within the same config section, resolving to the same value as the canonical name.
 
 `oq_resolve_aliased(config, canonical_key, alias_key, group_label, warn_fn)` in
-`option_aliases.R` implements this: if both keys are set to the same value, or only one is set,
+`option-aliases.R` implements this: if both keys are set to the same value, or only one is set,
 that value is used silently; if both are set to *different* values, the canonical key wins and
 `warn_fn` is called with a message naming the discarded alias value (`writeback.R` wires this to
 `log_msg` via a small `warn_msg` wrapper, prefixed `"Warnung: "` — same pattern as `fail_fn` in
 `oq_resolve_style_id`, so this file stays a pure function collection with no side effects of its
-own, consistent with `style_mapping.R`/`style_pruning.R`). This is the reference pattern for
+own, consistent with `style-mapping.R`/`style-pruning.R`). This is the reference pattern for
 porting further {officedown} option groups (tables, captions, page layout, etc.) — each new
 canonical option that has an {officedown} equivalent should resolve through
 `oq_resolve_aliased()` the same way `list-bullet`/`list-number` do for `ul_style`/`ol_style`.
 
-### Table options (`officequarto.tables`, `table_mapping.R`)
+### Table options (`officequarto.tables`, `table-mapping.R`)
 
 Gruppe 1 of the ongoing {officedown}-option port (see `README.md`'s Option reference table for the
 full canonical-name/alias list, filled in incrementally as further groups land). Configured under
@@ -251,17 +251,17 @@ user). `style`/`layout`/`width` also accept the officedown aliases `tables_style
 `table_layout_val`/`table_width_val` in `writeback.R`.
 
 - `style` is resolved against `reference-doc`'s **table**-type styles, not paragraph styles —
-  `oq_style_name_to_id()` in `style_mapping.R` was generalized with a `type` parameter
+  `oq_style_name_to_id()` in `style-mapping.R` was generalized with a `type` parameter
   (`"paragraph"` default, `"table"` for this) rather than duplicated, since the display-name → 
   styleId lookup logic is identical for both OOXML style types.
 - `layout`/`width` are written directly onto every `w:tbl`'s `w:tblPr` (`oq_apply_table_options()`
-  in `table_mapping.R` finds/creates `w:tblPr` for each `w:tbl` in `word/document.xml`, applying
+  in `table-mapping.R` finds/creates `w:tblPr` for each `w:tbl` in `word/document.xml`, applying
   whichever of `style`/`layout`/`width` were configured). `layout` maps 1:1 to OOXML's
   `w:tblLayout/@w:type` (`autofit`/`fixed`, validated against exactly those two values, fail-loud
   otherwise); `width` (0..1, relative to page width) maps to `w:tblW` with `w:type="pct"` and
   `w:w` in fiftieths-of-a-percent (`round(width * 5000)`, so `100%` = `5000`).
 - New `w:tblPr` child elements are inserted at their OOXML-schema-correct position
-  (`officequarto_tblpr_order` in `table_mapping.R`, `oq_add_tbl_pr_child()`), not blindly appended
+  (`officequarto_tblpr_order` in `table-mapping.R`, `oq_add_tbl_pr_child()`), not blindly appended
   — verified empirically that a naively appended `w:tblLayout` lands after Pandoc's own
   `w:tblLook`, which is out of CT_TblPrBase's defined child sequence; Word itself tolerates this,
   but schema-correct order is the more portable choice.
@@ -286,20 +286,20 @@ opt-in philosophy as Gruppe 1.
 (negative/double-negative naming, confirmed with the user before implementing) — the OOXML
 attributes themselves (`noHBand`/`noVBand`) stay negatively phrased, so the inversion happens only
 at the officequarto option layer: `oq_apply_table_options()`/`oq_set_tbl_look()` in
-`table_mapping.R` hold the resolved values in `officequarto`'s own positive polarity and invert
+`table-mapping.R` hold the resolved values in `officequarto`'s own positive polarity and invert
 only when writing the `noHBand`/`noVBand` OOXML attribute (`officequarto_tbllook_attrs` maps each
 canonical field to its OOXML attribute name plus an `invert` flag).
 
 Because canonical and alias now have *opposite* polarity for `band-rows`/`band-columns`
 (`no_hband: false` means the same thing as `band-rows: true`), the existing `oq_resolve_aliased()`
 doesn't apply as-is — its conflict check compares raw values for equality, which would be
-misleading across a polarity flip. `oq_resolve_inverted_aliased()` (`option_aliases.R`) is the
+misleading across a polarity flip. `oq_resolve_inverted_aliased()` (`option-aliases.R`) is the
 same-shaped sibling function for this one case: it negates the alias's raw value before comparing
-against/falling back from the canonical value. `oq_resolve_table_bool_option()` (`table_mapping.R`)
+against/falling back from the canonical value. `oq_resolve_table_bool_option()` (`table-mapping.R`)
 wraps whichever of the two applies (via an `invert` flag) plus fail-loud boolean-type validation,
 used for all six conditional fields in `writeback.R`.
 
-### Table captions (`officequarto.tables.caption`, `table_caption_mapping.R`, Gruppe 3)
+### Table captions (`officequarto.tables.caption`, `table-caption-mapping.R`, Gruppe 3)
 
 The hardest group implemented so far, because Quarto's docx table captions currently render as
 **static, already-baked-in text** (`"Table 1: My caption"` as a single `<w:r><w:t>` run, verified
@@ -337,7 +337,7 @@ caption instead.
   selector is `//w:tbl[not(.//w:tbl)]` (excludes any `w:tbl` containing a nested `w:tbl`) —
   discovered as a real bug during Gruppe 3 testing: without this filter, `style`/`layout`/`width`/
   `conditional` were being applied to Pandoc's invisible structural wrapper table too, not just the
-  real data table inside it. `check_writeback.R`'s own table-lookup XPath needed the identical
+  real data table inside it. `check-writeback.R`'s own table-lookup XPath needed the identical
   fix.
 - **style** remaps the `ImageCaption` pStyle exactly like `code-block` remaps `SourceCode` (direct
   equality, not an allowlist — Pandoc's own fixed ID).
@@ -367,7 +367,7 @@ caption instead.
   replicating this would mean officequarto independently tracking heading boundaries and
   maintaining its own numbering scheme, substantially bigger than anything else in this port.
 
-### Figure options (`officequarto.plots`, `plot_mapping.R`, Gruppe 4)
+### Figure options (`officequarto.plots`, `plot-mapping.R`, Gruppe 4)
 
 Mirrors Gruppe 1's `style` for the paragraph holding a figure, plus `align` (maps to `w:jc`, find-
 or-create like `w:tblLayout`/`w:tblW` in Gruppe 1). Figure paragraphs are detected via presence of
@@ -375,7 +375,7 @@ a `w:drawing` descendant (`oq_find_plot_paragraphs()`) rather than by style name
 empirically (rendering a minimal figure) that Pandoc assigns the SAME context-dependent role name
 to image paragraphs as to body-text paragraphs (e.g. `Compact`), meaning `officequarto.styles.body`
 would otherwise silently also remap image paragraphs. Fixed by excluding any paragraph containing
-a `w:drawing` from the body-role check in `oq_apply_style_mapping()` (`style_mapping.R`) — the two
+a `w:drawing` from the body-role check in `oq_apply_style_mapping()` (`style-mapping.R`) — the two
 features now cleanly own disjoint sets of paragraphs.
 
 Figures are ALSO wrapped in Pandoc's synthetic 1×1 caption-wrapper table (same mechanism as
@@ -401,15 +401,15 @@ wrapper cell), conceptually identical for both — implemented later as one comb
 figure captions (Gruppe 5) existed, see "Caption position" below, rather than building the same
 reordering logic twice.
 
-### Figure captions (`officequarto.plots.caption`, `plot_caption_mapping.R`, Gruppe 5)
+### Figure captions (`officequarto.plots.caption`, `plot-caption-mapping.R`, Gruppe 5)
 
 Identical fields, identical mechanism, and identical `tnd`/`tns` exclusion rationale as Gruppe 3
 (table captions) — implemented as a refactor rather than a duplicate: `oq_apply_table_captions()`
 was generalized into `oq_apply_captions(document_doc, captions, caption_options)`
-(`table_caption_mapping.R`), which now takes an already-found paragraph node-set instead of finding
+(`table-caption-mapping.R`), which now takes an already-found paragraph node-set instead of finding
 it itself, so the identical text-rewriting logic (`oq_split_caption_text()`/
-`oq_write_caption_run()`, all still in `table_caption_mapping.R`) serves both groups. Only the
-paragraph-finding differs: `oq_find_plot_caption_paragraphs()` (`plot_caption_mapping.R`) mirrors
+`oq_write_caption_run()`, all still in `table-caption-mapping.R`) serves both groups. Only the
+paragraph-finding differs: `oq_find_plot_caption_paragraphs()` (`plot-caption-mapping.R`) mirrors
 `oq_find_table_caption_paragraphs()` — same `pStyle="ImageCaption"` check (figures, unlike tables,
 use this one ID regardless of crossref ID — see Gruppe 3's Detection note and `dev/spike-notes.md`
 Spike L), but adjacency in the other direction: the caption's **immediately preceding sibling**
@@ -436,7 +436,7 @@ therefore needed only to *override* that default, never to achieve it; per-field
 untouched) means this "just works" without any active default-matching logic.
 
 Implementation, split for reuse:
-- `oq_move_caption(caption_p, content_node, above)` (`table_caption_mapping.R`) does the actual
+- `oq_move_caption(caption_p, content_node, above)` (`table-caption-mapping.R`) does the actual
   reorder. xml2 has no native "move a node" primitive — `xml_add_sibling(..., copy = FALSE)` was
   verified empirically to still copy rather than move (leaves the original in place, producing a
   duplicate) — so the move is copy-then-remove-original (`copy = TRUE` followed by
@@ -456,7 +456,7 @@ Implementation, split for reuse:
   that Pandoc's `w:bookmarkStart`/`w:bookmarkEnd` crossref anchors, which aren't touched by the
   move, remain correctly positioned regardless.
 
-### Free-form style mapping (`officequarto.style-map`, `style_map.R`, Gruppe 7)
+### Free-form style mapping (`officequarto.style-map`, `style-map.R`, Gruppe 7)
 
 Officedown's `mapstyles` renamed to `officequarto.style-map` (Schritt A confirmed with the user
 before implementing) — its own subsection (sibling of `officequarto.styles`/`.lists`/`.tables`/
@@ -466,7 +466,7 @@ section's fixed named slots (`body`) would be confusing. No section-level office
 new name.
 
 Deliberately asymmetric source/target handling, mirroring the `SourceCode`/`code-block` precedent
-in `style_mapping.R`: the **target** (map key) is a real, user-facing style resolved via
+in `style-mapping.R`: the **target** (map key) is a real, user-facing style resolved via
 `oq_resolve_style_id()` against display names, fail-loud like everywhere else. The **source**
 values are matched by direct `pStyle` equality (`oq_apply_style_map()`), not resolved as display
 names, and silently a no-op if a given source ID doesn't occur in the document at all (there's no
@@ -486,8 +486,8 @@ code path (built-in-role reuse rather than caption-structure generation). `offic
 `original.docx` test template happens to define no blockquote-equivalent style at all, so Pandoc
 falls back to its generic `BlockQuote` ID there — which is why the README/here-documented
 `"Zitat ACME": [BlockQuote]` example "worked" without ever having been exercised end-to-end against
-real blockquote content in `template/report.qmd` (`check_style_map.R` only uses synthetic XML with
-made-up IDs; `check_writeback.R` only exercises the `Title` case). No code fix — `style-map`'s
+real blockquote content in `template/report.qmd` (`check-style-map.R` only uses synthetic XML with
+made-up IDs; `check-writeback.R` only exercises the `Title` case). No code fix — `style-map`'s
 equality-match mechanism works exactly as designed; this is a documentation gap about Pandoc's own
 behavior, now called out in README with a pointer to verify actual `pStyle`s via
 `officequarto.keep-rendered: true` rather than assuming a fixed name.
@@ -499,7 +499,7 @@ paragraphs none of the curated options already claimed, while a rule deliberatel
 already-remapped target name can still reach and further override it, since matching is always
 against whatever `pStyle` a paragraph currently has at that point in the pipeline.
 
-### Page layout (`officequarto.page`, `page_mapping.R`, Gruppe 8)
+### Page layout (`officequarto.page`, `page-mapping.R`, Gruppe 8)
 
 Unlike every other group, this touches section properties (`w:sectPr`/`w:pgSz`/`w:pgMar`), not
 paragraph or table styles — and unlike `tab.lp`/`fig.lp`, this one genuinely needed a post-render
@@ -522,7 +522,7 @@ exactly one; a document with genuinely different per-section page layouts isn't 
 scenario, matching officedown's own single-section assumption. No automatic `width`/`height` swap
 when `orientation: landscape` is set — same as officedown, the user owns dimension consistency.
 
-New generic helper `oq_resolve_fields()` (`option_aliases.R`) added for this group specifically: it
+New generic helper `oq_resolve_fields()` (`option-aliases.R`) added for this group specifically: it
 wraps `oq_resolve_aliased()` over a whole named vector of `canonical -> alias` pairs at once,
 returning a resolved named list — introduced here because this group has ten near-identical fields
 (three `size` + seven `margins`), where the previous one-call-per-field pattern used by every
@@ -537,7 +537,7 @@ creates or repositions them (both already exist in every real `reference-doc`-de
 there was nothing here for officequarto to have broken or to fix — unlike the Gruppe 1 `w:tblPr`
 child-ordering issue, which was a real, first-created-by-officequarto ordering bug.
 
-### Cross-reference text (`officequarto.crossref`, `crossref_mapping.R`, Gruppe 9)
+### Cross-reference text (`officequarto.crossref`, `crossref-mapping.R`, Gruppe 9)
 
 The last group of the officedown port, and the one closest in spirit to the reasons `tab.lp`/
 `fig.lp` got dropped — but implemented anyway (explicit user call after weighing the tradeoff):
@@ -548,7 +548,7 @@ confirmed empirically during the original `tab.lp` research. There's no live fie
 cross-reference hyperlink whose anchor matches a known caption's bookmark and replacing its text
 with that caption's own descriptive text.
 
-- **Where the replacement text comes from**: `oq_apply_captions()` (`table_caption_mapping.R`,
+- **Where the replacement text comes from**: `oq_apply_captions()` (`table-caption-mapping.R`,
   Gruppe 3/5's shared function) was extended to *always* compute `oq_split_caption_text()`'s
   `$rest` and record it against the caption's bookmark name (`oq_caption_anchor_name()`) in a
   returned `anchor_text` map — regardless of whether `needs_text_rewrite` is true, i.e. regardless
@@ -563,7 +563,7 @@ with that caption's own descriptive text.
   already documented above for `w:val` — reading uses the *unprefixed* local name (`xml_attr(node,
   "anchor")`/`xml_attr(node, "name")`), verified empirically here as it was for `styleId` earlier;
   only *writing* needs the `w:`-prefixed form.
-- `oq_apply_crossref_text()` (`crossref_mapping.R`) does the actual replacement: for a matched
+- `oq_apply_crossref_text()` (`crossref-mapping.R`) does the actual replacement: for a matched
   hyperlink, the first run gets the replacement text, any further runs in the same hyperlink are
   removed (Pandoc's generated crossref hyperlinks are a single run in practice; this is defensive,
   not the expected case).
@@ -591,7 +591,7 @@ Pandoc's docx writer unconditionally adds its own style definitions on top of wh
 `original.docx` has 27 styles, the raw Pandoc output has 59 — all 32 extras, nothing from the
 original lost; also verified against `../hello-wordto`'s real 476-style UU template: 508 raw →
 476 pruned, exact match). {officedown} has the same behavior; it's Pandoc's docx writer, not
-something specific to `reference-doc`. `style_pruning.R` removes every style in the rendered
+something specific to `reference-doc`. `style-pruning.R` removes every style in the rendered
 `word/styles.xml` whose ID isn't in `reference-doc`'s own `word/styles.xml`. If a to-be-removed
 style is still referenced somewhere in the rendered content
 (`w:pStyle`/`w:rStyle`/`w:tblStyle` in `document.xml`/`footnotes.xml`/`endnotes.xml`/`comments.xml`
@@ -602,9 +602,9 @@ content falls back to Word's default formatting rather than erroring out. Runs i
 whether `officequarto.styles`/`officequarto.lists` is configured, always after the style-mapping
 step (so it prunes against the final, already-remapped `document.xml`).
 
-`oq_is_pandoc_code_style_id(id)` in `style_pruning.R` identifies Pandoc's fixed syntax-highlighting
+`oq_is_pandoc_code_style_id(id)` in `style-pruning.R` identifies Pandoc's fixed syntax-highlighting
 style-ID family (`id == "SourceCode" | grepl("Tok$", id)` — a stable naming convention of Pandoc's
-docx writer). `dev/check_writeback.R` sources `style_pruning.R` directly to reuse this helper
+docx writer). `dev/check-writeback.R` sources `style-pruning.R` directly to reuse this helper
 rather than duplicating the pattern.
 
 **Escape hatch: `officequarto.pandoc-styles.code-block`** (optional, default unset → prune as
@@ -640,14 +640,14 @@ alone, so `code-block` works standalone):
   in `dev/spike-notes.md` (Spike B).
 - Reading resolved config always goes through `quarto inspect <project_dir>` (JSON), never manual
   YAML parsing — this is what makes nested keys like `format.docx.officequarto.tables` reliable.
-- Locating `style_mapping.R` from within `writeback.R` uses the `commandArgs(trailingOnly=FALSE)`
+- Locating `style-mapping.R` from within `writeback.R` uses the `commandArgs(trailingOnly=FALSE)`
   `--file=` trick (`get_script_dir()`), because Quarto's post-render invocation cwd cannot be
   assumed to be the script's own directory.
 - xml2 attribute writes on OOXML nodes must use the namespaced attribute name, i.e.
   `xml_attr(node, "w:val") <- x`, not `xml_attr(node, "val") <- x` (the latter creates an
   unnamespaced attribute and silently produces invalid/ignored XML).
 - All docx manipulation goes through `zip`/`unzip` (CLI, via `system2()`) + `xml2`, not `officer`
-  — `officer` is only used in `dev/make_sample_docx.R` to build the base sample document (plus
+  — `officer` is only used in `dev/make-sample-docx.R` to build the base sample document (plus
   direct `xml2` XML injection there too, since `officer` has no high-level API to define new
   paragraph styles).
 - The final write step zips into a `tempfile()` first, then `file.copy()`s that over the rendered

@@ -1,13 +1,13 @@
 ## Unit-Check fuer die Listen-Style-pro-Verschachtelungsebene-Funktion (siehe
-## scripts/style_mapping.R, officequarto.lists.list-bullet/list-number/
+## scripts/style-mapping.R, officequarto.lists.list-bullet/list-number/
 ## list-letter als Array statt Skalar, dev/spike-notes.md Spike O). Eigenstaendig
 ## ausfuehrbar, ohne vorherigen `quarto render` - reine Funktionslogik, nur mit
-## kleinen synthetischen xml2-Dokumenten. Wie check_style_map.R/
-## check_option_aliases.R aus template/ heraus aufzurufen
-## (`Rscript ../dev/check_list_levels.R`), damit der relative Pfad zu
+## kleinen synthetischen xml2-Dokumenten. Wie check-style-map.R/
+## check-option-aliases.R aus template/ heraus aufzurufen
+## (`Rscript ../dev/check-list-levels.R`), damit der relative Pfad zu
 ## _extensions/ (Symlink) aufgeht.
 library(xml2)
-source("_extensions/officequarto/scripts/style_mapping.R")
+source("_extensions/officequarto/scripts/style-mapping.R")
 
 fail <- function(...) {
   cat("FAIL:", sprintf(...), "\n")

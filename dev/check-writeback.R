@@ -17,7 +17,7 @@
 ## officequarto.keep-rendered behaltene Debug-Artefakt den ungepatchten
 ## Zustand zeigt.
 library(xml2)
-source("_extensions/officequarto/scripts/style_pruning.R")  # fuer oq_is_pandoc_code_style_id
+source("_extensions/officequarto/scripts/style-pruning.R")  # fuer oq_is_pandoc_code_style_id
 
 fail <- function(...) {
   cat("FAIL:", sprintf(...), "\n")
@@ -122,7 +122,7 @@ if (any(pstyles == "Normal") || any(pstyles == "Compact") || any(pstyles == "Fir
 ok("keine unumgemappten Pandoc-Standard-Styles (Normal/Compact/FirstParagraph) mehr vorhanden")
 
 ## [not(.//w:tbl)] schliesst Pandocs synthetische Wrapper-Tabelle um
-## Beschriftung+Tabelle aus (siehe table_mapping.R/oq_apply_table_options) -
+## Beschriftung+Tabelle aus (siehe table-mapping.R/oq_apply_table_options) -
 ## ohne den Filter faende xml_find_first die Wrapper-Tabelle zuerst
 ## (Dokumentreihenfolge: Elternelement vor Nachfahren), nicht die eigentliche
 ## Datentabelle.

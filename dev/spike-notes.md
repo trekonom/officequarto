@@ -92,7 +92,7 @@ Verifiziert per `unzip`+Python-Regex-Diff am realen `report.docx`: alle 9 Absät
 **Konsequenz:** Listen-Absätze werden nicht am Style-Namen erkannt, sondern an der Präsenz von
 `<w:numPr>` (zuverlässig, unabhängig vom gewählten Style-Namen); Body-Absätze werden über eine
 Allowlist bekannter Rollennamen erkannt (`Normal`, `FirstParagraph`, `Compact`, `BodyText`,
-`Body Text`) — siehe `scripts/style_mapping.R`.
+`Body Text`) — siehe `scripts/style-mapping.R`.
 
 Ebenfalls verifiziert: `word/numbering.xml` löst `numId` → `abstractNumId` → `w:numFmt` (Ebene 0)
 zuverlässig auf; im Test hatte die Bullet-Liste `numFmt="bullet"`, die nummerierte Liste
@@ -123,7 +123,7 @@ den `reference-doc`-Mechanismus.
 Auf expliziten Wunsch entfernt `writeback.R` diese Extras seitdem wieder (per Default): `word/
 styles.xml` des reference-doc wird zusaetzlich zu `core.xml`/`custom.xml` aus dem Original
 extrahiert, und jeder `<w:style>` im gerenderten `word/styles.xml`, dessen `styleId` dort nicht
-vorkommt, wird entfernt (`scripts/style_pruning.R`).
+vorkommt, wird entfernt (`scripts/style-pruning.R`).
 
 Getestet auch der Grenzfall "Style wird noch verwendet": Ein Testabsatz mit echtem Codeblock in
 `report.qmd` sorgt dafuer, dass `SourceCode`/`KeywordTok`/... tatsaechlich per `w:pStyle`/`w:rStyle`
@@ -172,7 +172,7 @@ kodieren.
 
 Verifiziert (`template/_quarto.yml` nutzt jetzt dauerhaft `officequarto-pandoc-styles:
 {code-block: "Code ACME"}` als String-Mapping-Testfall, ein vierter ACME-Custom-Style in
-`dev/make_sample_docx.R`):
+`dev/make-sample-docx.R`):
 - `code-block` unset (Default): unveraendert wie Spike E (32 entfernt, inkl. `SourceCode`).
 - `code-block: "Code ACME"`: `SourceCode`-Absatz wird auf `CodeACME` umgemappt (kein
   `SourceCode`-Verweis mehr, keine Warnung dafuer), die `*Tok`-Laufstile im Codeblock bleiben aber
@@ -200,16 +200,16 @@ Gegenstueck zu `lowerLetter`). Buchstaben-Listen sind damit genauso zuverlaessig
 noetig, nur ein zusaetzlicher Zweig in der bestehenden `numFmt`-Fallunterscheidung.
 
 Umgesetzt als eigener Bucket `list-letter` (`officequarto_letter_num_fmts <- c("lowerLetter",
-"upperLetter")` in `style_mapping.R`), getrennt von `list-number` (das weiterhin `decimal`,
+"upperLetter")` in `style-mapping.R`), getrennt von `list-number` (das weiterhin `decimal`,
 roemische Ziffern etc. abdeckt) — beide Faelle in einer Option zusammengefasst statt separater
 Optionen fuer Klein-/Grossbuchstaben, analog dazu, wie `list-number` bereits `decimal` und
 roemische Ziffern in einem Bucket zusammenfasst. Hat kein officedown-Vorbild (officedown kennt nur
 `ol.style`/`ul.style`), daher als officequarto-eigene Option ohne Alias eingefuehrt — kein
-Konflikt mit der [[officedown-Alias-Konvention]] (siehe `option_aliases.R`), da es schlicht keinen
+Konflikt mit der [[officedown-Alias-Konvention]] (siehe `option-aliases.R`), da es schlicht keinen
 zu mappenden officedown-Namen gibt.
 
 Verifiziert am funktionierenden Testprojekt (fuenfter ACME-Custom-Style `BuchstabierungACME` in
-`dev/make_sample_docx.R`, dritte Liste `a./b./c.` in `template/report.qmd`,
+`dev/make-sample-docx.R`, dritte Liste `a./b./c.` in `template/report.qmd`,
 `officequarto-styles.list-letter: "Buchstabierung ACME"` in `template/_quarto.yml`): 3
 Buchstaben-Listen-Absaetze werden korrekt auf `BuchstabierungACME` umgemappt, `list-number`
 (separat auf `NummerierungACME` gemappt) bleibt bei weiterhin nur 3 Absaetzen unveraendert — keine
@@ -239,7 +239,7 @@ Post-Render-XML-Zugriff von officequarto waere ein plausibler Ort, um das spaete
 
 **2. `style` gegen welche Styles aufloesen?** `officequarto-tables.style` referenziert
 Tabellen-Styles (`w:type="table"`), nicht Absatz-Styles wie `body`/`list-*` — `oq_style_name_to_id()`
-in `style_mapping.R` wurde daher um einen `type`-Parameter erweitert (`"paragraph"`
+in `style-mapping.R` wurde daher um einen `type`-Parameter erweitert (`"paragraph"`
 Default, `"table"` fuer diesen Fall), statt eine zweite fast identische Funktion anzulegen. Beim
 Pruefen der Test-Vorlage zeigte sich: `original.docx` (von `officer::read_docx()` erzeugt) enthaelt
 bereits vier eingebaute Tabellen-Styles, darunter den Basis-Style mit der ID `TableauNormal` (nicht
@@ -253,8 +253,8 @@ einfach als letztes Kind von `w:tblPr` — bei einer von Pandoc bereits mit `w:t
 `w:tblLook` vorbelegten `w:tblPr` also *hinter* `w:tblLook`, obwohel `w:tblLayout` laut
 OOXML-Schema (`CT_TblPrBase`) *vor* `w:tblLook` stehen muss. Word selbst toleriert das
 (rendert trotzdem korrekt), aber nicht schema-konform. Behoben durch `oq_add_tbl_pr_child()`
-(`table_mapping.R`), das die Zielposition anhand einer festen `officequarto_tblpr_order`-Sequenz
-bestimmt statt blind anzuhaengen — verifiziert per `check_writeback.R`-Assertion auf die konkrete
+(`table-mapping.R`), das die Zielposition anhand einer festen `officequarto_tblpr_order`-Sequenz
+bestimmt statt blind anzuhaengen — verifiziert per `check-writeback.R`-Assertion auf die konkrete
 resultierende Kindelement-Reihenfolge (`tblStyle, tblW, tblLayout, tblLook`).
 
 ## Spike I — Tabellen-Beschriftungen (Gruppe 3), verifiziert am 2026-08-29
@@ -275,7 +275,7 @@ urspruengliche `//w:tbl`-Selektion traf durch diese Wrapper-Struktur unbeabsicht
 Testrender ("Tabellen-Optionen angewendet: 2 Tabelle(n)." statt der erwarteten 1, sobald die
 Test-Tabelle eine Beschriftung bekam). Behoben durch `[not(.//w:tbl)]` in der XPath-Selektion
 (schliesst jede `w:tbl` aus, die selbst eine verschachtelte `w:tbl` enthaelt) — dieselbe Korrektur
-war auch in `check_writeback.R`s eigener Tabellen-Lookup-XPath noetig.
+war auch in `check-writeback.R`s eigener Tabellen-Lookup-XPath noetig.
 
 **Kernproblem fuer pre/sep/number-bold:** die Beschriftung ist vollstaendig statischer,
 eingebackener Text — "Table 1: My table caption" als EIN `<w:r><w:t>`-Lauf, kein echtes
@@ -294,7 +294,7 @@ Dokumentreihenfolge (identisch zu Pandocs eigener Zaehlung, da nur beschriftete 
 einen Beschriftungsabsatz erzeugen) und sucht die erwartete Zahl per Wortgrenzen-Lookaround-Regex
 (`(?<![\p{L}\p{N}])N(?![\p{L}\p{N}])`), nicht per einfachem Teilstring-Treffer — verifiziert u.a.
 gegen den Grenzfall, dass die gesuchte Zahl zufaellig auch als Teil einer anderen Zahl im
-eigentlichen Beschriftungstext vorkommt (z.B. "1" in "1990"), siehe `dev/check_caption_parsing.R`.
+eigentlichen Beschriftungstext vorkommt (z.B. "1" in "1990"), siehe `dev/check-caption-parsing.R`.
 
 ## Spike J — Abbildungen-Basisoptionen (Gruppe 4), verifiziert am 2026-08-29
 
@@ -307,8 +307,8 @@ das `w:drawing` traegt, hat `pStyle="Compact"` - denselben kontextabhaengigen Pa
 den `officequarto_body_role_styles` (Spike D) bereits als "Body-Text" behandelt. Ohne Gegenmassnahme
 haette `officequarto-styles.body` (falls konfiguriert) also faelschlich auch Abbildungs-Absaetze
 umgemappt. Behoben durch eine explizite Ausnahme in `oq_apply_style_mapping()`
-(`style_mapping.R`): Absaetze mit einem `w:drawing`-Nachfahren werden von der Body-Rollen-Pruefung
-ausgenommen und stattdessen dediziert von `oq_apply_plot_options()` (`plot_mapping.R`) behandelt -
+(`style-mapping.R`): Absaetze mit einem `w:drawing`-Nachfahren werden von der Body-Rollen-Pruefung
+ausgenommen und stattdessen dediziert von `oq_apply_plot_options()` (`plot-mapping.R`) behandelt -
 Abbildungs-Absaetze werden ueber die Praesenz von `w:drawing` erkannt, nicht ueber den Style-Namen
 (analoges Prinzip wie Listen-Absaetze ueber `w:numPr`, nicht ueber den Style-Namen, Spike D).
 
@@ -351,7 +351,7 @@ Word-Feld). Das bedeutet: der Ersatztext fuer `numbered: false` kann nicht aus e
 Feld kommen, sondern muss - wie bei pre/sep/number-bold in Gruppe 3/5 - per Text-Ersetzung erfolgen.
 
 **Design-Konsequenz:** anstatt Beschriftungen fuer Gruppe 9 ein zweites Mal zu suchen und zu
-parsen, wurde `oq_apply_captions()` (Gruppe 3/5, `table_caption_mapping.R`) so erweitert, dass sie
+parsen, wurde `oq_apply_captions()` (Gruppe 3/5, `table-caption-mapping.R`) so erweitert, dass sie
 IMMER (nicht nur wenn `needs_text_rewrite`) den Beschriftungstext per `oq_split_caption_text()`
 ermittelt und zusammen mit dem zugehoerigen Bookmark-Namen (`oq_caption_anchor_name()`, findet
 `w:bookmarkStart` als Geschwister der Beschriftung in derselben Wrapper-Zelle) in einer
@@ -413,7 +413,7 @@ von KEINEM der beiden Finder erkannt wurde (Style-Mismatch) — Tabellen- und Ab
 Beschriftungen wurden also nicht nur uebersehen, sondern teilweise regelrecht vertauscht.
 
 **Fix**: beide Finder (`oq_find_table_caption_paragraphs()`/`oq_find_plot_caption_paragraphs()`,
-`table_caption_mapping.R`/`plot_caption_mapping.R`) sowie die zugehoerigen Inhaltsknoten-Finder
+`table-caption-mapping.R`/`plot-caption-mapping.R`) sowie die zugehoerigen Inhaltsknoten-Finder
 (`oq_table_caption_content()`/`oq_plot_caption_content()`, fuer `$above`) wurden von der
 "Elternelement hat ein `w:tbl`-Kind"-Heuristik auf direkte Positionsnaehe umgestellt: eine
 Tabellen-Beschriftung ist ein Absatz mit Style `TableCaption` ODER `ImageCaption`, dessen
@@ -426,7 +426,7 @@ selbst im bereits funktionierenden Wrapper-Fall.
 
 Regressionsabdeckung: `template/report.qmd` bekam einen zweiten, Crossref-losen Tabellen- und
 Abbildungs-Testfall ("Beschriftung ohne Crossref-ID"-Abschnitt, Beschriftungstexte bewusst OHNE
-Ziffern, um Punkt 1 oben nicht versehentlich mitzutesten); `check_writeback.R` prueft, dass beide
+Ziffern, um Punkt 1 oben nicht versehentlich mitzutesten); `check-writeback.R` prueft, dass beide
 ebenfalls den konfigurierten Style bekommen. Gegen `../hello-wordto` (der urspruengliche
 Fehlerbericht) End-to-End nachgerendert und verifiziert: Tabellen- UND alle drei Abbildungs-
 Beschriftungen tragen jetzt korrekt den konfigurierten `"caption"`-Style (`Bijschrift` als
@@ -452,8 +452,8 @@ dagegen gar keinen eingebauten Blockquote-aequivalenten Style, weshalb Pandoc do
 Alternative auf seine generische `"BlockQuote"`-ID zurueckfaellt - weshalb das README/CLAUDE.md-
 Beispiel (`"Zitat ACME": [BlockQuote]`) dort "zufaellig" funktionieren wuerde, aber nie tatsaechlich
 end-to-end gegen echten Blockquote-Content in `template/report.qmd` getestet wurde (nur als
-Illustration in der Doku, nicht in `check_style_map.R`, das ausschliesslich synthetische XML-
-Testfaelle mit frei erfundenen IDs verwendet, oder in `check_writeback.R`, das nur den `Title`-Fall
+Illustration in der Doku, nicht in `check-style-map.R`, das ausschliesslich synthetische XML-
+Testfaelle mit frei erfundenen IDs verwendet, oder in `check-writeback.R`, das nur den `Title`-Fall
 prueft).
 
 **Konsequenz**: die bisherige Doku-Aussage, `style-map`-Quell-IDs seien "Pandocs eigene, stabile,

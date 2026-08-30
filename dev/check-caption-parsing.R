@@ -1,11 +1,11 @@
 ## Unit-Check fuer oq_split_caption_text() (siehe
-## scripts/table_caption_mapping.R) - das numerisch verankerte Parsing von
+## scripts/table-caption-mapping.R) - das numerisch verankerte Parsing von
 ## Pandocs generiertem Tabellen-Beschriftungstext ("Table 1: Mein Titel").
 ## Eigenstaendig ausfuehrbar, ohne vorherigen `quarto render` - reine
-## Funktionslogik, kein Docx-Zugriff. Wie check_option_aliases.R aus
-## template/ heraus aufzurufen (`Rscript ../dev/check_caption_parsing.R`),
+## Funktionslogik, kein Docx-Zugriff. Wie check-option-aliases.R aus
+## template/ heraus aufzurufen (`Rscript ../dev/check-caption-parsing.R`),
 ## damit der relative Pfad zu _extensions/ (Symlink) aufgeht.
-source("_extensions/officequarto/scripts/table_caption_mapping.R")
+source("_extensions/officequarto/scripts/table-caption-mapping.R")
 
 fail <- function(...) {
   cat("FAIL:", sprintf(...), "\n")

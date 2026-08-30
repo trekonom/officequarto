@@ -1,25 +1,25 @@
 ## Kernlogik fuer Gruppe 4 (Abbildungen-Basis) des officedown-Options-Ports:
 ## officequarto.plots.style/align. Wird von writeback.R per source()
 ## eingebunden, keine eigenstaendige Ausfuehrung. Benoetigt: xml2,
-## oq_set_pstyle() aus style_mapping.R (muss vor dieser Datei gesourced
+## oq_set_pstyle() aus style-mapping.R (muss vor dieser Datei gesourced
 ## sein).
 ##
 ## `fig.lp` (officedown) wurde bewusst NICHT portiert - identische
-## Begruendung wie `tab.lp` (siehe table_mapping.R/README): ein
+## Begruendung wie `tab.lp` (siehe table-mapping.R/README): ein
 ## bookdown-Autoren-Syntax-Konzept ohne Entsprechung in Quartos
 ## Post-Render-Architektur.
 ##
 ## `topcaption` (officedown: Beschriftung oben/unten) ist bewusst NICHT Teil
 ## dieser Datei - es ist eine strukturelle Absatz-Umsortierung (Beschriftung
 ## vor/nach der Abbildung), analog zum bewusst zurueckgestellten
-## officequarto.tables.caption.above (siehe table_mapping.R), und soll
+## officequarto.tables.caption.above (siehe table-mapping.R), und soll
 ## gemeinsam fuer Tabellen UND Abbildungen implementiert werden, sobald
 ## Gruppe 5 (Abbildungs-Beschriftungen) steht.
 
 ## Findet alle Abbildungs-Absaetze: ein w:p mit einem w:drawing-Nachfahren -
 ## verlaesslicher als ueber den pStyle-Namen, da Pandoc dafuer denselben
 ## kontextabhaengigen Rollennamen wie fuer Body-Absaetze verwendet (z.B.
-## "Compact", empirisch verifiziert) - siehe style_mapping.R, das
+## "Compact", empirisch verifiziert) - siehe style-mapping.R, das
 ## w:drawing-Absaetze deshalb explizit von der Body-Rollen-Zuordnung
 ## ausnimmt, damit sich die beiden Features nicht um denselben Absatz
 ## streiten.

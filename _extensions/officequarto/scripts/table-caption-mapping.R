@@ -1,11 +1,11 @@
 ## Kernlogik fuer Gruppe 3 (Tabellen-Beschriftungen) des officedown-Options-
 ## Ports: officequarto.tables.caption.style/prefix/separator/number-bold.
 ## oq_apply_captions() (die eigentliche Formatierungslogik) ist generisch und
-## wird von Gruppe 5 (Abbildungs-Beschriftungen, plot_caption_mapping.R)
+## wird von Gruppe 5 (Abbildungs-Beschriftungen, plot-caption-mapping.R)
 ## wiederverwendet - nur oq_find_table_caption_paragraphs() ist
 ## Tabellen-spezifisch. Wird von writeback.R per source() eingebunden, keine
 ## eigenstaendige Ausfuehrung. Benoetigt: xml2, oq_set_pstyle() aus
-## style_mapping.R (muss vor dieser Datei gesourced sein).
+## style-mapping.R (muss vor dieser Datei gesourced sein).
 ##
 ## `tnd`/`tns` (officedown: abschnittsweise Nummerierungstiefe, z.B. "2-1")
 ## wurden bewusst NICHT portiert - Quarto/Pandoc nummeriert Tabellen
@@ -160,7 +160,7 @@ oq_move_caption <- function(caption_p, content_node, above) {
 ## Beschriftung innerhalb derselben Pandoc-Wrapper-Zelle (siehe
 ## oq_table_caption_content()/oq_plot_caption_content()). NA, falls keins
 ## gefunden wird. Fuer Gruppe 9 (officequarto.crossref.numbered, siehe
-## crossref_mapping.R) - dort wird dieser Name als Schluessel benutzt, um
+## crossref-mapping.R) - dort wird dieser Name als Schluessel benutzt, um
 ## einen @tbl-xyz/@fig-xyz-Querverweis auf diese Beschriftung zurueckzufuehren.
 ## Achtung xml2-Eigenheit: w:name wird beim LESEN unpraefigiert als "name"
 ## adressiert (anders als beim SCHREIBEN, wo "w:val" etc. praefigiert sein
@@ -179,7 +179,7 @@ oq_caption_anchor_name <- function(caption_p, ns) {
 ## fuer $above, die Suche nach dem zugehoerigen Inhaltsknoten via
 ## content_finder) unterscheidet sich (oq_find_table_caption_paragraphs()/
 ## oq_table_caption_content() hier bzw. oq_find_plot_caption_paragraphs()/
-## oq_plot_caption_content() in plot_caption_mapping.R fuer Gruppe 5).
+## oq_plot_caption_content() in plot-caption-mapping.R fuer Gruppe 5).
 ## content_finder: function(caption_p, ns) -> Inhaltsknoten oder NA; nur
 ## noetig, wenn caption_options$above gesetzt ist. Nummeriert Beschriftungen
 ## selbst in Dokumentreihenfolge (1-basiert), identisch zu Pandocs Zaehlung -
