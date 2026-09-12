@@ -1,0 +1,206 @@
+# officequarto
+
+Prototype R package + Quarto extension that lets any existing Word
+document be used as the target/template format for Quarto (styles,
+layout, headers/footers are carried over) and, after `quarto render`,
+overwrites the generated `.docx` in place with the document metadata
+carried over from the original — the same basic idea as
+[{officedown}](https://github.com/ardata-fr/officedown). The Quarto
+extension is bundled inside the R package (see
+[Usage](#usage-in-2-steps)); installing the package is the only install
+step.
+
+📖 Full documentation, including package architecture and the complete
+`officequarto.*` option reference:
+<https://trekonom.github.io/officequarto/>
+
+## Usage in 2 steps
+
+officequarto is an R package with the Quarto extension bundled inside it
+(under `inst/`) — there is no separate `quarto add` install step.
+Installing the package is enough; scaffolding a project copies the
+extension in for you.
+
+1.  **Install the R package** (a required runtime dependency, not
+    optional — the extension’s post-render hook calls into it directly):
+
+    ``` r
+
+    pak::pak("trekonom/officequarto")
+    ```
+
+2.  **Scaffold a new project**, pointing at your existing Word document:
+
+    ``` r
+
+    officequarto::oq_create_project("my-report", reference_doc = "original.docx")
+    ```
+
+    This creates `my-report/` with a `_quarto.yml` listing **every**
+    `officequarto` option at its default value
+    (`project: type: officequarto` + `format.docx.reference-doc` already
+    wired up — see
+    [`vignette("options", package = "officequarto")`](https://trekonom.github.io/officequarto/articles/options.md)
+    for what each key does), a copy of `original.docx`, the officequarto
+    extension under `_extensions/officequarto/`, and one starter `.qmd`
+    file — everything needed to render immediately:
+
+    ``` bash
+    cd my-report
+    quarto render
+    ```
+
+    The `*.docx` produced by Quarto/Pandoc is then automatically
+    overwritten in place with the document metadata taken from
+    `original.docx` — no second file is created. If you also want to
+    keep the plain, unpatched Pandoc output for debugging, flip the
+    scaffolded `officequarto.keep-rendered: false` to `true` (see the
+    options vignette).
+
+Prefer to wire an existing project up by hand instead of scaffolding a
+new one? Add `project: type: officequarto` and
+`format.docx.reference-doc: <your .docx>` to its `_quarto.yml` yourself,
+then copy `system.file("_extensions", package = "officequarto")` into
+the project root as `_extensions/officequarto/` — that’s exactly what
+[`oq_create_project()`](https://trekonom.github.io/officequarto/reference/oq_create_project.md)
+automates.
+
+A complete example lives in
+[`template/`](https://trekonom.github.io/officequarto/template/):
+`original.docx` (sample template with its own header/footer/custom
+properties/custom styles) + `report.qmd` + `_quarto.yml`.
+
+## Architecture and configuration
+
+The full writeup of how the package and bundled extension fit together,
+and a complete, field-by-field reference for every `officequarto.*` YAML
+option, live in two vignettes rather than here:
+
+- [`vignette("architecture", package = "officequarto")`](https://trekonom.github.io/officequarto/articles/architecture.md)
+  — package layout, what happens on `quarto render`, and why there’s no
+  manual body write-back step.
+- [`vignette("options", package = "officequarto")`](https://trekonom.github.io/officequarto/articles/options.md)
+  — style-mapping, lists, tables, figures, free-form style-map,
+  footnotes/endnotes, page layout, cross-references, live numbering,
+  style pruning, and the full option-reference table.
+
+Both are also published at
+<https://trekonom.github.io/officequarto/articles/>.
+
+## Requirements
+
+- `quarto` (tested with 1.8.24) and `pandoc` (tested with 3.10.1) in
+  `PATH`
+- `Rscript` in `PATH` — the post-render hook is an R script. If
+  `Rscript` itself is missing, Quarto aborts with its own error message
+  before our script even starts; that can’t be caught from within the
+  script.
+- The **`officequarto` R package itself**, installed
+  (`pak::pak("trekonom/officequarto")`) — a required runtime dependency,
+  not optional. Without it, the post-render hook’s thin shim script
+  fails loudly with an install instruction rather than silently
+  skipping.
+- R packages `xml2` and `jsonlite` (declared `Imports`, installed
+  automatically alongside `officequarto`) — the hook also checks at
+  startup whether both are available and otherwise aborts with a clear
+  message.
+- The command-line tools `zip`/`unzip` in `PATH` (present by default on
+  macOS/Linux)
+
+## Known limitations
+
+- **Only works inside a Quarto project** (`_quarto.yml` present).
+  According to the official Quarto documentation, pre-/post-render
+  scripts are a project-only feature and do not run for
+  `quarto render singlefile.qmd` without a project (see
+  [quarto-dev/quarto-cli#13032](https://github.com/quarto-dev/quarto-cli/issues/13032)).
+- The prototype writes back **document metadata**
+  (subject/keywords/description/category/custom properties), not the
+  body — that’s already correct via `reference-doc`. Bookmark-precise,
+  partial insertion of content into a larger, fixed body of the original
+  (true {officedown}/content-control parity) is a possible future
+  extension, but deliberately out of scope for this prototype.
+- No full {officedown} feature parity (cross-references, special
+  `flextable` handling, table of contents field updates, comments,
+  tracked changes).
+- Round-trip fidelity is inherently limited: if the rendered Pandoc
+  document doesn’t yet know the `docProps/custom.xml` part itself
+  (registered in `[Content_Types].xml`/`_rels/.rels`), simply
+  overwriting that file wouldn’t register it (see `dev/spike-notes.md`).
+- The hook overwrites the rendered `.docx` in place. If the file is open
+  in another program at that point (e.g. Word), the overwrite can fail,
+  or the program may keep showing the old state until manually reloaded.
+- Style-mapping’s body-role detection (`officequarto.styles.body`)
+  relies on an allowlist of known Pandoc role names and will never match
+  footnote/endnote text (structural, not an implementation gap — see the
+  “Footnotes and endnotes” section of
+  [`vignette("options")`](https://trekonom.github.io/officequarto/articles/options.md));
+  a reference-doc that makes Pandoc render *body* text under a
+  not-yet-listed role name also won’t be recognized.
+- `word/comments.xml` is not reached by any style-mapping mechanism
+  (only read for style-pruning reference counting).
+- Style pruning is unconditional: if content actually uses a
+  Pandoc-added style your `reference-doc` doesn’t define (typically
+  syntax-highlighted code blocks, or Pandoc’s own body/list role names
+  when `officequarto.styles`/`officequarto.lists` isn’t configured for
+  that role), that style definition is still removed and the content
+  falls back to Word’s default formatting — see the “Style pruning”
+  section of
+  [`vignette("options")`](https://trekonom.github.io/officequarto/articles/options.md).
+- `officequarto.crossref.auto-number`’s `SEQ`/`REF` field construction
+  is only verified to be structurally correct (right XML shape); it
+  hasn’t been independently verified to render correctly in every Word
+  version. The `SEQ` sequence identifier (`Table`/`Figure`) is fixed,
+  not user-configurable.
+
+## Development / tests
+
+officequarto is a real R package — the pure-logic unit tests run through
+testthat/`R CMD check` like any other package:
+
+``` r
+
+devtools::document()   # (re-)generate NAMESPACE/man after any roxygen change
+devtools::test()       # runs every tests/testthat/test-*.R
+devtools::check()      # full R CMD check
+```
+
+Two checks stay outside that automatic suite, since they need a live
+`quarto render` against a real `.docx` and the external `quarto` CLI
+(not appropriate for `R CMD check`, which must run in a clean, offline
+environment):
+
+``` bash
+Rscript -e 'devtools::document(quiet = TRUE); devtools::install(quiet = TRUE, upgrade = FALSE)'
+cd template
+quarto render report.qmd
+Rscript ../dev/check-writeback.R   # checks header/footer/body/metadata/style-mapping/pruning of the result
+```
+
+`officequarto.crossref.auto-number` also has a dedicated end-to-end
+fixture, kept separate from `template/` since `template/_quarto.yml`
+sets `crossref.numbered: false` (mutually exclusive with `auto-number`
+by design):
+
+``` bash
+cd dev/fixtures/auto-number
+quarto render report.qmd
+Rscript ../../check-auto-number-e2e.R
+```
+
+Editing any file under `R/` requires reinstalling the package
+(`devtools::install()`, see above) before the next `quarto render` picks
+up the change — unlike `template/report.qmd`, which is a plain Quarto
+document rendered fresh every time.
+
+`dev/make-sample-docx.R` regenerates the sample template
+`template/original.docx`, including the ACME custom styles used for
+style-mapping (requires the R packages `officer` and `xml2`, only for
+generating the sample template, not for the hook itself).
+
+Building the pkgdown site locally (e.g. to preview vignette changes):
+
+``` r
+
+pkgdown::build_site()
+```
