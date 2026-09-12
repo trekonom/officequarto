@@ -1,6 +1,6 @@
 ## Kernlogik fuer das konfigurierbare Style-Mapping (Body/Listen).
-## Wird von writeback.R per source() eingebunden, keine eigenstaendige
-## Ausfuehrung. Benoetigt: xml2 (bereits von writeback.R geprueft).
+## Teil des officequarto R-Pakets - von oq_writeback() (R/writeback.R)
+## verwendet, keine eigenstaendige Ausfuehrung. Benoetigt: xml2.
 ##
 ## Hintergrund: Pandoc verwendet fuer Body- und Listen-Absaetze KEINE einzige
 ## feste Style-ID, sondern je nach reference-doc/Kontext eine von mehreren
@@ -11,11 +11,13 @@
 ## (w:numFmt), nicht im pStyle-Namen. Deshalb: Listen-Absaetze werden ueber
 ## numPr erkannt, Body-Absaetze ueber eine Allowlist bekannter Pandoc-Rollen.
 
+#' @noRd
 officequarto_body_role_styles <- c("Normal", "FirstParagraph", "Compact", "BodyText", "Body Text")
 
 ## styles.xml (xml2-Dokument) -> Named Character Vector: Anzeigename -> styleId.
 ## type ist der OOXML-Style-Typ ("paragraph" fuer Body/Listen/Codeblock-Styles,
 ## "table" fuer Tabellen-Styles, siehe table-mapping.R).
+#' @noRd
 oq_style_name_to_id <- function(styles_doc, type = "paragraph") {
   ns <- xml2::xml_ns(styles_doc)
   nodes <- xml2::xml_find_all(styles_doc, sprintf("//w:style[@w:type='%s']", type), ns)
@@ -28,6 +30,7 @@ oq_style_name_to_id <- function(styles_doc, type = "paragraph") {
 ## Bricht mit einer Liste verfuegbarer Namen ab, wenn nicht gefunden. `key` ist
 ## der volle Konfigurationspfad fuer die Fehlermeldung (z.B.
 ## "officequarto.styles.body" oder "officequarto.pandoc-styles.code-block").
+#' @noRd
 oq_resolve_style_id <- function(name_to_id, display_name, key, fail_fn) {
   if (display_name %in% names(name_to_id)) {
     return(unname(name_to_id[[display_name]]))
@@ -43,6 +46,7 @@ oq_resolve_style_id <- function(name_to_id, display_name, key, fail_fn) {
 ## (officequarto.lists.list-bullet/list-number/list-letter als Array statt
 ## Skalar - Index 0 = oberste Ebene). Ein skalarer Aufruf (Vektor der Laenge 1)
 ## verhaelt sich identisch zu einem direkten oq_resolve_style_id()-Aufruf.
+#' @noRd
 oq_resolve_style_ids <- function(name_to_id, display_names, key, fail_fn) {
   if (length(display_names) == 0) {
     fail_fn("%s: leeres Array - mindestens ein Style-Name wird benoetigt.", key)
@@ -56,6 +60,7 @@ oq_resolve_style_ids <- function(name_to_id, display_names, key, fail_fn) {
 ## fuer Styles, die selbst eine Nummerierung mitbringen (w:pPr/w:numPr in der
 ## Style-Definition - typischerweise per w:numStyleLink an eine eigene
 ## Nummerierungs-Style-Definition gekoppelt, siehe oq_apply_style_mapping).
+#' @noRd
 oq_style_num_id <- function(styles_doc) {
   ns <- xml2::xml_ns(styles_doc)
   nodes <- xml2::xml_find_all(
@@ -74,6 +79,7 @@ oq_style_num_id <- function(styles_doc) {
 ## abstractNum traegt an allen 9 w:lvl-Eintraegen denselben w:numFmt. Ein
 ## numId mit unterschiedlichem numFmt je Ebene kommt bei Pandoc-erzeugten
 ## Listen nicht vor.
+#' @noRd
 oq_num_fmt_map <- function(numbering_doc) {
   ns <- xml2::xml_ns(numbering_doc)
   abstract_nodes <- xml2::xml_find_all(numbering_doc, "//w:abstractNum", ns)
@@ -96,12 +102,14 @@ oq_num_fmt_map <- function(numbering_doc) {
 ## eigener Bucket, getrennt von "alles andere, nicht Bullet" (= list_number:
 ## decimal, roman etc.). Kein officedown-Aequivalent, officequarto-eigene
 ## Option ohne Alias.
+#' @noRd
 officequarto_letter_num_fmts <- c("lowerLetter", "upperLetter")
 
 ## Absatz -> Verschachtelungsebene (0-basiert, aus w:pPr/w:numPr/w:ilvl). Bei
 ## Pandoc-erzeugten Listen ist w:ilvl an jedem Listen-Absatz explizit gesetzt
 ## (verifiziert, Spike O) - der Default 0 bei fehlendem Element ist trotzdem
 ## ECMA-376-konform und eine sinnvolle Absicherung fuer andere Quellen.
+#' @noRd
 oq_paragraph_ilvl <- function(p, ns) {
   ilvl_node <- xml2::xml_find_first(p, "./w:pPr/w:numPr/w:ilvl", ns)
   if (is.na(ilvl_node)) 0L else as.integer(xml2::xml_attr(ilvl_node, "val"))
@@ -115,6 +123,7 @@ oq_paragraph_ilvl <- function(p, ns) {
 ## Ebene, tiefer verschachtelte Absaetze nutzen visuell weiterhin diese). Ein
 ## Vektor der Laenge 1 ("skalare" Konfiguration) liefert immer denselben Wert,
 ## unabhaengig von der Ebene - kein separater Skalar-Codepfad noetig.
+#' @noRd
 oq_style_for_level <- function(styles, ilvl) {
   idx <- min(ilvl + 1L, length(styles))
   styles[[idx]]
@@ -134,6 +143,7 @@ oq_style_for_level <- function(styles, ilvl) {
 ## "endnote". Wird sowohl von oq_apply_style_mapping() hier als auch von
 ## oq_apply_style_map() (style-map.R) als paragraph_xpath verwendet (siehe
 ## writeback.R, Issue #2 "Footnote/endnote paragraph styling").
+#' @noRd
 oq_note_paragraph_xpath <- function(container) {
   excl <- "not(@w:type='separator' or @w:type='continuationSeparator')"
   sprintf("//w:%1$s[%2$s]/w:p | //w:%1$s[%2$s]//w:tbl//w:p", container, excl)
@@ -163,6 +173,7 @@ oq_note_paragraph_xpath <- function(container) {
 ## Fuss-/Endnote selbst eine Liste oder einen Codeblock enthaelt - deshalb ist
 ## es sicher, diese Funktion unveraendert auch gegen footnotes.xml/
 ## endnotes.xml laufen zu lassen.
+#' @noRd
 oq_apply_style_mapping <- function(document_doc, num_fmt_map, style_ids, style_num_id,
                                     paragraph_xpath = "//w:body/w:p | //w:body//w:tbl//w:p") {
   ns <- xml2::xml_ns(document_doc)
@@ -237,6 +248,7 @@ oq_apply_style_mapping <- function(document_doc, num_fmt_map, style_ids, style_n
 }
 
 ## Setzt (oder erzeugt) das w:pStyle-Element eines Absatzes auf die gegebene styleId.
+#' @noRd
 oq_set_pstyle <- function(p, ns, style_id) {
   pstyle_node <- xml2::xml_find_first(p, "./w:pPr/w:pStyle", ns)
   if (!is.na(pstyle_node)) {

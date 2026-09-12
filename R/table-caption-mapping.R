@@ -3,9 +3,10 @@
 ## oq_apply_captions() (die eigentliche Formatierungslogik) ist generisch und
 ## wird von Gruppe 5 (Abbildungs-Beschriftungen, plot-caption-mapping.R)
 ## wiederverwendet - nur oq_find_table_caption_paragraphs() ist
-## Tabellen-spezifisch. Wird von writeback.R per source() eingebunden, keine
-## eigenstaendige Ausfuehrung. Benoetigt: xml2, oq_set_pstyle() aus
-## style-mapping.R (muss vor dieser Datei gesourced sein).
+## Tabellen-spezifisch. Teil des officequarto R-Pakets - von oq_writeback()
+## (R/writeback.R) verwendet, keine eigenstaendige Ausfuehrung. Benoetigt:
+## xml2, oq_set_pstyle() aus style-mapping.R (im selben Package-Namespace,
+## keine explizite Ladereihenfolge noetig).
 ##
 ## `tnd`/`tns` (officedown: abschnittsweise Nummerierungstiefe, z.B. "2-1")
 ## wurden bewusst NICHT portiert - Quarto/Pandoc nummeriert Tabellen
@@ -66,6 +67,7 @@
 ## das gilt gleichermassen fuer den Wrapper- wie den Nicht-Wrapper-Fall
 ## (Pandocs Standardposition ist in beiden Faellen "Beschriftung vor der
 ## Tabelle").
+#' @noRd
 oq_find_table_caption_paragraphs <- function(document_doc, ns) {
   xml2::xml_find_all(
     document_doc,
@@ -80,6 +82,7 @@ oq_find_table_caption_paragraphs <- function(document_doc, ns) {
 ## Fall, siehe oq_find_table_caption_paragraphs()) - fuer
 ## oq_apply_captions()s $above-Handling (siehe dort). NA, falls keine direkt
 ## folgende Tabelle existiert (z.B. bei einem atypischen Dokument).
+#' @noRd
 oq_table_caption_content <- function(caption_p, ns) {
   xml2::xml_find_first(caption_p, "./following-sibling::*[1][self::w:tbl]", ns)
 }
@@ -93,6 +96,7 @@ oq_table_caption_content <- function(caption_p, ns) {
 ## wurde (z.B. weil die Beschriftung nicht Pandocs generiertem Format
 ## entspricht) - der Aufrufer laesst den Text dann unveraendert statt etwas
 ## Falsches zu raten.
+#' @noRd
 oq_split_caption_text <- function(text, expected_number) {
   pattern <- paste0(
     "^(.*?)(?<![\\p{L}\\p{N}])(", expected_number, ")(?![\\p{L}\\p{N}])([^\\p{L}\\p{N}]*)"
@@ -120,6 +124,7 @@ oq_split_caption_text <- function(text, expected_number) {
 ## ueberschreiben). Etwaige weitere, bereits vorhandene Laeufe danach (z.B.
 ## Inline-Formatierung im vom Menschen verfassten Beschriftungstext) bleiben
 ## unangetastet - sie folgen strukturell korrekt nach dem neuen zweiten Lauf.
+#' @noRd
 oq_write_caption_run <- function(first_run, t_node, ns, pre, number, sep, rest, number_bold) {
   if (is.null(number_bold)) {
     xml2::xml_text(t_node) <- paste0(pre, number, sep, rest)
@@ -157,6 +162,7 @@ oq_write_caption_run <- function(first_run, t_node, ns, pre, number, sep, rest, 
 ## Funktioniert unabhaengig von der bisherigen Position (kein Vorab-Check
 ## noetig, da idempotent: eine bereits korrekt positionierte Beschriftung
 ## landet nach copy+remove unveraendert an derselben Stelle).
+#' @noRd
 oq_move_caption <- function(caption_p, content_node, above) {
   where <- if (isTRUE(above)) "before" else "after"
   xml2::xml_add_sibling(content_node, caption_p, .where = where, copy = TRUE)
@@ -189,6 +195,7 @@ oq_move_caption <- function(caption_p, content_node, above) {
 ## Achtung xml2-Eigenheit: w:name wird beim LESEN unpraefigiert als "name"
 ## adressiert (anders als beim SCHREIBEN, wo "w:val" etc. praefigiert sein
 ## muss - siehe CLAUDE.md) - empirisch verifiziert.
+#' @noRd
 oq_caption_anchor_name <- function(caption_p, ns) {
   parent <- xml2::xml_parent(caption_p)
   if (!identical(xml2::xml_name(parent), "tc")) return(NA_character_)
@@ -222,6 +229,7 @@ oq_caption_anchor_name <- function(caption_p, ns) {
 ## in der Pandoc ein Beschriftungs-Bookmark tatsaechlich anlegt) ueberhaupt
 ## als Kandidat in Frage kommen. Gibt NULL zurueck, wenn das Elternelement
 ## keine Wrapper-Zelle ist oder kein Bookmark gefunden wird.
+#' @noRd
 oq_find_caption_bookmark <- function(caption_p, ns) {
   parent <- xml2::xml_parent(caption_p)
   if (!identical(xml2::xml_name(parent), "tc")) return(NULL)
@@ -242,6 +250,7 @@ oq_find_caption_bookmark <- function(caption_p, ns) {
 ## crossref-mapping.R (REF-Feld, immer mit number_bold = NULL, d.h. reines
 ## rPr-Klonen ohne Fett-Override) verwendet. Legt kein w:rPr-Kind an, wenn
 ## weder orig_rpr vorhanden noch number_bold gesetzt ist.
+#' @noRd
 oq_clone_rpr_with_bold <- function(run, orig_rpr, ns, number_bold = NULL) {
   if (!is.na(orig_rpr)) {
     rpr <- xml2::xml_add_child(run, orig_rpr, .where = 0)
@@ -295,6 +304,7 @@ oq_clone_rpr_with_bold <- function(run, orig_rpr, ns, number_bold = NULL) {
 ## "nicht raten"-Philosophie wie beim matched=FALSE-Fall. Nur aufgerufen, wenn
 ## caption_options$auto_number TRUE ist UND split$matched TRUE ist (siehe
 ## oq_apply_captions()).
+#' @noRd
 oq_convert_caption_to_field <- function(caption_p, ns, first_run, split, seq_id, caption_options) {
   bookmark <- oq_find_caption_bookmark(caption_p, ns)
   if (is.null(bookmark)) return(NA_character_)
@@ -437,6 +447,7 @@ oq_convert_caption_to_field <- function(caption_p, ns, first_run, split, seq_id,
 ## konfiguriert sind (needs_text_rewrite) - eine fehlgeschlagene
 ## Feld-Umwandlung soll nicht bedeuten, dass die Beschriftung komplett
 ## unangetastet bleibt.
+#' @noRd
 oq_apply_captions <- function(document_doc, captions, caption_options, content_finder = NULL, seq_id = NULL) {
   ns <- xml2::xml_ns(document_doc)
 

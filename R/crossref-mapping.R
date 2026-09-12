@@ -1,7 +1,7 @@
 ## Kernlogik fuer Gruppe 9 (Querverweis-Nummerierung) des officedown-
 ## Options-Ports: officequarto.crossref.numbered (officedown:
-## reference_num). Wird von writeback.R per source() eingebunden, keine
-## eigenstaendige Ausfuehrung. Benoetigt: xml2.
+## reference_num). Teil des officequarto R-Pakets - von oq_writeback() (R/writeback.R)
+## verwendet, keine eigenstaendige Ausfuehrung. Benoetigt: xml2.
 ##
 ## officedown/bookdown zeigt Querverweise standardmaessig als Nummer
 ## ("Table 1"). `numbered: false` zeigt stattdessen den Beschriftungstext
@@ -28,6 +28,7 @@
 ## generierte Crossref-Hyperlinks sind typischerweise ein einzelner Lauf;
 ## mehrere Laeufe werden hier defensiv behandelt, nicht als erwarteter
 ## Regelfall). Gibt die Anzahl ersetzter Hyperlinks zurueck.
+#' @noRd
 oq_apply_crossref_text <- function(document_doc, anchor_text) {
   if (length(anchor_text) == 0) return(0L)
   ns <- xml2::xml_ns(document_doc)
@@ -83,6 +84,7 @@ oq_apply_crossref_text <- function(document_doc, anchor_text) {
 ## Lauf (atypisches Dokument) bleibt unangetastet, dieselbe defensive
 ## Behandlung wie in oq_apply_crossref_text(). Gibt die Anzahl umgewandelter
 ## Hyperlinks zurueck.
+#' @noRd
 oq_apply_crossref_fields <- function(document_doc, converted_anchors) {
   if (length(converted_anchors) == 0) return(0L)
   ns <- xml2::xml_ns(document_doc)

@@ -1,0 +1,25 @@
+Package: officequarto
+Title: Word Style, Table, Figure, and Metadata Write-Back for Quarto DOCX Output
+Version: 2.0.0
+Authors@R: person("trekonom", role = c("aut", "cre"), email = "moogs@gmx.de")
+Description: Provides the officequarto Quarto extension (bundled under
+    inst/_extensions) and its post-render write-back hook: applies
+    user-configured paragraph/table/figure style mapping, table and figure
+    caption formatting, page layout, free-form style-map, and cross-reference
+    options to a rendered .docx, and prunes styles Pandoc added but that are
+    absent from the reference document. Also provides
+    create_officequarto_project() to scaffold a new project with the
+    extension and a reference document already in place.
+License: GPL-3
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+Imports:
+    xml2,
+    jsonlite,
+    stats,
+    tools
+Suggests:
+    testthat (>= 3.0.0),
+    rstudioapi
+Config/testthat/edition: 3
+Config/roxygen2/version: 8.0.0

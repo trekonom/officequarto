@@ -1,8 +1,8 @@
 ## Aufloesung von Konfigurationsoptionen, die sowohl unter ihrem canonical
 ## (neuen, sprechenden) Namen als auch unter einem alten officedown-Alias
 ## gesetzt sein koennen (Namenskonvention siehe README, Abschnitt
-## "Option reference"). Wird von writeback.R per source() eingebunden, keine
-## eigenstaendige Ausfuehrung.
+## "Option reference"). Teil des officequarto R-Pakets - von oq_writeback() (R/writeback.R)
+## verwendet, keine eigenstaendige Ausfuehrung.
 
 ## config: benannte Liste (z.B. der Wert von format.docx.officequarto.tables).
 ## canonical_key/alias_key: die beiden moeglichen Schluessel in config.
@@ -19,6 +19,7 @@
 ## gesetzt und identisch, gibt es keine Warnung. Ist nur einer von beiden
 ## gesetzt, wird dessen Wert verwendet. Ist keiner gesetzt, wird NULL
 ## zurueckgegeben.
+#' @noRd
 oq_resolve_aliased <- function(config, canonical_key, alias_key, group_label, warn_fn) {
   canonical_val <- config[[canonical_key]]
   alias_val <- config[[alias_key]]
@@ -46,6 +47,7 @@ oq_resolve_aliased <- function(config, canonical_key, alias_key, group_label, wa
 ## Wiederholung von oq_resolve_aliased()-Aufrufen zu vermeiden. config darf
 ## NULL sein (dann ist jedes Feld NULL, wie oq_resolve_aliased() das auch
 ## einzeln handhaben wuerde).
+#' @noRd
 oq_resolve_fields <- function(config, fields, group_label, warn_fn) {
   stats::setNames(
     lapply(names(fields), function(canonical) {
@@ -65,6 +67,7 @@ oq_resolve_fields <- function(config, fields, group_label, warn_fn) {
 ## vergleicht - bei entgegengesetzter Polaritaet waere das irrefuehrend
 ## (unterschiedliche Rohwerte koennten trotzdem dieselbe Absicht ausdruecken
 ## oder umgekehrt). Der Alias-Wert wird deshalb vor dem Vergleich negiert.
+#' @noRd
 oq_resolve_inverted_aliased <- function(config, canonical_key, alias_key, group_label, warn_fn) {
   canonical_val <- config[[canonical_key]]
   alias_raw <- config[[alias_key]]

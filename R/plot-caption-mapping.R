@@ -4,10 +4,11 @@
 ## Gruppe 3 (Tabellen-Beschriftungen) und lebt deshalb gemeinsam in
 ## table-caption-mapping.R (oq_apply_captions()/oq_split_caption_text()/
 ## oq_write_caption_run()) - diese Datei traegt nur die
-## Abbildungs-spezifische Erkennung bei. Wird von writeback.R per source()
-## eingebunden, keine eigenstaendige Ausfuehrung. Benoetigt: xml2 sowie
-## oq_apply_captions() aus table-caption-mapping.R (muss vor dieser Datei
-## gesourced sein).
+## Abbildungs-spezifische Erkennung bei. Teil des officequarto R-Pakets -
+## von oq_writeback() (R/writeback.R) verwendet, keine eigenstaendige
+## Ausfuehrung. Benoetigt: xml2 sowie oq_apply_captions() aus
+## table-caption-mapping.R (im selben Package-Namespace, keine explizite
+## Ladereihenfolge noetig).
 ##
 ## `tnd`/`tns` wurden aus identischem Grund wie bei Gruppe 3 NICHT portiert
 ## (siehe table-caption-mapping.R/README): Quarto/Pandoc nummeriert
@@ -26,6 +27,7 @@
 ## dadurch entstandenen realen Bug, wenn Abbildungs- und Tabellen-
 ## Beschriftungen im selben Dokumentkoerper als Geschwister neben
 ## unabhaengigen Tabellen liegen).
+#' @noRd
 oq_find_plot_caption_paragraphs <- function(document_doc, ns) {
   xml2::xml_find_all(
     document_doc,
@@ -39,6 +41,7 @@ oq_find_plot_caption_paragraphs <- function(document_doc, ns) {
 ## oq_find_plot_caption_paragraphs()) - fuer oq_apply_captions()s
 ## $above-Handling (siehe table-caption-mapping.R). NA, falls kein
 ## unmittelbar vorangehender Bild-Absatz existiert.
+#' @noRd
 oq_plot_caption_content <- function(caption_p, ns) {
   xml2::xml_find_first(caption_p, "./preceding-sibling::*[1][.//w:drawing]", ns)
 }

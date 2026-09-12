@@ -17,7 +17,11 @@
 ## officequarto.keep-rendered behaltene Debug-Artefakt den ungepatchten
 ## Zustand zeigt.
 library(xml2)
-source("_extensions/officequarto/scripts/style-pruning.R")  # fuer oq_is_pandoc_code_style_id
+library(officequarto)
+## oq_is_pandoc_code_style_id() ist intern/nicht exportiert (siehe
+## R/style-pruning.R) - :::-Zugriff, da dieses Skript ausserhalb des
+## Package-Namespace als eigenstaendiges Rscript laeuft.
+oq_is_pandoc_code_style_id <- officequarto:::oq_is_pandoc_code_style_id
 
 fail <- function(...) {
   cat("FAIL:", sprintf(...), "\n")

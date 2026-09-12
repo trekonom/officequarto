@@ -1,9 +1,10 @@
 ## Kernlogik fuer Gruppe 1 (Tabellen-Basis: style/layout/width) und Gruppe 2
 ## (Tabellen-Conditional-Formatting: officequarto.tables.conditional.*) des
-## officedown-Options-Ports. Wird von writeback.R per source() eingebunden,
-## keine eigenstaendige Ausfuehrung. Benoetigt: xml2 (bereits von writeback.R
-## geprueft) sowie oq_resolve_aliased()/oq_resolve_inverted_aliased() aus
-## option-aliases.R (muss vor dieser Datei gesourced sein).
+## officedown-Options-Ports. Teil des officequarto R-Pakets - von
+## oq_writeback() (R/writeback.R) verwendet, keine eigenstaendige
+## Ausfuehrung. Benoetigt: xml2 sowie
+## oq_resolve_aliased()/oq_resolve_inverted_aliased() aus option-aliases.R
+## (im selben Package-Namespace, keine explizite Ladereihenfolge noetig).
 ##
 ## `caption-above` (officedown: topcaption) ist bewusst NICHT Teil dieser
 ## Datei - es hat erst mit echten Tabellen-Beschriftungen (Gruppe 3) einen
@@ -22,6 +23,7 @@
 ## ein neu erzeugtes w:tblLayout landet damit sonst hinter Pandocs eigenem
 ## w:tblLook, was nicht der Schema-Reihenfolge entspricht (Word selbst ist
 ## tolerant, aber eine schema-konforme Reihenfolge ist sauberer/portabler).
+#' @noRd
 officequarto_tblpr_order <- c(
   "tblStyle", "tblpPr", "tblOverlap", "bidiVisual", "tblStyleRowBandSize",
   "tblStyleColBandSize", "tblW", "jc", "tblCellSpacing", "tblInd",
@@ -33,6 +35,7 @@ officequarto_tblpr_order <- c(
 ## laut officequarto_tblpr_order korrekten Position ein (vor dem ersten
 ## bereits vorhandenen Geschwister-Element, das in der Reihenfolge spaeter
 ## kommt, sonst am Ende) und gibt den neuen Knoten zurueck.
+#' @noRd
 oq_add_tbl_pr_child <- function(tbl_pr, tag_local) {
   tag_pos <- match(tag_local, officequarto_tblpr_order)
   existing <- xml2::xml_children(tbl_pr)
@@ -43,6 +46,7 @@ oq_add_tbl_pr_child <- function(tbl_pr, tag_local) {
 }
 
 ## Setzt (oder erzeugt) das w:tblStyle-Kind-Element von w:tblPr.
+#' @noRd
 oq_set_tbl_style <- function(tbl_pr, ns, style_id) {
   node <- xml2::xml_find_first(tbl_pr, "./w:tblStyle", ns)
   if (is.na(node)) {
@@ -54,6 +58,7 @@ oq_set_tbl_style <- function(tbl_pr, ns, style_id) {
 
 ## Setzt (oder erzeugt) das w:tblLayout-Kind-Element von w:tblPr. layout ist
 ## bereits der validierte OOXML-Wert ("autofit"/"fixed").
+#' @noRd
 oq_set_tbl_layout <- function(tbl_pr, ns, layout) {
   node <- xml2::xml_find_first(tbl_pr, "./w:tblLayout", ns)
   if (is.na(node)) {
@@ -66,6 +71,7 @@ oq_set_tbl_layout <- function(tbl_pr, ns, layout) {
 ## Setzt (oder erzeugt) das w:tblW-Kind-Element von w:tblPr. width_fraction
 ## ist relativ zur Seitenbreite (0..1, wie bei officedown); OOXML erwartet bei
 ## w:type="pct" den Wert in Fuenfzigstel-Prozent (100% Seitenbreite = 5000).
+#' @noRd
 oq_set_tbl_width <- function(tbl_pr, ns, width_fraction) {
   node <- xml2::xml_find_first(tbl_pr, "./w:tblW", ns)
   if (is.na(node)) {
@@ -83,6 +89,7 @@ oq_set_tbl_width <- function(tbl_pr, ns, width_fraction) {
 ## Invertierung passiert hier beim Schreiben, nicht schon bei der
 ## Options-Aufloesung (die haelt canonical Werte in ihrer eigenen, positiven
 ## Polaritaet, siehe oq_resolve_inverted_aliased() in option-aliases.R).
+#' @noRd
 officequarto_tbllook_attrs <- list(
   `first-row`    = list(attr = "firstRow",    invert = FALSE),
   `first-column` = list(attr = "firstColumn", invert = FALSE),
@@ -96,6 +103,7 @@ officequarto_tbllook_attrs <- list(
 ## conditional_options gesetzten Felder (Namen wie in
 ## officequarto_tbllook_attrs, jeweils TRUE/FALSE oder NULL/fehlend fuer
 ## "nicht konfiguriert, unveraendert lassen").
+#' @noRd
 oq_set_tbl_look <- function(tbl_pr, ns, conditional_options) {
   node <- xml2::xml_find_first(tbl_pr, "./w:tblLook", ns)
   if (is.na(node)) {
@@ -117,6 +125,7 @@ oq_set_tbl_look <- function(tbl_pr, ns, conditional_options) {
 ## Ergebnis als einzelnen TRUE/FALSE-Wert (fail-loud, Konsistenz mit
 ## layout/width in Gruppe 1). key_path ist der volle Konfigurationspfad fuer
 ## die Fehlermeldung.
+#' @noRd
 oq_resolve_table_bool_option <- function(config, canonical_key, alias_key, invert, key_path, warn_fn, fail_fn) {
   resolved <- if (invert) {
     oq_resolve_inverted_aliased(config, canonical_key, alias_key, "officequarto.tables.conditional", warn_fn)
@@ -135,6 +144,7 @@ oq_resolve_table_bool_option <- function(config, canonical_key, alias_key, inver
 ## oq_resolve_table_bool_option() befuellt (Namen aus
 ## officequarto_tbllook_attrs). Gibt die Anzahl der bearbeiteten Tabellen
 ## zurueck.
+#' @noRd
 oq_apply_table_options <- function(document_doc, table_options) {
   ns <- xml2::xml_ns(document_doc)
   ## Schliesst Pandocs synthetische Wrapper-Tabelle aus: bei beschrifteten

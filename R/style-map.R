@@ -1,8 +1,9 @@
 ## Kernlogik fuer Gruppe 7 (freies Style-Mapping) des officedown-Options-
-## Ports: officequarto.style-map (officedown: mapstyles). Wird von
-## writeback.R per source() eingebunden, keine eigenstaendige Ausfuehrung.
-## Benoetigt: xml2, oq_resolve_style_id()/oq_set_pstyle() aus
-## style-mapping.R (muss vor dieser Datei gesourced sein).
+## Ports: officequarto.style-map (officedown: mapstyles). Teil des
+## officequarto R-Pakets - von oq_writeback() (R/writeback.R) verwendet,
+## keine eigenstaendige Ausfuehrung. Benoetigt: xml2,
+## oq_resolve_style_id()/oq_set_pstyle() aus style-mapping.R (im selben
+## Package-Namespace, keine explizite Ladereihenfolge noetig).
 ##
 ## Anders als officequarto.styles/.tables/.plots (feste, kuratierte Rollen
 ## mit Pandoc-spezifischer Erkennungslogik: numPr fuer Listen, w:drawing fuer
@@ -34,6 +35,7 @@
 ## Ziel-styleId auf. Bricht (ueber fail_fn) ab, wenn ein Ziel-Style-Name
 ## nicht in reference-doc existiert, oder eine Quell-pStyle-ID mehreren
 ## Zielen zugeordnet wird (mehrdeutig).
+#' @noRd
 oq_resolve_style_map <- function(style_map_config, name_to_id, fail_fn) {
   source_to_target <- character(0)
   for (target_name in names(style_map_config)) {
@@ -69,6 +71,7 @@ oq_resolve_style_map <- function(style_map_config, name_to_id, fail_fn) {
 ## der Parameter statt einfacher Wiederverwendung des Defaults. Absaetze ohne
 ## pStyle gelten als "Normal" (wie ueberall sonst in diesem Projekt). Gibt die
 ## Anzahl umgemappter Absaetze zurueck.
+#' @noRd
 oq_apply_style_map <- function(document_doc, source_to_target, paragraph_xpath = "//w:p") {
   if (length(source_to_target) == 0) return(0L)
   ns <- xml2::xml_ns(document_doc)

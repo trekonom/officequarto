@@ -1,8 +1,8 @@
 ## Kernlogik fuer Gruppe 4 (Abbildungen-Basis) des officedown-Options-Ports:
-## officequarto.plots.style/align. Wird von writeback.R per source()
-## eingebunden, keine eigenstaendige Ausfuehrung. Benoetigt: xml2,
-## oq_set_pstyle() aus style-mapping.R (muss vor dieser Datei gesourced
-## sein).
+## officequarto.plots.style/align. Teil des officequarto R-Pakets - von
+## oq_writeback() (R/writeback.R) verwendet, keine eigenstaendige
+## Ausfuehrung. Benoetigt: xml2, oq_set_pstyle() aus style-mapping.R (im
+## selben Package-Namespace, keine explizite Ladereihenfolge noetig).
 ##
 ## `fig.lp` (officedown) wurde bewusst NICHT portiert - identische
 ## Begruendung wie `tab.lp` (siehe table-mapping.R/README): ein
@@ -23,12 +23,14 @@
 ## w:drawing-Absaetze deshalb explizit von der Body-Rollen-Zuordnung
 ## ausnimmt, damit sich die beiden Features nicht um denselben Absatz
 ## streiten.
+#' @noRd
 oq_find_plot_paragraphs <- function(document_doc, ns) {
   xml2::xml_find_all(document_doc, "//w:p[.//w:drawing]", ns)
 }
 
 ## Setzt (oder erzeugt) w:jc (Absatz-Ausrichtung) eines Absatzes. align ist
 ## bereits der validierte OOXML-Wert ("left"/"center"/"right").
+#' @noRd
 oq_set_paragraph_align <- function(p, ns, align) {
   ppr <- xml2::xml_find_first(p, "./w:pPr", ns)
   if (is.na(ppr)) {
@@ -45,6 +47,7 @@ oq_set_paragraph_align <- function(p, ns, align) {
 ## Wendet plot_options ($style/$align, jeweils optional) auf jeden
 ## Abbildungs-Absatz an (in-place via xml2-Referenzsemantik). Gibt die Anzahl
 ## bearbeiteter Absaetze zurueck.
+#' @noRd
 oq_apply_plot_options <- function(document_doc, plot_options) {
   ns <- xml2::xml_ns(document_doc)
   paragraphs <- oq_find_plot_paragraphs(document_doc, ns)

@@ -1,8 +1,8 @@
 ## Kernlogik fuer Gruppe 8 (Seitenlayout) des officedown-Options-Ports:
 ## officequarto.page.size.{width,height,orientation}/
-## margins.{top,bottom,left,right,header,footer,gutter}. Wird von
-## writeback.R per source() eingebunden, keine eigenstaendige Ausfuehrung.
-## Benoetigt: xml2.
+## margins.{top,bottom,left,right,header,footer,gutter}. Teil des
+## officequarto R-Pakets - von oq_writeback() (R/writeback.R) verwendet,
+## keine eigenstaendige Ausfuehrung. Benoetigt: xml2.
 ##
 ## Anders als alle bisherigen Gruppen betrifft dies nicht Absatz-/
 ## Tabellen-Styles, sondern Section Properties (w:sectPr/w:pgSz/w:pgMar) -
@@ -20,6 +20,7 @@
 ## in Twips umgerechnet (1 Zoll = 1440 Twips, die von w:pgSz/w:pgMar
 ## erwartete OOXML-Einheit).
 
+#' @noRd
 officequarto_twips_per_inch <- 1440
 
 ## Setzt (oder erzeugt) w:pgSz-Attribute (w:w/w:h/w:orient) einer w:sectPr.
@@ -27,6 +28,7 @@ officequarto_twips_per_inch <- 1440
 ## ("portrait"/"landscape", bereits validiert). Kein automatisches
 ## Vertauschen von Breite/Hoehe bei orientation: landscape - wie bei
 ## officedown liegt das in der Verantwortung des Nutzers.
+#' @noRd
 oq_set_page_size <- function(sect_pr, ns, size_options) {
   node <- xml2::xml_find_first(sect_pr, "./w:pgSz", ns)
   if (is.na(node)) {
@@ -47,6 +49,7 @@ oq_set_page_size <- function(sect_pr, ns, size_options) {
 ## Setzt (oder erzeugt) w:pgMar-Attribute (top/bottom/left/right/header/
 ## footer/gutter) einer w:sectPr. margin_options: Liste mit den jeweils
 ## optionalen Feldern (Zoll).
+#' @noRd
 oq_set_page_margins <- function(sect_pr, ns, margin_options) {
   node <- xml2::xml_find_first(sect_pr, "./w:pgMar", ns)
   if (is.na(node)) {
@@ -64,6 +67,7 @@ oq_set_page_margins <- function(sect_pr, ns, margin_options) {
 ## Wendet page_options ($size/$margins, jeweils optional mit weiteren
 ## optionalen Unterfeldern) auf jede w:sectPr im Dokument an (in-place via
 ## xml2-Referenzsemantik). Gibt die Anzahl bearbeiteter Sections zurueck.
+#' @noRd
 oq_apply_page_options <- function(document_doc, page_options) {
   ns <- xml2::xml_ns(document_doc)
   sections <- xml2::xml_find_all(document_doc, "//w:sectPr", ns)

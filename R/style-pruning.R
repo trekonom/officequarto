@@ -1,7 +1,7 @@
 ## Entfernt aus dem gerenderten word/styles.xml alle Style-Definitionen, die
-## nicht im reference-doc selbst vorhanden sind. Wird von writeback.R per
-## source() eingebunden, keine eigenstaendige Ausfuehrung. Benoetigt: xml2
-## (bereits von writeback.R geprueft).
+## nicht im reference-doc selbst vorhanden sind. Teil des officequarto
+## R-Pakets - von oq_writeback() (R/writeback.R) verwendet, keine
+## eigenstaendige Ausfuehrung. Benoetigt: xml2.
 ##
 ## Hintergrund: Pandocs docx-Writer fuegt beim Rendern immer eigene
 ## Style-Definitionen hinzu, die im reference-doc nicht existieren - z.B.
@@ -28,10 +28,12 @@
 ## TRUE fuer Pandocs eigene Syntax-Highlighting-Style-IDs (SourceCode + alle
 ## *Tok-Zeichenstile) - eine stabile, feste Namenskonvention von Pandocs
 ## docx-Writer (siehe dev/spike-notes.md, Spike E).
+#' @noRd
 oq_is_pandoc_code_style_id <- function(id) id == "SourceCode" | grepl("Tok$", id)
 
 ## styles.xml (xml2-Dokument) -> character vector aller styleIds (alle Typen:
 ## paragraph/character/table/numbering).
+#' @noRd
 oq_all_style_ids <- function(styles_doc) {
   ns <- xml2::xml_ns(styles_doc)
   xml2::xml_attr(xml2::xml_find_all(styles_doc, "//w:style", ns), "styleId")
@@ -40,6 +42,7 @@ oq_all_style_ids <- function(styles_doc) {
 ## Ein oder mehrere geparste content-xml2-Dokumente (document.xml,
 ## footnotes.xml, ...) -> character vector aller tatsaechlich referenzierten
 ## Style-IDs (w:pStyle/w:rStyle/w:tblStyle).
+#' @noRd
 oq_referenced_style_ids <- function(docs) {
   ids <- character(0)
   for (doc in docs) {
@@ -57,6 +60,7 @@ oq_referenced_style_ids <- function(docs) {
 ## Liste mit $removed (alle entfernten IDs) und $removed_but_referenced
 ## (davon die, die noch in referenced_ids vorkommen) zurueck, fuer Logging in
 ## writeback.R.
+#' @noRd
 oq_prune_foreign_styles <- function(styles_doc, ref_style_ids, referenced_ids) {
   ns <- xml2::xml_ns(styles_doc)
   nodes <- xml2::xml_find_all(styles_doc, "//w:style", ns)
