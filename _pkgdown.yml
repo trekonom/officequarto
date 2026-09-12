@@ -1,0 +1,21 @@
+url: https://trekonom.github.io/officequarto/
+
+template:
+  bootstrap: 5
+
+reference:
+- title: Post-render hook
+  desc: The extension's post-render orchestration, called by the bundled Quarto extension shim.
+  contents:
+  - oq_writeback
+- title: Project scaffolding
+  desc: Scaffold a new officequarto project, modeled on usethis::create_project().
+  contents:
+  - oq_create_project
+
+articles:
+- title: Articles
+  navbar: ~
+  contents:
+  - architecture
+  - options

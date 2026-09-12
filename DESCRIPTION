@@ -8,11 +8,13 @@ Description: Provides the officequarto Quarto extension (bundled under
     caption formatting, page layout, free-form style-map, and cross-reference
     options to a rendered .docx, and prunes styles Pandoc added but that are
     absent from the reference document. Also provides
-    create_officequarto_project() to scaffold a new project with the
+    oq_create_project() to scaffold a new project with the
     extension and a reference document already in place.
 License: GPL-3
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
+URL: https://trekonom.github.io/officequarto/, https://github.com/trekonom/officequarto
+BugReports: https://github.com/trekonom/officequarto/issues
 Imports:
     xml2,
     jsonlite,
@@ -20,6 +22,10 @@ Imports:
     tools
 Suggests:
     testthat (>= 3.0.0),
-    rstudioapi
+    rstudioapi,
+    knitr,
+    rmarkdown,
+    pkgdown
+VignetteBuilder: knitr
 Config/testthat/edition: 3
 Config/roxygen2/version: 8.0.0

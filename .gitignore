@@ -8,3 +8,9 @@ README_files/
 template/report.docx
 template/report.quarto-rendered.docx
 template/report_files/
+docs
+inst/doc
+vignettes/*.html
+vignettes/*.R
+/doc/
+/Meta/
