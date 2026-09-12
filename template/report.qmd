@@ -15,8 +15,8 @@ umgeleitet wird.
 
 ## Kennzahlen
 
-<!-- Verschachtelte Bullet-Liste fuer den officequarto.lists.list-bullet-Array-Testfall
-     (3 Absaetze Ebene 0, 2 Absaetze Ebene 1, 2 Absaetze Ebene 2 - siehe dev/check-writeback.R) -->
+<!-- Nested bullet list for the officequarto.lists.list-bullet array test case
+     (3 paragraphs level 0, 2 paragraphs level 1, 2 paragraphs level 2 - see dev/check-writeback.R) -->
 - Umsatz: 1.234.000 €
   - Vormonat: 1.180.000 €
   - Vorjahresquartal: 1.050.000 €
@@ -27,8 +27,8 @@ umgeleitet wird.
 
 ## Nächste Schritte
 
-<!-- Verschachtelte Nummern-Liste fuer den officequarto.lists.list-number-Array-Testfall
-     (3 Absaetze Ebene 0, 3 Absaetze Ebene 1, 2 Absaetze Ebene 2 - siehe dev/check-writeback.R) -->
+<!-- Nested number list for the officequarto.lists.list-number array test case
+     (3 paragraphs level 0, 3 paragraphs level 1, 2 paragraphs level 2 - see dev/check-writeback.R) -->
 1. Budget für Q1 freigeben
    1. Freigabe Finanzausschuss einholen
    2. Freigabe Geschäftsführung einholen
@@ -69,10 +69,10 @@ Crossref-verwaltete Tabellen/Abbildungen, siehe `dev/spike-notes.md`.
 
 ## Varianten
 
-<!-- Buchstaben-Liste mit einer verschachtelten Unterebene bei nur EINEM konfigurierten
-     Style (officequarto.lists.list-letter bleibt skalar) - testet das Clamping auf den
-     einzigen konfigurierten Style statt eines eigenen Ebene-2-Styles
-     (3 Absaetze Ebene 0, 1 Absatz Ebene 1 - siehe dev/check-writeback.R) -->
+<!-- Letter list with one nested sublevel with only ONE configured
+     style (officequarto.lists.list-letter stays scalar) - tests clamping onto the
+     single configured style instead of a dedicated level-2 style
+     (3 paragraphs level 0, 1 paragraph level 1 - see dev/check-writeback.R) -->
 a. Basisszenario
    a. Sensitivität: Rohstoffpreise
 b. Optimistisches Szenario

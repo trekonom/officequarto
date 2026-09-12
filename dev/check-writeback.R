@@ -1,23 +1,27 @@
-## End-to-End-Check fuer den officequarto-Workflow.
-## Erwartet, dass zuvor `quarto render report.qmd` im template/-Projekt lief
-## (mit der officequarto.styles-, officequarto.pandoc-styles- und
-## officequarto.keep-rendered-Konfiguration aus template/_quarto.yml).
-## Prueft: report.docx wurde vom Hook in-place ueberschrieben (kein separates
-## written-back.docx mehr), Header/Footer aus original.docx sind erhalten, der
-## neu gerenderte Body-Text ist auffindbar, die aus dem Original
-## zurueckgeschriebenen Metadaten (Subject/Custom-Property) sind vorhanden,
-## Body-/Bullet-/Nummerierungs-/Buchstaben-Listen-/Codeblock-Absaetze tragen
-## die konfigurierten ACME-Custom-Styles statt Pandocs Standard-Styles, dass die Tabelle
-## den konfigurierten Style/Layout/Breite traegt (officequarto.tables, Schema-konforme
-## w:tblPr-Reihenfolge), dass word/styles.xml im
-## Ergebnis exakt die Styles aus original.docx enthaelt (Pandocs
-## Syntax-Highlighting-Laufstile fuer den Codeblock in report.qmd wurden trotz
-## Verwendung entfernt - officequarto.pandoc-styles.code-block mappt hier nur die
-## SourceCode-Absatzrolle, nicht die *Tok-Laufstile), und dass das per
-## officequarto.keep-rendered behaltene Debug-Artefakt den ungepatchten
-## Zustand zeigt.
+## End-to-end check for the officequarto workflow.
+## Expects that `quarto render report.qmd` has already run in the template/
+## project (with the officequarto.styles, officequarto.pandoc-styles, and
+## officequarto.keep-rendered configuration from template/_quarto.yml).
+## Checks: report.docx was overwritten in-place by the hook (no separate
+## written-back.docx anymore), header/footer from original.docx are
+## preserved, the newly rendered body text is findable, the metadata written
+## back from the original (subject/custom property) is present,
+## body/bullet/numbered/letter-list/code-block paragraphs carry the
+## configured ACME custom styles instead of Pandoc's default styles, that
+## the table carries the configured style/layout/width (officequarto.tables,
+## schema-conformant w:tblPr order), that word/styles.xml in the result
+## contains exactly the styles from original.docx (Pandoc's syntax-
+## highlighting run styles for the code block in report.qmd were removed
+## despite being used - officequarto.pandoc-styles.code-block here only
+## remaps the SourceCode paragraph role, not the *Tok run styles), and that
+## the debug artifact kept via officequarto.keep-rendered shows the
+## unpatched state.
 library(xml2)
-source("_extensions/officequarto/scripts/style-pruning.R")  # fuer oq_is_pandoc_code_style_id
+library(officequarto)
+## oq_is_pandoc_code_style_id() is internal/not exported (see
+## R/style-pruning.R) - accessed via ::: since this script runs outside the
+## package namespace as a standalone Rscript.
+oq_is_pandoc_code_style_id <- officequarto:::oq_is_pandoc_code_style_id
 
 fail <- function(...) {
   cat("FAIL:", sprintf(...), "\n")
@@ -26,86 +30,86 @@ fail <- function(...) {
 ok <- function(...) cat("OK:", sprintf(...), "\n")
 
 target <- "report.docx"
-if (!file.exists(target)) fail("%s wurde nicht erzeugt", target)
-ok("%s existiert", target)
+if (!file.exists(target)) fail("%s was not created", target)
+ok("%s exists", target)
 
 if (file.exists("report.written-back.docx")) {
-  fail("report.written-back.docx sollte nicht mehr erzeugt werden (in-place-Ueberschreiben)")
+  fail("report.written-back.docx should no longer be created (in-place overwrite)")
 }
-ok("kein separates report.written-back.docx mehr vorhanden")
+ok("no separate report.written-back.docx exists anymore")
 
 tmp <- tempfile("check_")
 dir.create(tmp)
 utils::unzip(target, exdir = tmp)
 
 header_txt <- xml_text(read_xml(file.path(tmp, "word", "header1.xml")))
-if (!grepl("ACME GmbH", header_txt, fixed = TRUE)) fail("Header-Text aus original.docx fehlt")
-ok("Header aus original.docx ist erhalten")
+if (!grepl("ACME GmbH", header_txt, fixed = TRUE)) fail("header text from original.docx is missing")
+ok("header from original.docx is preserved")
 
 footer_txt <- xml_text(read_xml(file.path(tmp, "word", "footer1.xml")))
-if (!grepl("Vertraulich", footer_txt, fixed = TRUE)) fail("Footer-Text aus original.docx fehlt")
-ok("Footer aus original.docx ist erhalten")
+if (!grepl("Vertraulich", footer_txt, fixed = TRUE)) fail("footer text from original.docx is missing")
+ok("footer from original.docx is preserved")
 
 body_txt <- xml_text(read_xml(file.path(tmp, "word", "document.xml")))
 if (!grepl("muss im zurückgeschriebenen Dokument auffindbar sein", body_txt, fixed = TRUE)) {
-  fail("neu gerenderter Body-Inhalt fehlt")
+  fail("newly rendered body content is missing")
 }
-ok("neu gerenderter Body-Inhalt ist vorhanden")
+ok("newly rendered body content is present")
 
 core_txt <- xml_text(read_xml(file.path(tmp, "docProps", "core.xml")))
-if (!grepl("Quartalsberichte", core_txt, fixed = TRUE)) fail("dc:subject aus original.docx fehlt")
-ok("dc:subject aus original.docx wurde zurueckgeschrieben")
+if (!grepl("Quartalsberichte", core_txt, fixed = TRUE)) fail("dc:subject from original.docx is missing")
+ok("dc:subject from original.docx was written back")
 
 custom_path <- file.path(tmp, "docProps", "custom.xml")
 custom_has_property <- file.exists(custom_path) &&
   any(grepl("Vertraulichkeitsstufe", readLines(custom_path, warn = FALSE), fixed = TRUE))
-if (!custom_has_property) fail("Custom-Property aus original.docx fehlt")
-ok("Custom-Property aus original.docx wurde zurueckgeschrieben")
+if (!custom_has_property) fail("custom property from original.docx is missing")
+ok("custom property from original.docx was written back")
 
 document_doc <- read_xml(file.path(tmp, "word", "document.xml"))
 ns <- xml_ns(document_doc)
 pstyles <- xml_attr(xml_find_all(document_doc, "//w:p/w:pPr/w:pStyle", ns), "val")
 
 n_body <- sum(pstyles == "FliesstextACME")
-if (n_body < 1) fail("kein Body-Absatz traegt den konfigurierten Style 'FliesstextACME' (gefunden: %s)",
+if (n_body < 1) fail("no body paragraph carries the configured style 'FliesstextACME' (found: %s)",
                       paste(unique(pstyles), collapse = ", "))
-ok("%d Body-Absatz/-Absaetze tragen den konfigurierten Style", n_body)
+ok("%d body paragraph(s) carry the configured style", n_body)
 
 n_title <- sum(pstyles == "TitelACME")
-if (n_title != 1) fail("erwartet 1 Titel-Absatz mit Style 'TitelACME' (officequarto.style-map: {\"Titel ACME\": [Title]}), gefunden %d", n_title)
-if ("Title" %in% pstyles) fail("es sollte kein unumgemappter 'Title'-Absatz mehr vorhanden sein (officequarto.style-map)")
-ok("%d Titel-Absatz traegt den ueber officequarto.style-map konfigurierten Style 'TitelACME' (freies Style-Mapping, Gruppe 7)", n_title)
+if (n_title != 1) fail("expected 1 title paragraph with style 'TitelACME' (officequarto.style-map: {\"Titel ACME\": [Title]}), found %d", n_title)
+if ("Title" %in% pstyles) fail("there should no longer be an unmapped 'Title' paragraph (officequarto.style-map)")
+ok("%d title paragraph carries the style 'TitelACME' configured via officequarto.style-map (free-form style mapping, Gruppe 7)", n_title)
 
-## Fuss-/Endnoten-Absatz-Styling (Issue #2): officequarto.style-map wird auch
-## auf word/footnotes.xml angewendet - original.docx definiert bewusst
-## keinen eigenen Fussnotentext-Style, Pandoc faellt daher auf die feste ID
-## "FootnoteText" zurueck, die per style-map auf "FussnotentextACME"
-## umgeleitet wird (siehe README "Footnotes and endnotes").
+## Footnote/endnote paragraph styling (issue #2): officequarto.style-map is
+## also applied to word/footnotes.xml - original.docx deliberately defines
+## no footnote-text style of its own, so Pandoc falls back to the fixed ID
+## "FootnoteText", which is redirected to "FussnotentextACME" via style-map
+## (see README "Footnotes and endnotes").
 footnotes_doc <- read_xml(file.path(tmp, "word", "footnotes.xml"))
 footnotes_ns <- xml_ns(footnotes_doc)
 footnote_pstyles <- xml_attr(xml_find_all(footnotes_doc, "//w:p/w:pPr/w:pStyle", footnotes_ns), "val")
 
 if (!("FussnotentextACME" %in% footnote_pstyles)) {
-  fail("kein Fussnoten-Absatz traegt den ueber officequarto.style-map konfigurierten Style 'FussnotentextACME' (gefunden: %s)",
+  fail("no footnote paragraph carries the style 'FussnotentextACME' configured via officequarto.style-map (found: %s)",
        paste(unique(footnote_pstyles), collapse = ", "))
 }
-ok("Fussnoten-Absatz traegt den ueber officequarto.style-map konfigurierten Style 'FussnotentextACME' (freies Style-Mapping erreicht jetzt auch word/footnotes.xml)")
+ok("footnote paragraph carries the style 'FussnotentextACME' configured via officequarto.style-map (free-form style mapping now also reaches word/footnotes.xml)")
 
 if ("FootnoteText" %in% footnote_pstyles) {
-  fail("es sollte kein unumgemappter Pandoc-Fallback-Style 'FootnoteText' mehr vorhanden sein (officequarto.style-map)")
+  fail("there should no longer be an unmapped Pandoc fallback style 'FootnoteText' (officequarto.style-map)")
 }
-ok("kein unumgemappter Pandoc-Fallback-Style 'FootnoteText' mehr vorhanden")
+ok("no unmapped Pandoc fallback style 'FootnoteText' remains")
 
 separator_footnote <- xml_find_first(footnotes_doc, "//w:footnote[@w:type='separator']", footnotes_ns)
-if (is.na(separator_footnote)) fail("die von Word/Pandoc erzeugte separator-Fussnote (w:id=-1) fehlt unerwartet")
+if (is.na(separator_footnote)) fail("the separator footnote (w:id=-1) generated by Word/Pandoc is unexpectedly missing")
 separator_pstyle <- xml_attr(xml_find_first(separator_footnote, ".//w:pStyle", footnotes_ns), "val")
-if (!is.na(separator_pstyle)) fail("die separator-Fussnote sollte kein w:pStyle tragen (nicht vom Style-Mapping erfasst), gefunden: '%s'", separator_pstyle)
-ok("die separator-Fussnote (w:type='separator') bleibt vom Style-Mapping unberuehrt")
+if (!is.na(separator_pstyle)) fail("the separator footnote should carry no w:pStyle (not caught by style mapping), found: '%s'", separator_pstyle)
+ok("the separator footnote (w:type='separator') remains untouched by style mapping")
 
-## Verschachtelungsebene pro Listen-Absatz (officequarto.lists.* als Array,
-## siehe report.qmd "Kennzahlen"/"Naechste Schritte"/"Varianten" und
-## dev/spike-notes.md Spike O). w:ilvl faellt bei fehlendem Element auf 0
-## zurueck (wie oq_paragraph_ilvl()), ist bei Pandoc-Listen aber immer gesetzt.
+## Nesting level per list paragraph (officequarto.lists.* as an array, see
+## report.qmd "Kennzahlen"/"Naechste Schritte"/"Varianten" and
+## dev/spike-notes.md Spike O). w:ilvl falls back to 0 when the element is
+## missing (like oq_paragraph_ilvl()), but is always set for Pandoc lists.
 list_paragraphs <- xml_find_all(document_doc, "//w:p[./w:pPr/w:numPr]", ns)
 list_pstyle <- xml_attr(xml_find_first(list_paragraphs, "./w:pPr/w:pStyle", ns), "val")
 list_ilvl_val <- xml_attr(xml_find_first(list_paragraphs, "./w:pPr/w:numPr/w:ilvl", ns), "val")
@@ -116,221 +120,220 @@ n_bullet0 <- n_at_level("AufzaehlungACME", 0L)
 n_bullet1 <- n_at_level("AufzaehlungACME2", 1L)
 n_bullet2 <- n_at_level("AufzaehlungACME3", 2L)
 if (n_bullet0 != 3 || n_bullet1 != 2 || n_bullet2 != 2) {
-  fail("erwartet 3/2/2 Bullet-Absaetze mit Style 'AufzaehlungACME'/'AufzaehlungACME2'/'AufzaehlungACME3' auf Ebene 0/1/2, gefunden %d/%d/%d",
+  fail("expected 3/2/2 bullet paragraphs with style 'AufzaehlungACME'/'AufzaehlungACME2'/'AufzaehlungACME3' at level 0/1/2, found %d/%d/%d",
        n_bullet0, n_bullet1, n_bullet2)
 }
-ok("%d/%d/%d Bullet-Absaetze tragen den pro Verschachtelungsebene konfigurierten Style", n_bullet0, n_bullet1, n_bullet2)
+ok("%d/%d/%d bullet paragraphs carry the style configured per nesting level", n_bullet0, n_bullet1, n_bullet2)
 
 n_number0 <- n_at_level("NummerierungACME", 0L)
 n_number1 <- n_at_level("NummerierungACME2", 1L)
 n_number2 <- n_at_level("NummerierungACME3", 2L)
 if (n_number0 != 3 || n_number1 != 3 || n_number2 != 2) {
-  fail("erwartet 3/3/2 nummerierte Absaetze mit Style 'NummerierungACME'/'NummerierungACME2'/'NummerierungACME3' auf Ebene 0/1/2, gefunden %d/%d/%d",
+  fail("expected 3/3/2 numbered paragraphs with style 'NummerierungACME'/'NummerierungACME2'/'NummerierungACME3' at level 0/1/2, found %d/%d/%d",
        n_number0, n_number1, n_number2)
 }
-ok("%d/%d/%d nummerierte Absaetze tragen den pro Verschachtelungsebene konfigurierten Style", n_number0, n_number1, n_number2)
+ok("%d/%d/%d numbered paragraphs carry the style configured per nesting level", n_number0, n_number1, n_number2)
 
 n_letter0 <- n_at_level("BuchstabierungACME", 0L)
 n_letter1_clamped <- n_at_level("BuchstabierungACME", 1L)
 if (n_letter0 != 3 || n_letter1_clamped != 1) {
-  fail("erwartet 3 Buchstaben-Listen-Absaetze auf Ebene 0 und 1 (per Clamping) auf Ebene 1 mit demselben Style 'BuchstabierungACME' (officequarto.lists.list-letter bleibt skalar), gefunden %d/%d",
+  fail("expected 3 letter-list paragraphs at level 0 and, clamped, 1 at level 1 with the same style 'BuchstabierungACME' (officequarto.lists.list-letter stays scalar), found %d/%d",
        n_letter0, n_letter1_clamped)
 }
 if ("BuchstabierungACME2" %in% list_pstyle) {
-  fail("'BuchstabierungACME2' sollte nicht vorkommen - list-letter ist skalar konfiguriert, Ebene 1 muss auf 'BuchstabierungACME' clampen")
+  fail("'BuchstabierungACME2' should not occur - list-letter is configured as a scalar, level 1 must clamp to 'BuchstabierungACME'")
 }
-ok("%d/%d Buchstaben-Listen-Absaetze auf Ebene 0/1 tragen (per Clamping) denselben konfigurierten Style", n_letter0, n_letter1_clamped)
+ok("%d/%d letter-list paragraphs at level 0/1 carry (via clamping) the same configured style", n_letter0, n_letter1_clamped)
 
 if (any(pstyles == "Normal") || any(pstyles == "Compact") || any(pstyles == "FirstParagraph")) {
-  fail("es sind noch unbenannte Pandoc-Standard-Styles im Ergebnis vorhanden: %s",
+  fail("unmapped Pandoc default styles are still present in the result: %s",
        paste(unique(pstyles), collapse = ", "))
 }
-ok("keine unumgemappten Pandoc-Standard-Styles (Normal/Compact/FirstParagraph) mehr vorhanden")
+ok("no unmapped Pandoc default styles (Normal/Compact/FirstParagraph) remain")
 
-## [not(.//w:tbl)] schliesst Pandocs synthetische Wrapper-Tabelle um
-## Beschriftung+Tabelle aus (siehe table-mapping.R/oq_apply_table_options) -
-## ohne den Filter faende xml_find_first die Wrapper-Tabelle zuerst
-## (Dokumentreihenfolge: Elternelement vor Nachfahren), nicht die eigentliche
-## Datentabelle.
+## [not(.//w:tbl)] excludes Pandoc's synthetic wrapper table around
+## caption+table (see table-mapping.R/oq_apply_table_options) - without this
+## filter, xml_find_first would find the wrapper table first (document
+## order: ancestor before descendant), not the actual data table.
 tbl_pr <- xml_find_first(document_doc, "//w:tbl[not(.//w:tbl)]/w:tblPr", ns)
-if (is.na(tbl_pr)) fail("kein w:tbl/w:tblPr im Ergebnis-Dokument gefunden (erwartet: die Tabelle aus report.qmd)")
+if (is.na(tbl_pr)) fail("no w:tbl/w:tblPr found in the result document (expected: the table from report.qmd)")
 
 tbl_style <- xml_attr(xml_find_first(tbl_pr, "./w:tblStyle", ns), "val")
 if (!identical(tbl_style, "TabelleACME")) {
-  fail("Tabelle sollte den konfigurierten Style 'TabelleACME' tragen (officequarto.tables.style), gefunden: '%s'", tbl_style)
+  fail("table should carry the configured style 'TabelleACME' (officequarto.tables.style), found: '%s'", tbl_style)
 }
-ok("Tabelle traegt den konfigurierten Style 'TabelleACME' (officequarto.tables.style)")
+ok("table carries the configured style 'TabelleACME' (officequarto.tables.style)")
 
 tbl_layout <- xml_attr(xml_find_first(tbl_pr, "./w:tblLayout", ns), "type")
 if (!identical(tbl_layout, "fixed")) {
-  fail("Tabelle sollte tblLayout type='fixed' tragen (officequarto.tables.layout), gefunden: '%s'", tbl_layout)
+  fail("table should carry tblLayout type='fixed' (officequarto.tables.layout), found: '%s'", tbl_layout)
 }
-ok("Tabelle traegt den konfigurierten Layout 'fixed' (officequarto.tables.layout)")
+ok("table carries the configured layout 'fixed' (officequarto.tables.layout)")
 
 tbl_w_node <- xml_find_first(tbl_pr, "./w:tblW", ns)
 tbl_w_type <- xml_attr(tbl_w_node, "type")
 tbl_w_val <- xml_attr(tbl_w_node, "w")
 if (!identical(tbl_w_type, "pct") || !identical(tbl_w_val, "4000")) {
-  fail("Tabelle sollte tblW type='pct' w='4000' tragen (officequarto.tables.width: 0.8), gefunden: type='%s' w='%s'", tbl_w_type, tbl_w_val)
+  fail("table should carry tblW type='pct' w='4000' (officequarto.tables.width: 0.8), found: type='%s' w='%s'", tbl_w_type, tbl_w_val)
 }
-ok("Tabelle traegt die konfigurierte Breite 0.8 (officequarto.tables.width, als tblW type='pct' w='4000')")
+ok("table carries the configured width 0.8 (officequarto.tables.width, as tblW type='pct' w='4000')")
 
 tbl_look <- xml_find_first(tbl_pr, "./w:tblLook", ns)
 expected_look <- c(firstRow = "1", lastRow = "1", noHBand = "1", noVBand = "0")
 for (attr_name in names(expected_look)) {
   actual <- xml_attr(tbl_look, attr_name)
   if (!identical(actual, expected_look[[attr_name]])) {
-    fail("Tabelle: w:tblLook/@%s sollte '%s' sein (officequarto.tables.conditional), gefunden: '%s'",
+    fail("table: w:tblLook/@%s should be '%s' (officequarto.tables.conditional), found: '%s'",
          attr_name, expected_look[[attr_name]], actual)
   }
 }
-ok("Tabelle traegt die konfigurierten Conditional-Formatting-Flags (first-row/last-row/band-rows/band-columns via officequarto.tables.conditional, teils ueber officedown-Alias)")
+ok("table carries the configured conditional-formatting flags (first-row/last-row/band-rows/band-columns via officequarto.tables.conditional, some via officedown alias)")
 
 tbl_pr_children <- xml_name(xml_children(tbl_pr))
 tbl_pr_order <- match(tbl_pr_children, c("tblStyle", "tblW", "tblLayout", "tblLook"))
 if (is.unsorted(tbl_pr_order, na.rm = TRUE)) {
-  fail("w:tblPr-Kindelemente sind nicht in Schema-Reihenfolge: %s", paste(tbl_pr_children, collapse = ", "))
+  fail("w:tblPr child elements are not in schema order: %s", paste(tbl_pr_children, collapse = ", "))
 }
-ok("w:tblPr-Kindelemente stehen in Schema-Reihenfolge: %s", paste(tbl_pr_children, collapse = ", "))
+ok("w:tblPr child elements are in schema order: %s", paste(tbl_pr_children, collapse = ", "))
 
 caption_p <- xml_find_first(document_doc, "//w:p[w:pPr/w:pStyle/@w:val='BeschriftungACME']", ns)
-if (is.na(caption_p)) fail("keine Tabellen-Beschriftung mit dem konfigurierten Style 'BeschriftungACME' gefunden (officequarto.tables.caption.style)")
-ok("Tabellen-Beschriftung traegt den konfigurierten Style 'BeschriftungACME' (officequarto.tables.caption.style)")
+if (is.na(caption_p)) fail("no table caption found with the configured style 'BeschriftungACME' (officequarto.tables.caption.style)")
+ok("table caption carries the configured style 'BeschriftungACME' (officequarto.tables.caption.style)")
 
 caption_runs <- xml_find_all(caption_p, "./w:r", ns)
 if (length(caption_runs) != 2) {
-  fail("Tabellen-Beschriftung sollte in 2 Laeufe gesplittet sein (Praefix+Zahl fett / Rest normal), gefunden: %d", length(caption_runs))
+  fail("table caption should be split into 2 runs (prefix+number bold / rest normal), found: %d", length(caption_runs))
 }
 caption_first_text <- xml_text(xml_find_first(caption_runs[[1]], "./w:t", ns))
 caption_first_bold <- xml_attr(xml_find_first(caption_runs[[1]], "./w:rPr/w:b", ns), "val")
 caption_second_text <- xml_text(xml_find_first(caption_runs[[2]], "./w:t", ns))
 if (!identical(caption_first_text, "Tab. 1")) {
-  fail("Tabellen-Beschriftung: erster Lauf sollte 'Tab. 1' sein (officequarto.tables.caption.prefix), gefunden: '%s'", caption_first_text)
+  fail("table caption: first run should be 'Tab. 1' (officequarto.tables.caption.prefix), found: '%s'", caption_first_text)
 }
 if (!identical(caption_first_bold, "1")) {
-  fail("Tabellen-Beschriftung: erster Lauf sollte fett sein (officequarto.tables.caption.number-bold: true), w:b/@val='%s'", caption_first_bold)
+  fail("table caption: first run should be bold (officequarto.tables.caption.number-bold: true), w:b/@val='%s'", caption_first_bold)
 }
 if (!identical(caption_second_text, " -- Quartalskennzahlen")) {
-  fail("Tabellen-Beschriftung: zweiter Lauf sollte ' -- Quartalskennzahlen' sein (officequarto.tables.caption.separator via Alias tables_caption_sep), gefunden: '%s'", caption_second_text)
+  fail("table caption: second run should be ' -- Quartalskennzahlen' (officequarto.tables.caption.separator via alias tables_caption_sep), found: '%s'", caption_second_text)
 }
-ok("Tabellen-Beschriftungstext korrekt umformatiert: fett 'Tab. 1' + ' -- Quartalskennzahlen' (prefix/separator via officequarto.tables.caption, separator ueber officedown-Alias)")
+ok("table caption text correctly reformatted: bold 'Tab. 1' + ' -- Quartalskennzahlen' (prefix/separator via officequarto.tables.caption, separator via officedown alias)")
 
-## officequarto.tables.caption.above: false (Testkonfig) - Beschriftung soll
-## NACH der Tabelle stehen, gegen Pandocs Default (Tabellen: Beschriftung oben).
+## officequarto.tables.caption.above: false (test config) - caption should
+## come AFTER the table, against Pandoc's default (tables: caption above).
 table_caption_after_tbl <- xml_find_first(caption_p, "./preceding-sibling::w:tbl[1]", ns)
 if (is.na(table_caption_after_tbl)) {
-  fail("Tabellen-Beschriftung sollte NACH der Tabelle stehen (officequarto.tables.caption.above: false), steht aber davor")
+  fail("table caption should come AFTER the table (officequarto.tables.caption.above: false), but comes before it")
 }
-ok("Tabellen-Beschriftung steht nach der Tabelle (officequarto.tables.caption.above: false, gegen Pandocs Default)")
+ok("table caption comes after the table (officequarto.tables.caption.above: false, against Pandoc's default)")
 
 plot_p <- xml_find_first(document_doc, "//w:p[.//w:drawing]", ns)
-if (is.na(plot_p)) fail("kein Abbildungs-Absatz (w:p mit w:drawing) im Ergebnis-Dokument gefunden (erwartet: die Abbildung aus report.qmd)")
+if (is.na(plot_p)) fail("no figure paragraph (w:p with w:drawing) found in the result document (expected: the figure from report.qmd)")
 plot_pstyle <- xml_attr(xml_find_first(plot_p, "./w:pPr/w:pStyle", ns), "val")
 if (!identical(plot_pstyle, "AbbildungACME")) {
-  fail("Abbildungs-Absatz sollte den konfigurierten Style 'AbbildungACME' tragen (officequarto.plots.style), gefunden: '%s'", plot_pstyle)
+  fail("figure paragraph should carry the configured style 'AbbildungACME' (officequarto.plots.style), found: '%s'", plot_pstyle)
 }
-ok("Abbildungs-Absatz traegt den konfigurierten Style 'AbbildungACME' (officequarto.plots.style)")
+ok("figure paragraph carries the configured style 'AbbildungACME' (officequarto.plots.style)")
 plot_align <- xml_attr(xml_find_first(plot_p, "./w:pPr/w:jc", ns), "val")
 if (!identical(plot_align, "right")) {
-  fail("Abbildungs-Absatz sollte rechtsbuendig sein (officequarto.plots.align via Alias plots_align), gefunden: '%s'", plot_align)
+  fail("figure paragraph should be right-aligned (officequarto.plots.align via alias plots_align), found: '%s'", plot_align)
 }
-ok("Abbildungs-Absatz ist rechtsbuendig ausgerichtet (officequarto.plots.align via officedown-Alias plots_align)")
+ok("figure paragraph is right-aligned (officequarto.plots.align via officedown alias plots_align)")
 
 plot_caption_p <- xml_find_first(document_doc, "//w:p[w:pPr/w:pStyle/@w:val='AbbildungsbeschriftungACME']", ns)
-if (is.na(plot_caption_p)) fail("keine Abbildungs-Beschriftung mit dem konfigurierten Style 'AbbildungsbeschriftungACME' gefunden (officequarto.plots.caption.style via Alias plots_caption_style)")
-ok("Abbildungs-Beschriftung traegt den konfigurierten Style 'AbbildungsbeschriftungACME' (officequarto.plots.caption.style via officedown-Alias plots_caption_style)")
+if (is.na(plot_caption_p)) fail("no figure caption found with the configured style 'AbbildungsbeschriftungACME' (officequarto.plots.caption.style via alias plots_caption_style)")
+ok("figure caption carries the configured style 'AbbildungsbeschriftungACME' (officequarto.plots.caption.style via officedown alias plots_caption_style)")
 
 plot_caption_runs <- xml_find_all(plot_caption_p, "./w:r", ns)
 if (length(plot_caption_runs) != 2) {
-  fail("Abbildungs-Beschriftung sollte in 2 Laeufe gesplittet sein (number-bold explizit gesetzt), gefunden: %d", length(plot_caption_runs))
+  fail("figure caption should be split into 2 runs (number-bold explicitly set), found: %d", length(plot_caption_runs))
 }
 plot_caption_first_text <- xml_text(xml_find_first(plot_caption_runs[[1]], "./w:t", ns))
 plot_caption_first_bold <- xml_attr(xml_find_first(plot_caption_runs[[1]], "./w:rPr/w:b", ns), "val")
 plot_caption_second_text <- xml_text(xml_find_first(plot_caption_runs[[2]], "./w:t", ns))
 if (!identical(plot_caption_first_text, "Abb. 1")) {
-  fail("Abbildungs-Beschriftung: erster Lauf sollte 'Abb. 1' sein (officequarto.plots.caption.prefix), gefunden: '%s'", plot_caption_first_text)
+  fail("figure caption: first run should be 'Abb. 1' (officequarto.plots.caption.prefix), found: '%s'", plot_caption_first_text)
 }
 if (!identical(plot_caption_first_bold, "0")) {
-  fail("Abbildungs-Beschriftung: erster Lauf sollte explizit NICHT fett sein (officequarto.plots.caption.number-bold: false via Alias), w:b/@val='%s'", plot_caption_first_bold)
+  fail("figure caption: first run should explicitly NOT be bold (officequarto.plots.caption.number-bold: false via alias), w:b/@val='%s'", plot_caption_first_bold)
 }
 if (!identical(plot_caption_second_text, " | Umsatzentwicklung")) {
-  fail("Abbildungs-Beschriftung: zweiter Lauf sollte ' | Umsatzentwicklung' sein (officequarto.plots.caption.separator), gefunden: '%s'", plot_caption_second_text)
+  fail("figure caption: second run should be ' | Umsatzentwicklung' (officequarto.plots.caption.separator), found: '%s'", plot_caption_second_text)
 }
-ok("Abbildungs-Beschriftungstext korrekt umformatiert: nicht-fett 'Abb. 1' + ' | Umsatzentwicklung' (prefix/separator/number-bold via officequarto.plots.caption, teils ueber officedown-Alias)")
+ok("figure caption text correctly reformatted: non-bold 'Abb. 1' + ' | Umsatzentwicklung' (prefix/separator/number-bold via officequarto.plots.caption, some via officedown alias)")
 
-## officequarto.plots.caption.above: true (Testkonfig, via Alias
-## plots_topcaption) - Beschriftung soll VOR der Abbildung stehen, gegen
-## Pandocs Default (Abbildungen: Beschriftung unten).
+## officequarto.plots.caption.above: true (test config, via alias
+## plots_topcaption) - caption should come BEFORE the figure, against
+## Pandoc's default (figures: caption below).
 plot_caption_before_img <- xml_find_first(plot_caption_p, "./following-sibling::w:p[.//w:drawing][1]", ns)
 if (is.na(plot_caption_before_img)) {
-  fail("Abbildungs-Beschriftung sollte VOR der Abbildung stehen (officequarto.plots.caption.above: true via Alias plots_topcaption), steht aber danach")
+  fail("figure caption should come BEFORE the figure (officequarto.plots.caption.above: true via alias plots_topcaption), but comes after it")
 }
-ok("Abbildungs-Beschriftung steht vor der Abbildung (officequarto.plots.caption.above: true via officedown-Alias plots_topcaption, gegen Pandocs Default)")
+ok("figure caption comes before the figure (officequarto.plots.caption.above: true via officedown alias plots_topcaption, against Pandoc's default)")
 
-## Regressionstest: Beschriftung OHNE Crossref-ID ({#tbl-...}/{#fig-...}) -
-## Pandoc erzeugt hierfuer eine andere Struktur (kein Wrapper-Table, Style
-## 'TableCaption' statt 'ImageCaption' bei Tabellen) als fuer Crossref-
-## verwaltete Beschriftungen; eine frueherer Versionsstand erkannte diesen
-## Fall gar nicht (Tabellen-/Abbildungs-Beschriftungen wurden sogar
-## vertauscht), siehe dev/spike-notes.md und ../hello-wordto.
+## Regression test: caption WITHOUT a crossref ID ({#tbl-...}/{#fig-...}) -
+## Pandoc generates a different structure for this (no wrapper table, style
+## 'TableCaption' instead of 'ImageCaption' for tables) than for crossref-
+## managed captions; an earlier version didn't detect this case at all
+## (table/figure captions even ended up swapped), see dev/spike-notes.md and
+## ../hello-wordto.
 plain_table_caption_p <- xml_find_first(
   document_doc, "//w:p[w:r/w:t='Regionale Verteilung']", ns
 )
-if (is.na(plain_table_caption_p)) fail("keine Tabellen-Beschriftung ohne Crossref-ID ('Regionale Verteilung') im Ergebnis-Dokument gefunden")
+if (is.na(plain_table_caption_p)) fail("no table caption without a crossref ID ('Regionale Verteilung') found in the result document")
 plain_table_caption_style <- xml_attr(xml_find_first(plain_table_caption_p, "./w:pPr/w:pStyle", ns), "val")
 if (!identical(plain_table_caption_style, "BeschriftungACME")) {
-  fail("Tabellen-Beschriftung ohne Crossref-ID sollte ebenfalls den konfigurierten Style 'BeschriftungACME' tragen, gefunden: '%s'", plain_table_caption_style)
+  fail("table caption without a crossref ID should also carry the configured style 'BeschriftungACME', found: '%s'", plain_table_caption_style)
 }
-ok("Tabellen-Beschriftung ohne Crossref-ID (kein {#tbl-...}, Pandoc-Style 'TableCaption') traegt ebenfalls den konfigurierten Style 'BeschriftungACME'")
+ok("table caption without a crossref ID (no {#tbl-...}, Pandoc style 'TableCaption') also carries the configured style 'BeschriftungACME'")
 
 plain_plot_caption_p <- xml_find_first(
   document_doc, "//w:p[w:r/w:t='Verteilungsdiagramm']", ns
 )
-if (is.na(plain_plot_caption_p)) fail("keine Abbildungs-Beschriftung ohne Crossref-ID ('Verteilungsdiagramm') im Ergebnis-Dokument gefunden")
+if (is.na(plain_plot_caption_p)) fail("no figure caption without a crossref ID ('Verteilungsdiagramm') found in the result document")
 plain_plot_caption_style <- xml_attr(xml_find_first(plain_plot_caption_p, "./w:pPr/w:pStyle", ns), "val")
 if (!identical(plain_plot_caption_style, "AbbildungsbeschriftungACME")) {
-  fail("Abbildungs-Beschriftung ohne Crossref-ID sollte ebenfalls den konfigurierten Style 'AbbildungsbeschriftungACME' tragen, gefunden: '%s'", plain_plot_caption_style)
+  fail("figure caption without a crossref ID should also carry the configured style 'AbbildungsbeschriftungACME', found: '%s'", plain_plot_caption_style)
 }
-ok("Abbildungs-Beschriftung ohne Crossref-ID (kein {#fig-...}) traegt ebenfalls den konfigurierten Style 'AbbildungsbeschriftungACME'")
+ok("figure caption without a crossref ID (no {#fig-...}) also carries the configured style 'AbbildungsbeschriftungACME'")
 
 sect_pr <- xml_find_first(document_doc, "//w:sectPr", ns)
-if (is.na(sect_pr)) fail("keine w:sectPr im Ergebnis-Dokument gefunden")
+if (is.na(sect_pr)) fail("no w:sectPr found in the result document")
 
 pg_sz <- xml_find_first(sect_pr, "./w:pgSz", ns)
 expected_pg_sz <- c(w = "16848", h = "11952", orient = "landscape")
 for (attr_name in names(expected_pg_sz)) {
   actual <- xml_attr(pg_sz, attr_name)
   if (!identical(actual, expected_pg_sz[[attr_name]])) {
-    fail("w:pgSz/@%s sollte '%s' sein (officequarto.page.size), gefunden: '%s'", attr_name, expected_pg_sz[[attr_name]], actual)
+    fail("w:pgSz/@%s should be '%s' (officequarto.page.size), found: '%s'", attr_name, expected_pg_sz[[attr_name]], actual)
   }
 }
-ok("Seitengroesse korrekt gesetzt: 11.7x8.3 Zoll, landscape (officequarto.page.size, orientation via officedown-Alias page_size_orient)")
+ok("page size set correctly: 11.7x8.3 inches, landscape (officequarto.page.size, orientation via officedown alias page_size_orient)")
 
 pg_mar <- xml_find_first(sect_pr, "./w:pgMar", ns)
 expected_pg_mar <- c(top = "1080", bottom = "1080", left = "1440", right = "1440", header = "576", footer = "576", gutter = "0")
 for (attr_name in names(expected_pg_mar)) {
   actual <- xml_attr(pg_mar, attr_name)
   if (!identical(actual, expected_pg_mar[[attr_name]])) {
-    fail("w:pgMar/@%s sollte '%s' sein (officequarto.page.margins), gefunden: '%s'", attr_name, expected_pg_mar[[attr_name]], actual)
+    fail("w:pgMar/@%s should be '%s' (officequarto.page.margins), found: '%s'", attr_name, expected_pg_mar[[attr_name]], actual)
   }
 }
-ok("Seitenraender korrekt gesetzt (officequarto.page.margins, bottom via officedown-Alias page_margins_bottom)")
+ok("page margins set correctly (officequarto.page.margins, bottom via officedown alias page_margins_bottom)")
 
 tbl_crossref <- xml_find_first(document_doc, "//w:hyperlink[@w:anchor='tbl-kennzahlen']", ns)
-if (is.na(tbl_crossref)) fail("kein Crossref-Hyperlink mit Anker 'tbl-kennzahlen' gefunden (erwartet: 'Siehe @tbl-kennzahlen' aus report.qmd)")
+if (is.na(tbl_crossref)) fail("no crossref hyperlink with anchor 'tbl-kennzahlen' found (expected: 'Siehe @tbl-kennzahlen' from report.qmd)")
 tbl_crossref_text <- xml_text(tbl_crossref)
 if (!identical(tbl_crossref_text, "Quartalskennzahlen")) {
-  fail("Tabellen-Crossref sollte auf den Beschriftungstext 'Quartalskennzahlen' umgestellt sein (officequarto.crossref.numbered: false via Alias reference_num), gefunden: '%s'", tbl_crossref_text)
+  fail("table crossref should be switched to the caption text 'Quartalskennzahlen' (officequarto.crossref.numbered: false via alias reference_num), found: '%s'", tbl_crossref_text)
 }
-ok("Tabellen-Crossref zeigt den Beschriftungstext 'Quartalskennzahlen' statt der Nummer (officequarto.crossref.numbered: false via officedown-Alias reference_num)")
+ok("table crossref shows the caption text 'Quartalskennzahlen' instead of the number (officequarto.crossref.numbered: false via officedown alias reference_num)")
 
 fig_crossref <- xml_find_first(document_doc, "//w:hyperlink[@w:anchor='fig-umsatz']", ns)
-if (is.na(fig_crossref)) fail("kein Crossref-Hyperlink mit Anker 'fig-umsatz' gefunden (erwartet: 'Siehe @fig-umsatz' aus report.qmd)")
+if (is.na(fig_crossref)) fail("no crossref hyperlink with anchor 'fig-umsatz' found (expected: 'Siehe @fig-umsatz' from report.qmd)")
 fig_crossref_text <- xml_text(fig_crossref)
 if (!identical(fig_crossref_text, "Umsatzentwicklung")) {
-  fail("Abbildungs-Crossref sollte auf den Beschriftungstext 'Umsatzentwicklung' umgestellt sein (officequarto.crossref.numbered: false), gefunden: '%s'", fig_crossref_text)
+  fail("figure crossref should be switched to the caption text 'Umsatzentwicklung' (officequarto.crossref.numbered: false), found: '%s'", fig_crossref_text)
 }
-ok("Abbildungs-Crossref zeigt den Beschriftungstext 'Umsatzentwicklung' statt der Nummer (officequarto.crossref.numbered: false)")
+ok("figure crossref shows the caption text 'Umsatzentwicklung' instead of the number (officequarto.crossref.numbered: false)")
 
 rendered_styles_doc <- read_xml(file.path(tmp, "word", "styles.xml"))
 rendered_style_ids <- xml_attr(xml_find_all(rendered_styles_doc, "//w:style", ns), "styleId")
@@ -343,41 +346,41 @@ orig_style_ids <- xml_attr(xml_find_all(orig_styles_doc, "//w:style", xml_ns(ori
 unlink(orig_tmp, recursive = TRUE)
 
 if (!setequal(rendered_style_ids, orig_style_ids)) {
-  fail("word/styles.xml von %s sollte exakt die Styles aus original.docx enthalten (nur: %s, fehlt: %s)",
+  fail("word/styles.xml of %s should contain exactly the styles from original.docx (extra: %s, missing: %s)",
        target,
        paste(setdiff(rendered_style_ids, orig_style_ids), collapse = ", "),
        paste(setdiff(orig_style_ids, rendered_style_ids), collapse = ", "))
 }
-ok("word/styles.xml enthaelt exakt die %d Styles aus original.docx (keine Pandoc-Extras)", length(orig_style_ids))
+ok("word/styles.xml contains exactly the %d styles from original.docx (no Pandoc extras)", length(orig_style_ids))
 
 if (any(oq_is_pandoc_code_style_id(rendered_style_ids))) {
-  fail("Pandocs Syntax-Highlighting-Styles (*Tok/SourceCode) haetten entfernt werden muessen")
+  fail("Pandoc's syntax-highlighting styles (*Tok/SourceCode) should have been removed")
 }
-ok("Pandocs Syntax-Highlighting-Styles (*Tok/SourceCode) wurden entfernt")
+ok("Pandoc's syntax-highlighting styles (*Tok/SourceCode) were removed")
 
 code_pstyles <- xml_attr(xml_find_all(document_doc, "//w:p/w:pPr/w:pStyle", ns), "val")
 if (!("CodeACME" %in% code_pstyles)) {
-  fail("Codeblock-Absatz sollte auf den konfigurierten Style 'CodeACME' umgemappt sein (officequarto.pandoc-styles.code-block), gefunden: %s",
+  fail("code-block paragraph should be remapped to the configured style 'CodeACME' (officequarto.pandoc-styles.code-block), found: %s",
        paste(unique(code_pstyles), collapse = ", "))
 }
 if ("SourceCode" %in% code_pstyles) {
-  fail("Codeblock-Absatz sollte nicht mehr 'SourceCode' referenzieren (haette auf 'CodeACME' umgemappt werden muessen)")
+  fail("code-block paragraph should no longer reference 'SourceCode' (should have been remapped to 'CodeACME')")
 }
-ok("Codeblock-Absatz traegt den konfigurierten Style 'CodeACME' (officequarto.pandoc-styles.code-block)")
+ok("code-block paragraph carries the configured style 'CodeACME' (officequarto.pandoc-styles.code-block)")
 
 code_rstyles <- xml_attr(xml_find_all(document_doc, "//w:r/w:rPr/w:rStyle", ns), "val")
 if (!any(oq_is_pandoc_code_style_id(code_rstyles))) {
-  fail("erwartet, dass der Codeblock noch *Tok-Laufstile referenziert (Syntax-Highlighting-Warnpfad-Testfall)")
+  fail("expected the code block to still reference *Tok run styles (syntax-highlighting warning-path test case)")
 }
-ok("Codeblock referenziert weiterhin entfernte *Tok-Laufstile (Syntax-Highlighting faellt auf Standard-Formatierung zurueck, wie vorgesehen - nur die Block-Rolle wird umgemappt)")
+ok("code block still references removed *Tok run styles (syntax highlighting falls back to default formatting as intended - only the block role gets remapped)")
 
 unlink(tmp, recursive = TRUE)
 
 debug_target <- "report.quarto-rendered.docx"
 if (!file.exists(debug_target)) {
-  fail("%s wurde nicht erzeugt (officequarto.keep-rendered: true in _quarto.yml erwartet)", debug_target)
+  fail("%s was not created (officequarto.keep-rendered: true in _quarto.yml expected)", debug_target)
 }
-ok("%s existiert (officequarto.keep-rendered)", debug_target)
+ok("%s exists (officequarto.keep-rendered)", debug_target)
 
 debug_tmp <- tempfile("check_debug_")
 dir.create(debug_tmp)
@@ -387,17 +390,17 @@ debug_custom_path <- file.path(debug_tmp, "docProps", "custom.xml")
 debug_has_property <- file.exists(debug_custom_path) &&
   any(grepl("Vertraulichkeitsstufe", readLines(debug_custom_path, warn = FALSE), fixed = TRUE))
 if (debug_has_property) {
-  fail("%s sollte die ungepatchte Pandoc-Ausgabe sein, traegt aber schon die zurueckgeschriebene Custom-Property", debug_target)
+  fail("%s should be the unpatched Pandoc output, but already carries the written-back custom property", debug_target)
 }
-ok("%s zeigt den ungepatchten Zustand (keine zurueckgeschriebene Custom-Property)", debug_target)
+ok("%s shows the unpatched state (no written-back custom property)", debug_target)
 
 debug_document_doc <- read_xml(file.path(debug_tmp, "word", "document.xml"))
 debug_pstyles <- xml_attr(xml_find_all(debug_document_doc, "//w:p/w:pPr/w:pStyle", xml_ns(debug_document_doc)), "val")
 if (!any(debug_pstyles %in% c("Normal", "Compact", "FirstParagraph"))) {
-  fail("%s sollte noch Pandocs Standard-Styles tragen (gefunden: %s)",
+  fail("%s should still carry Pandoc's default styles (found: %s)",
        debug_target, paste(unique(debug_pstyles), collapse = ", "))
 }
-ok("%s zeigt noch Pandocs Standard-Styles (kein Style-Mapping angewendet)", debug_target)
+ok("%s still shows Pandoc's default styles (no style mapping applied)", debug_target)
 
 unlink(debug_tmp, recursive = TRUE)
-cat("\nAlle Checks bestanden.\n")
+cat("\nAll checks passed.\n")

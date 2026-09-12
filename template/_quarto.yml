@@ -9,39 +9,39 @@ format:
       styles:
         body: "Fließtext ACME"
       lists:
-        # Array = ein Style pro Verschachtelungsebene (Index 0 = oberste Ebene), ueber den
-        # officedown-Alias ul_style getestet, siehe README "Lists" und dev/spike-notes.md Spike O
+        # Array = one style per nesting level (index 0 = top level), tested via the
+        # officedown alias ul_style, see README "Lists" and dev/spike-notes.md Spike O
         ul_style: ["Aufzählung ACME", "Aufzählung ACME 2", "Aufzählung ACME 3"]
         list-number: ["Nummerierung ACME", "Nummerierung ACME 2", "Nummerierung ACME 3"]
-        # bleibt bewusst skalar - testet Rueckwaertskompatibilitaet + Clamping auf den
-        # einzigen konfigurierten Style bei tieferer Verschachtelung, siehe report.qmd "Varianten"
+        # deliberately stays scalar - tests backward compatibility + clamping onto the
+        # single configured style at deeper nesting, see report.qmd "Varianten"
         list-letter: "Buchstabierung ACME"
       pandoc-styles:
         code-block: "Code ACME"
       tables:
         style: "Tabelle ACME"
         layout: fixed
-        tables_width: 0.8         # officedown-Alias fuer width, siehe README
+        tables_width: 0.8         # officedown alias for width, see README
         conditional:
           first-row: true
-          tables_conditional_last_row: true   # officedown-Alias fuer last-row
+          tables_conditional_last_row: true   # officedown alias for last-row
           band-rows: false
-          tables_conditional_no_vband: false  # officedown-Alias fuer band-columns (umgekehrte Polaritaet -> true)
+          tables_conditional_no_vband: false  # officedown alias for band-columns (inverted polarity -> true)
         caption:
           style: "Beschriftung ACME"
           prefix: "Tab. "
-          tables_caption_sep: " -- "          # officedown-Alias fuer separator
+          tables_caption_sep: " -- "          # officedown alias for separator
           number-bold: true
-          above: false                        # gegen Pandocs Default (Tabellen: Beschriftung oben)
+          above: false                        # overrides Pandoc's default (tables: caption above)
       plots:
         style: "Abbildung ACME"
-        plots_align: right                    # officedown-Alias fuer align
+        plots_align: right                    # officedown alias for align
         caption:
-          plots_caption_style: "Abbildungsbeschriftung ACME"   # officedown-Alias fuer style
+          plots_caption_style: "Abbildungsbeschriftung ACME"   # officedown alias for style
           prefix: "Abb. "
           separator: " | "
-          plots_caption_bold: false           # officedown-Alias fuer number-bold
-          plots_topcaption: true               # officedown-Alias fuer above (gegen Pandocs Default: Abbildungen unten)
+          plots_caption_bold: false           # officedown alias for number-bold
+          plots_topcaption: true               # officedown alias for above (overrides Pandoc's default: figures below)
       style-map:
         "Titel ACME": [Title]
         "Fußnotentext ACME": [FootnoteText]
@@ -49,14 +49,14 @@ format:
         size:
           width: 11.7
           height: 8.3
-          page_size_orient: landscape   # officedown-Alias fuer orientation
+          page_size_orient: landscape   # officedown alias for orientation
         margins:
           top: 0.75
-          page_margins_bottom: 0.75     # officedown-Alias fuer bottom
+          page_margins_bottom: 0.75     # officedown alias for bottom
           left: 1
           right: 1
           header: 0.4
           footer: 0.4
           gutter: 0
       crossref:
-        reference_num: false   # officedown-Alias fuer numbered
+        reference_num: false   # officedown alias for numbered

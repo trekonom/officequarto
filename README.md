@@ -1,74 +1,91 @@
 # officequarto
 
-Prototype Quarto extension that lets any existing Word document be used as the target/template
-format for Quarto (styles, layout, headers/footers are carried over) and, after `quarto render`,
-overwrites the generated `.docx` in place with the document metadata carried over from the
-original — the same basic idea as [{officedown}](https://github.com/ardata-fr/officedown), but
-shipped as an installable Quarto extension instead of an R package.
+Prototype R package + Quarto extension that lets any existing Word document be used as the
+target/template format for Quarto (styles, layout, headers/footers are carried over) and, after
+`quarto render`, overwrites the generated `.docx` in place with the document metadata carried over
+from the original — the same basic idea as [{officedown}](https://github.com/ardata-fr/officedown).
+The Quarto extension is bundled inside the R package (see [Usage](#usage-in-2-steps)); installing
+the package is the only install step.
 
-## Usage in 3 steps
+## Usage in 2 steps
 
-1. **Install the extension into a Quarto project** (a project with `_quarto.yml` is required —
-   see [Known limitations](#known-limitations)):
+officequarto is an R package with the Quarto extension bundled inside it (under `inst/`) — there
+is no separate `quarto add` install step. Installing the package is enough; scaffolding a project
+copies the extension in for you.
 
-   ```bash
-   quarto add <owner>/officequarto
+1. **Install the R package** (a required runtime dependency, not optional — the extension's
+   post-render hook calls into it directly):
+
+   ```r
+   pak::pak("trekonom/officequarto")
    ```
 
-2. **Activate the hook and reference the original document** — in the project's `_quarto.yml`:
+2. **Scaffold a new project**, pointing at your existing Word document:
 
-   ```yaml
-   project:
-     type: officequarto   # activates the write-back hook - required step, see below!
-
-   format:
-     docx:
-       reference-doc: original.docx   # your existing Word document
+   ```r
+   officequarto::oq_create_project("my-report", reference_doc = "original.docx")
    ```
 
-   > **Important:** `quarto add` alone only installs the extension files. Without
-   > `project: type: officequarto` in your own `_quarto.yml` the hook does **not** run — this is
-   > not a zero-config mechanism (see [`dev/spike-notes.md`](dev/spike-notes.md)).
-
-3. **Render:**
+   This creates `my-report/` with a `_quarto.yml` listing **every** `officequarto` option at its
+   default value (`project: type: officequarto` + `format.docx.reference-doc` already wired up —
+   see [Option reference](#option-reference) for what each key does), a copy of `original.docx`,
+   the officequarto extension under `_extensions/officequarto/`, and one starter `.qmd` file —
+   everything needed to render immediately:
 
    ```bash
+   cd my-report
    quarto render
    ```
 
    The `*.docx` produced by Quarto/Pandoc is then automatically overwritten in place with the
    document metadata taken from `original.docx` — no second file is created. If you also want to
-   keep the plain, unpatched Pandoc output for debugging, enable that with
-   `officequarto.keep-rendered: true` (see below).
+   keep the plain, unpatched Pandoc output for debugging, flip the scaffolded
+   `officequarto.keep-rendered: false` to `true` (see below).
+
+Prefer to wire an existing project up by hand instead of scaffolding a new one? Add
+`project: type: officequarto` and `format.docx.reference-doc: <your .docx>` to its `_quarto.yml`
+yourself, then copy `system.file("_extensions", package = "officequarto")` into the project root as
+`_extensions/officequarto/` — that's exactly what `oq_create_project()` automates.
 
 A complete example lives in [`template/`](template/): `original.docx` (sample template with its
 own header/footer/custom properties/custom styles) + `report.qmd` + `_quarto.yml`.
 
 ## Architecture
 
-```
-_extensions/officequarto/
-├── _extension.yml            contributes: project: { project: { type: default,
-│                                                       post-render: [scripts/writeback.R] } }
-└── scripts/
-    ├── writeback.R           post-render hook (orchestration)
-    ├── style-mapping.R       style-mapping core logic, sourced by writeback.R
-    ├── style-pruning.R       style-pruning core logic, sourced by writeback.R
-    ├── option-aliases.R      canonical-name/officedown-alias resolution, sourced by writeback.R
-    ├── table-mapping.R       table style/layout/width/conditional-formatting logic, sourced by writeback.R
-    ├── table-caption-mapping.R  table caption style/prefix/separator/bold logic (also the
-    │                          shared, generic caption-rewriting logic reused by plot-caption-mapping.R),
-    │                          sourced by writeback.R
-    ├── plot-mapping.R        figure style/align logic, sourced by writeback.R
-    ├── plot-caption-mapping.R   figure caption paragraph detection, sourced by writeback.R
-    ├── style-map.R           free-form style-map (mapstyles) logic, sourced by writeback.R
-    ├── page-mapping.R        page size/margins (section properties) logic, sourced by writeback.R
-    └── crossref-mapping.R    cross-reference text rewriting logic, sourced by writeback.R
+officequarto is an R package (DESCRIPTION/NAMESPACE/`R/`/`tests/testthat/` at the repo root) that
+also bundles the Quarto extension it powers, under `inst/`:
 
-template/                     example project (quarto use template)
-├── _quarto.yml                project: type: officequarto, format.docx.officequarto
-├── original.docx              sample template (incl. three ACME custom styles)
-└── report.qmd                 format: docx: reference-doc: original.docx
+```
+R/                             package logic - one exported function, oq_writeback(), everything
+│                               else internal; a package loads all of R/*.R into one namespace at
+│                               once, so file boundaries below are purely organizational
+├── writeback.R                 oq_writeback() - post-render hook orchestration (exported)
+├── create-project.R            oq_create_project() - project scaffolding (exported)
+├── style-mapping.R             style-mapping core logic
+├── style-pruning.R             style-pruning core logic
+├── option-aliases.R             canonical-name/officedown-alias resolution
+├── table-mapping.R              table style/layout/width/conditional-formatting logic
+├── table-caption-mapping.R      table caption style/prefix/separator/bold logic (also the
+│                                shared, generic caption-rewriting logic reused by
+│                                plot-caption-mapping.R)
+├── plot-mapping.R                figure style/align logic
+├── plot-caption-mapping.R        figure caption paragraph detection
+├── style-map.R                   free-form style-map (mapstyles) logic
+├── page-mapping.R                page size/margins (section properties) logic
+└── crossref-mapping.R            cross-reference text rewriting logic
+
+inst/_extensions/officequarto/  the Quarto extension itself - installed alongside the package,
+├── _extension.yml               reachable via system.file("_extensions", package = "officequarto");
+│                                contributes: project: { project: { type: default,
+│                                post-render: [scripts/writeback.R] } }
+└── scripts/
+    └── writeback.R              thin shim: requireNamespace("officequarto") + officequarto::oq_writeback()
+
+template/                       example/dev project (this package's own fixture, not shipped)
+├── _quarto.yml                  project: type: officequarto, format.docx.officequarto
+├── original.docx                 sample template (incl. sixteen ACME custom paragraph styles)
+├── report.qmd                    format: docx: reference-doc: original.docx
+└── _extensions                   symlink -> ../inst/_extensions (dev convenience only)
 ```
 
 What happens on `quarto render`:
@@ -76,8 +93,10 @@ What happens on `quarto render`:
 1. Pandoc/Quarto render the `.qmd` with `original.docx` as `reference-doc`. **This alone is
    enough** to carry over the original's styles, header, footer, and section properties — that's
    native Pandoc behavior, no custom code involved.
-2. The post-render hook `scripts/writeback.R` then runs automatically: it resolves the path to
-   `reference-doc` via `quarto inspect`, works on a copy of the freshly rendered `.docx` in a
+2. The post-render hook then runs automatically (the thin shim in
+   `_extensions/officequarto/scripts/writeback.R` calls the package's exported `oq_writeback()`):
+   it resolves the path to `reference-doc` via `quarto inspect`, works on a copy of the freshly
+   rendered `.docx` in a
    temporary directory, and transfers `docProps/core.xml` (subject, keywords, description,
    category) and `docProps/custom.xml` (freely defined custom properties) from the original into
    it — metadata that Pandoc otherwise replaces with fresh, empty values when rendering. The
@@ -749,8 +768,12 @@ group is ported; groups not yet listed here aren't implemented yet.
 - `Rscript` in `PATH` — the post-render hook is an R script. If `Rscript` itself is missing, Quarto
   aborts with its own error message before our script even starts; that can't be caught from
   within the script.
-- R packages `xml2` and `jsonlite` (`install.packages(c("xml2", "jsonlite"))`) — the hook checks
-  at startup whether both are available and otherwise aborts with a clear message.
+- The **`officequarto` R package itself**, installed (`pak::pak("trekonom/officequarto")`) — a
+  required runtime dependency, not optional. Without it, the post-render hook's thin shim script
+  fails loudly with an install instruction rather than silently skipping.
+- R packages `xml2` and `jsonlite` (declared `Imports`, installed automatically alongside
+  `officequarto`) — the hook also checks at startup whether both are available and otherwise
+  aborts with a clear message.
 - The command-line tools `zip`/`unzip` in `PATH` (present by default on macOS/Linux)
 
 ## Known limitations
@@ -790,17 +813,24 @@ group is ported; groups not yet listed here aren't implemented yet.
 
 ## Development / tests
 
+officequarto is a real R package — the pure-logic unit tests run through testthat/`R CMD check`
+like any other package:
+
+```r
+devtools::document()   # (re-)generate NAMESPACE/man after any roxygen change
+devtools::test()       # runs every tests/testthat/test-*.R
+devtools::check()      # full R CMD check
+```
+
+Two checks stay outside that automatic suite, since they need a live `quarto render` against a
+real `.docx` and the external `quarto` CLI (not appropriate for `R CMD check`, which must run in a
+clean, offline environment):
+
 ```bash
+Rscript -e 'devtools::document(quiet = TRUE); devtools::install(quiet = TRUE, upgrade = FALSE)'
 cd template
 quarto render report.qmd
-Rscript ../dev/check-writeback.R        # checks header/footer/body/metadata of the result
-Rscript ../dev/check-option-aliases.R   # unit-checks canonical-name/officedown-alias resolution
-Rscript ../dev/check-caption-parsing.R  # unit-checks the table-caption text-splitting logic
-Rscript ../dev/check-style-map.R        # unit-checks officequarto.style-map resolution/application
-Rscript ../dev/check-crossref.R         # unit-checks cross-reference text rewriting
-Rscript ../dev/check-list-levels.R      # unit-checks per-nesting-level list style resolution
-Rscript ../dev/check-auto-number.R      # unit-checks live SEQ/REF field construction
-Rscript ../dev/check-footnote-styling.R # unit-checks footnote/endnote paragraph selector + list/code/style-map detection
+Rscript ../dev/check-writeback.R   # checks header/footer/body/metadata/style-mapping/pruning of the result
 ```
 
 `officequarto.crossref.auto-number` also has a dedicated end-to-end fixture, kept separate from
@@ -812,6 +842,10 @@ cd dev/fixtures/auto-number
 quarto render report.qmd
 Rscript ../../check-auto-number-e2e.R
 ```
+
+Editing any file under `R/` requires reinstalling the package (`devtools::install()`, see above)
+before the next `quarto render` picks up the change — unlike `template/report.qmd`, which is a
+plain Quarto document rendered fresh every time.
 
 `dev/make-sample-docx.R` regenerates the sample template `template/original.docx`, including the
 ACME custom styles used for style-mapping (requires the R packages `officer` and `xml2`, only for

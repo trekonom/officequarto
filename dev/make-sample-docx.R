@@ -1,6 +1,6 @@
-## Erzeugt eine Beispiel-Word-Vorlage (template/original.docx) mit eigenem
-## Header/Footer und auffälligem Absatzformat, damit sich Style- und
-## Round-Trip-Treue beim Spike visuell prüfen lassen.
+## Creates a sample Word template (template/original.docx) with its own
+## header/footer and a distinctive paragraph format, so style and round-trip
+## fidelity can be checked visually during the spike.
 library(officer)
 
 doc <- read_docx()
@@ -27,25 +27,23 @@ doc <- doc |> set_doc_properties(
 
 print(doc, target = "template/original.docx")
 
-## officer bietet keine High-Level-API zum Definieren neuer Paragraph-/
-## Tabellen-Styles, daher werden 16 ACME-Custom-Paragraph-Styles (die
-## urspruenglichen neun, plus je zwei weitere Verschachtelungsebenen fuer
-## Aufzaehlung/Nummerierung/Buchstabierung - officequarto.lists.* als Array
-## statt Skalar, siehe style-mapping.R - plus ein Fussnotentext-Style fuer
-## Issue #2 "Footnote/endnote paragraph styling", siehe unten) plus ein
-## ACME-Custom-Tabellen-Style direkt in word/styles.xml nachgetragen - gleiche
-## unzip/xml2/zip-Technik wie in scripts/writeback.R. Jeder Style hat eine
-## deutlich abweichende Formatierung, damit ein erfolgreiches Mapping auch
-## visuell erkennbar ist.
+## officer offers no high-level API for defining new paragraph/table
+## styles, so 16 ACME custom paragraph styles (the original nine, plus two
+## additional nesting levels each for bullet/number/letter lists -
+## officequarto.lists.* as an array instead of a scalar, see
+## style-mapping.R - plus a footnote-text style for issue #2 "Footnote/
+## endnote paragraph styling", see below) plus one ACME custom table style
+## are appended directly into word/styles.xml - the same unzip/xml2/zip
+## technique as in scripts/writeback.R. Each style has a clearly distinct
+## formatting so a successful mapping is also visually recognizable.
 ##
-## FussnotentextACME bleibt bewusst UNGENUTZT von Pandocs eigener
-## Fussnotentext-Rolle (original.docx definiert absichtlich KEINEN Style mit
-## "Footnote"/"Fussnote" im Namen) - das ist genau der empirisch verifizierte
-## Fall, in dem Pandoc auf die feste, nie im reference-doc definierte
-## Fallback-ID "FootnoteText" zurueckfaellt (siehe README "Footnotes and
-## endnotes"); template/_quarto.yml leitet diese ueber officequarto.style-map
-## auf FussnotentextACME um, exercised durch die Fussnote in
-## template/report.qmd.
+## FussnotentextACME deliberately stays UNUSED by Pandoc's own footnote-text
+## role (original.docx deliberately defines NO style with "Footnote" in its
+## name) - that's exactly the empirically verified case where Pandoc falls
+## back to the fixed fallback ID "FootnoteText", never defined in the
+## reference-doc (see README "Footnotes and endnotes"); template/_quarto.yml
+## redirects this to FussnotentextACME via officequarto.style-map, exercised
+## by the footnote in template/report.qmd.
 library(xml2)
 
 custom_styles <- c(
@@ -197,4 +195,4 @@ system2("zip", c("-rq", shQuote(target_path), "."))
 setwd(old_wd)
 unlink(work_dir, recursive = TRUE)
 
-cat("Beispiel-Dokument geschrieben: template/original.docx (inkl. 16 ACME-Paragraph-Styles - neun Basis-Styles plus je zwei weitere Verschachtelungsebenen fuer Aufzaehlung/Nummerierung/Buchstabierung, plus Fussnotentext - und einem ACME-Tabellen-Style)\n")
+cat("Sample document written: template/original.docx (incl. 16 ACME paragraph styles - nine base styles plus two additional nesting levels each for bullet/number/letter lists, plus footnote text - and one ACME table style)\n")

@@ -4,41 +4,76 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-`officequarto` is a prototype Quarto extension. It lets any existing Word document act as the
-`reference-doc` for a Quarto/Pandoc docx render (styles, layout, headers/footers, section
-properties carry over natively via Pandoc), and adds a post-render hook that writes document
-metadata and remapped paragraph styles back into a copy of that original document. It mirrors the
-idea behind the R package {officedown}, but ships as an installable Quarto extension instead.
+`officequarto` is an R package (DESCRIPTION/NAMESPACE/`R/`/`tests/testthat/` at the repo root) that
+bundles, as `inst/_extensions/officequarto/`, the Quarto extension it powers. It lets any existing
+Word document act as the `reference-doc` for a Quarto/Pandoc docx render (styles, layout,
+headers/footers, section properties carry over natively via Pandoc), and adds a post-render hook
+that writes document metadata and remapped paragraph styles back into a copy of that original
+document. It mirrors the idea behind the R package {officedown}, but also ships as an installable
+Quarto extension (bundled inside the same R package, see below).
 
-Not a package in the traditional sense — there is no build/lint/test tooling beyond the R scripts
-described below. Not currently version-controlled with any CI.
+The R package is a **required runtime dependency** of the extension, not just a dev-time
+convenience — the extension's post-render hook (`inst/_extensions/officequarto/scripts/
+writeback.R`) is a thin shim that calls the package's exported `oq_writeback()`. There is
+deliberately no separate `quarto add` install path anymore: `oq_create_project()`
+(`R/create-project.R`, exported) scaffolds a new project — including copying the bundled extension
+in via `system.file("_extensions", package = "officequarto")` — directly from R, modeled on
+`usethis::create_project()`. Named `oq_create_project()`, not `create_officequarto_project()` (an
+earlier choice, briefly used) — consistency with the package's internal `oq_` prefix convention won
+out over the argument that this is the one function meant for direct end-user typing. See README's
+"Usage in 2 steps".
+
+`oq_quarto_yml_template()` (private helper inside `create-project.R`) deliberately writes **every**
+`officequarto` option into the scaffolded `_quarto.yml`, not just a minimal skeleton — a
+self-documenting starting point. Two rules decide each option's written value: boolean/enum/
+numeric options with a real behavioral default (what happens when the key is absent, e.g.
+`keep-rendered: false`, `tables.conditional.first-row: false`, `crossref.numbered: true`) get that
+literal value; string/style-name options with no universal default (`styles.body`,
+`tables.style`/`caption.style`, `plots.*`, every `page.size.*`/`margins.*`, ...) get YAML `null`,
+since only the user's own `reference-doc` can supply a real value — every such field in
+`R/writeback.R` is gated behind `!is.null(...)`, so `null` is behaviorally identical to omitting
+the key. `officequarto.style-map` is excluded from the active YAML entirely (shown only as a
+commented-out shape example) — it's a free-form, user-defined map with no fixed keys, unlike every
+other group, so it has no meaningful default entries to show.
+
+Testing goes through testthat/`R CMD check` like any other package; a small amount of ad-hoc
+`dev/` tooling remains for the two checks that need a live `quarto render` (see Commands below).
+Not currently version-controlled with any CI.
 
 ## Commands
 
-Render the example project and verify the hook end-to-end:
+Package-level checks (pure R logic, no `quarto render` needed):
+
+```r
+devtools::document()   # (re-)generate NAMESPACE/man after any roxygen change
+devtools::test()       # runs every tests/testthat/test-*.R
+devtools::check()      # full R CMD check
+```
+
+Render the example project and verify the hook end-to-end (needs the package installed first, so
+the extension shim's `library(officequarto)`/`officequarto::oq_writeback()` call resolves):
 
 ```bash
+Rscript -e 'devtools::document(quiet = TRUE); devtools::install(quiet = TRUE, upgrade = FALSE)'
 cd template
 quarto render report.qmd
 Rscript ../dev/check-writeback.R        # checks header/footer/body/metadata/style-mapping/style-pruning of the result
-Rscript ../dev/check-option-aliases.R   # unit-checks oq_resolve_aliased()/oq_resolve_inverted_aliased()
-Rscript ../dev/check-caption-parsing.R  # unit-checks oq_split_caption_text() (table caption text-splitting)
-Rscript ../dev/check-style-map.R        # unit-checks oq_resolve_style_map()/oq_apply_style_map()
-Rscript ../dev/check-crossref.R         # unit-checks oq_apply_crossref_text()
-Rscript ../dev/check-list-levels.R      # unit-checks oq_style_for_level()/oq_paragraph_ilvl()/oq_resolve_style_ids()
-Rscript ../dev/check-auto-number.R      # unit-checks live SEQ/REF field construction (oq_convert_caption_to_field()/oq_apply_crossref_fields())
-Rscript ../dev/check-footnote-styling.R # unit-checks footnote/endnote paragraph selector + list/code/style-map detection
 ```
 
 `template/report.qmd` includes a small fenced code block specifically so the style-pruning
 "removed but still referenced" warning path (see below) has real coverage, not just the
 always-safe unused-style case.
 
-`template/_extensions` is a symlink to `../_extensions` — this is how the extension is exercised
-during development without a separate `quarto add` install. `template/_quarto.yml` sets
-`officequarto.keep-rendered: true`, so rendering produces `report.docx` (final, in-place
-overwritten) and `report.quarto-rendered.docx` (the pre-write-back debug copy) in `template/`
-(both gitignored); clean up with:
+`template/_extensions` is a symlink to `../inst/_extensions` — this is how the extension is
+exercised during development against this repo's own in-tree copy, without needing a separate
+install elsewhere. Since the actual OOXML logic now lives in the installed `officequarto` package
+rather than in sourced scripts, editing anything under `R/` requires the
+`devtools::document()`/`devtools::install()` step above before the next render picks up the
+change — the symlink alone only keeps *shim* edits (`inst/_extensions/officequarto/scripts/
+writeback.R` itself) instantly live. `template/_quarto.yml` sets `officequarto.keep-rendered:
+true`, so rendering produces `report.docx` (final, in-place overwritten) and
+`report.quarto-rendered.docx` (the pre-write-back debug copy) in `template/` (both gitignored);
+clean up with:
 
 ```bash
 rm -f template/report.docx template/report.quarto-rendered.docx
@@ -46,9 +81,9 @@ rm -rf template/.quarto template/report_files
 ```
 
 `officequarto.crossref.auto-number` has its own dedicated end-to-end fixture,
-`dev/fixtures/auto-number/` (own `_quarto.yml`/`_extensions` symlink, mirroring `template/`'s),
-kept separate since `template/_quarto.yml` sets `crossref.numbered: false` (mutually exclusive with
-`auto-number` by design):
+`dev/fixtures/auto-number/` (own `_quarto.yml`/`_extensions` symlink, now pointing at
+`../../../inst/_extensions`, mirroring `template/`'s), kept separate since `template/_quarto.yml`
+sets `crossref.numbered: false` (mutually exclusive with `auto-number` by design):
 
 ```bash
 cd dev/fixtures/auto-number
@@ -56,18 +91,28 @@ quarto render report.qmd
 Rscript ../../check-auto-number-e2e.R
 ```
 
-Regenerate the sample template (`template/original.docx`), including the nine ACME custom
+Regenerate the sample template (`template/original.docx`), including the sixteen ACME custom
 paragraph styles used to test style-mapping (body/bullet/number/letter/code-block/table-caption/
-plot/plot-caption/title):
+plot/plot-caption/title/footnote-text):
 
 ```bash
 Rscript dev/make-sample-docx.R   # needs R packages: officer, xml2
 ```
 
-To verify the extension also works as a genuine external install (not just via the dev symlink),
-`quarto add <path-to-this-repo>` into a throwaway project and repeat the render/check above.
+To verify `oq_create_project()` produces a genuinely working project end-to-end (not
+just the dev-symlink path above): `devtools::install()`, then call it against a temp directory
+with `reference_doc` pointing at a real `.docx`, then `quarto render` inside the scaffolded
+project — see README's Verification-equivalent walkthrough for the exact commands.
 
-There is no linter/formatter configured for the R scripts in this repo.
+There is no linter/formatter configured for the R scripts in this repo; version bumps are manual
+and must touch both `DESCRIPTION`'s `Version:` and `inst/_extensions/officequarto/_extension.yml`'s
+`version:` together — no automated sync exists between them.
+
+Roxygen documentation is intentionally minimal for now: only the two exported functions
+(`oq_writeback()`, `oq_create_project()`) carry full `@param`/`@return` docs. Every
+internal helper (~40 functions across `R/`) carries a bare `#' @noRd` placeholder — a deliberate,
+scoped starting point (this was a structural migration, not a documentation pass), not an
+oversight; fleshing these out is a natural, separate follow-up.
 
 ## Workflow
 
