@@ -15,10 +15,26 @@ Quarto extension (bundled inside the same R package, see below).
 The R package is a **required runtime dependency** of the extension, not just a dev-time
 convenience — the extension's post-render hook (`inst/_extensions/officequarto/scripts/
 writeback.R`) is a thin shim that calls the package's exported `oq_writeback()`. There is
-deliberately no separate `quarto add` install path anymore: `create_officequarto_project()`
+deliberately no separate `quarto add` install path anymore: `oq_create_project()`
 (`R/create-project.R`, exported) scaffolds a new project — including copying the bundled extension
 in via `system.file("_extensions", package = "officequarto")` — directly from R, modeled on
-`usethis::create_project()`. See README's "Usage in 2 steps".
+`usethis::create_project()`. Named `oq_create_project()`, not `create_officequarto_project()` (an
+earlier choice, briefly used) — consistency with the package's internal `oq_` prefix convention won
+out over the argument that this is the one function meant for direct end-user typing. See README's
+"Usage in 2 steps".
+
+`oq_quarto_yml_template()` (private helper inside `create-project.R`) deliberately writes **every**
+`officequarto` option into the scaffolded `_quarto.yml`, not just a minimal skeleton — a
+self-documenting starting point. Two rules decide each option's written value: boolean/enum/
+numeric options with a real behavioral default (what happens when the key is absent, e.g.
+`keep-rendered: false`, `tables.conditional.first-row: false`, `crossref.numbered: true`) get that
+literal value; string/style-name options with no universal default (`styles.body`,
+`tables.style`/`caption.style`, `plots.*`, every `page.size.*`/`margins.*`, ...) get YAML `null`,
+since only the user's own `reference-doc` can supply a real value — every such field in
+`R/writeback.R` is gated behind `!is.null(...)`, so `null` is behaviorally identical to omitting
+the key. `officequarto.style-map` is excluded from the active YAML entirely (shown only as a
+commented-out shape example) — it's a free-form, user-defined map with no fixed keys, unlike every
+other group, so it has no meaningful default entries to show.
 
 Testing goes through testthat/`R CMD check` like any other package; a small amount of ad-hoc
 `dev/` tooling remains for the two checks that need a live `quarto render` (see Commands below).
@@ -83,7 +99,7 @@ plot/plot-caption/title/footnote-text):
 Rscript dev/make-sample-docx.R   # needs R packages: officer, xml2
 ```
 
-To verify `create_officequarto_project()` produces a genuinely working project end-to-end (not
+To verify `oq_create_project()` produces a genuinely working project end-to-end (not
 just the dev-symlink path above): `devtools::install()`, then call it against a temp directory
 with `reference_doc` pointing at a real `.docx`, then `quarto render` inside the scaffolded
 project — see README's Verification-equivalent walkthrough for the exact commands.
@@ -93,7 +109,7 @@ and must touch both `DESCRIPTION`'s `Version:` and `inst/_extensions/officequart
 `version:` together — no automated sync exists between them.
 
 Roxygen documentation is intentionally minimal for now: only the two exported functions
-(`oq_writeback()`, `create_officequarto_project()`) carry full `@param`/`@return` docs. Every
+(`oq_writeback()`, `oq_create_project()`) carry full `@param`/`@return` docs. Every
 internal helper (~40 functions across `R/`) carries a bare `#' @noRd` placeholder — a deliberate,
 scoped starting point (this was a structural migration, not a documentation pass), not an
 oversight; fleshing these out is a natural, separate follow-up.

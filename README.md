@@ -23,13 +23,14 @@ copies the extension in for you.
 2. **Scaffold a new project**, pointing at your existing Word document:
 
    ```r
-   officequarto::create_officequarto_project("my-report", reference_doc = "original.docx")
+   officequarto::oq_create_project("my-report", reference_doc = "original.docx")
    ```
 
-   This creates `my-report/` with `_quarto.yml` (`project: type: officequarto` +
-   `format.docx.reference-doc` already wired up), a copy of `original.docx`, the officequarto
-   extension under `_extensions/officequarto/`, and one starter `.qmd` file — everything needed to
-   render immediately:
+   This creates `my-report/` with a `_quarto.yml` listing **every** `officequarto` option at its
+   default value (`project: type: officequarto` + `format.docx.reference-doc` already wired up —
+   see [Option reference](#option-reference) for what each key does), a copy of `original.docx`,
+   the officequarto extension under `_extensions/officequarto/`, and one starter `.qmd` file —
+   everything needed to render immediately:
 
    ```bash
    cd my-report
@@ -38,14 +39,13 @@ copies the extension in for you.
 
    The `*.docx` produced by Quarto/Pandoc is then automatically overwritten in place with the
    document metadata taken from `original.docx` — no second file is created. If you also want to
-   keep the plain, unpatched Pandoc output for debugging, enable that with
-   `officequarto.keep-rendered: true` (see below; `create_officequarto_project()` turns it on by
-   default in the scaffolded `_quarto.yml`).
+   keep the plain, unpatched Pandoc output for debugging, flip the scaffolded
+   `officequarto.keep-rendered: false` to `true` (see below).
 
 Prefer to wire an existing project up by hand instead of scaffolding a new one? Add
 `project: type: officequarto` and `format.docx.reference-doc: <your .docx>` to its `_quarto.yml`
 yourself, then copy `system.file("_extensions", package = "officequarto")` into the project root as
-`_extensions/officequarto/` — that's exactly what `create_officequarto_project()` automates.
+`_extensions/officequarto/` — that's exactly what `oq_create_project()` automates.
 
 A complete example lives in [`template/`](template/): `original.docx` (sample template with its
 own header/footer/custom properties/custom styles) + `report.qmd` + `_quarto.yml`.
@@ -60,7 +60,7 @@ R/                             package logic - one exported function, oq_writeba
 │                               else internal; a package loads all of R/*.R into one namespace at
 │                               once, so file boundaries below are purely organizational
 ├── writeback.R                 oq_writeback() - post-render hook orchestration (exported)
-├── create-project.R            create_officequarto_project() - project scaffolding (exported)
+├── create-project.R            oq_create_project() - project scaffolding (exported)
 ├── style-mapping.R             style-mapping core logic
 ├── style-pruning.R             style-pruning core logic
 ├── option-aliases.R             canonical-name/officedown-alias resolution
