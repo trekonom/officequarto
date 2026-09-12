@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="index.html">officequarto</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">2.0.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -39,6 +39,7 @@
     <li><a class="dropdown-item" href="articles/options.html">Configuring officequarto</a></li>
   </ul>
 </li>
+<li class="nav-item"><a class="nav-link" href="news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
 <li class="nav-item"><form class="form-inline" role="search">
@@ -55,6 +56,8 @@
   <main id="main" class="col-md-9"><div class="section level1">
 <div class="page-header"><h1 id="officequarto">officequarto<a class="anchor" aria-label="anchor" href="#officequarto"></a>
 </h1></div>
+<!-- badges: start -->
+
 <p>Prototype R package + Quarto extension that lets any existing Word document be used as the target/template format for Quarto (styles, layout, headers/footers are carried over) and, after <code>quarto render</code>, overwrites the generated <code>.docx</code> in place with the document metadata carried over from the original — the same basic idea as <a href="https://github.com/ardata-fr/officedown" class="external-link">{officedown}</a>. The Quarto extension is bundled inside the R package (see <a href="#usage-in-2-steps">Usage</a>); installing the package is the only install step.</p>
 <p>📖 Full documentation, including package architecture and the complete <code>officequarto.*</code> option reference: <a href="https://trekonom.github.io/officequarto/" class="uri">https://trekonom.github.io/officequarto/</a></p>
 <div class="section level2">
@@ -178,7 +181,13 @@
 </ul>
 </div>
 
-
+<div class="dev-status">
+<h2 data-toc-skip>Dev status</h2>
+<ul class="list-unstyled">
+<li><a href="https://github.com/trekonom/officequarto/actions/workflows/R-CMD-check.yaml" class="external-link"><img src="https://github.com/trekonom/officequarto/actions/workflows/R-CMD-check.yaml/badge.svg" alt="R-CMD-check"></a></li>
+<li><a href="https://CRAN.R-project.org/package=officequarto" class="external-link"><img src="https://www.r-pkg.org/badges/version/officequarto" alt="CRAN status"></a></li>
+</ul>
+</div>
 
   </aside>
 </div>
