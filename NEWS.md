@@ -1,4 +1,4 @@
-# officequarto 2.0.0
+# officequarto 0.1.0
 
 Initial development version. Not yet on CRAN.
 
