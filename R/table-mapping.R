@@ -1,28 +1,27 @@
-## Kernlogik fuer Gruppe 1 (Tabellen-Basis: style/layout/width) und Gruppe 2
-## (Tabellen-Conditional-Formatting: officequarto.tables.conditional.*) des
-## officedown-Options-Ports. Teil des officequarto R-Pakets - von
-## oq_writeback() (R/writeback.R) verwendet, keine eigenstaendige
-## Ausfuehrung. Benoetigt: xml2 sowie
-## oq_resolve_aliased()/oq_resolve_inverted_aliased() aus option-aliases.R
-## (im selben Package-Namespace, keine explizite Ladereihenfolge noetig).
+## Core logic for Gruppe 1 (table basics: style/layout/width) and Gruppe 2
+## (table conditional formatting: officequarto.tables.conditional.*) of the
+## officedown option port. Part of the officequarto R package - used by
+## oq_writeback() (R/writeback.R), not run standalone. Requires: xml2 and
+## oq_resolve_aliased()/oq_resolve_inverted_aliased() from option-aliases.R
+## (in the same package namespace, no explicit load order needed).
 ##
-## `caption-above` (officedown: topcaption) ist bewusst NICHT Teil dieser
-## Datei - es hat erst mit echten Tabellen-Beschriftungen (Gruppe 3) einen
-## sichtbaren Effekt und wird zusammen mit dieser implementiert, statt jetzt
-## als wirkungsloser Platzhalter zu existieren.
+## `caption-above` (officedown: topcaption) is deliberately NOT part of this
+## file - it only has a visible effect once real table captions (Gruppe 3)
+## exist and is implemented together with those, rather than existing now
+## as an inert placeholder.
 ##
-## `tab.lp` (officedown) wurde bewusst NICHT portiert: es ist ein
-## bookdown-Autoren-Syntax-Konzept (Label-Praefix beim Parsen von
-## \@ref(tab:xyz)), kein Rendering-Schalter, und hat in Quartos eigenem
-## Crossref-System (\#tbl-xyz, von Quarto/Pandoc VOR diesem Post-Render-Hook
-## aufgeloest) keine sinnvolle Entsprechung - siehe README.
+## `tab.lp` (officedown) was deliberately NOT ported: it's a
+## bookdown authoring-syntax concept (label prefix when parsing
+## \@ref(tab:xyz)), not a rendering switch, and has no meaningful
+## equivalent in Quarto's own crossref system (\#tbl-xyz, resolved by
+## Quarto/Pandoc BEFORE this post-render hook ever runs) - see README.
 
-## Reihenfolge der w:tblPr-Kindelemente laut OOXML-Schema (CT_TblPrBase,
-## Auszug - nur die hier relevanten und ihre ueblichen Nachbarn). Wird
-## gebraucht, weil xml2::xml_add_child() ohne .where einfach ans Ende haengt;
-## ein neu erzeugtes w:tblLayout landet damit sonst hinter Pandocs eigenem
-## w:tblLook, was nicht der Schema-Reihenfolge entspricht (Word selbst ist
-## tolerant, aber eine schema-konforme Reihenfolge ist sauberer/portabler).
+## Order of w:tblPr child elements per the OOXML schema (CT_TblPrBase,
+## excerpt - only the ones relevant here and their usual neighbors). Needed
+## because xml2::xml_add_child() without .where simply appends at the end;
+## a newly created w:tblLayout would otherwise land after Pandoc's own
+## w:tblLook, which doesn't match the schema order (Word itself is
+## tolerant, but a schema-compliant order is cleaner/more portable).
 #' @noRd
 officequarto_tblpr_order <- c(
   "tblStyle", "tblpPr", "tblOverlap", "bidiVisual", "tblStyleRowBandSize",
@@ -31,10 +30,10 @@ officequarto_tblpr_order <- c(
   "tblCaption", "tblDescription"
 )
 
-## Fuegt ein neues, lokal "tag_local" genanntes Kind-Element in tbl_pr an der
-## laut officequarto_tblpr_order korrekten Position ein (vor dem ersten
-## bereits vorhandenen Geschwister-Element, das in der Reihenfolge spaeter
-## kommt, sonst am Ende) und gibt den neuen Knoten zurueck.
+## Inserts a new child element, locally named "tag_local", into tbl_pr at the
+## position that's correct per officequarto_tblpr_order (before the first
+## already-existing sibling element that comes later in the order,
+## otherwise at the end) and returns the new node.
 #' @noRd
 oq_add_tbl_pr_child <- function(tbl_pr, tag_local) {
   tag_pos <- match(tag_local, officequarto_tblpr_order)
@@ -45,7 +44,7 @@ oq_add_tbl_pr_child <- function(tbl_pr, tag_local) {
   xml2::xml_add_child(tbl_pr, paste0("w:", tag_local), .where = where)
 }
 
-## Setzt (oder erzeugt) das w:tblStyle-Kind-Element von w:tblPr.
+## Sets (or creates) the w:tblStyle child element of w:tblPr.
 #' @noRd
 oq_set_tbl_style <- function(tbl_pr, ns, style_id) {
   node <- xml2::xml_find_first(tbl_pr, "./w:tblStyle", ns)
@@ -56,8 +55,8 @@ oq_set_tbl_style <- function(tbl_pr, ns, style_id) {
   invisible(NULL)
 }
 
-## Setzt (oder erzeugt) das w:tblLayout-Kind-Element von w:tblPr. layout ist
-## bereits der validierte OOXML-Wert ("autofit"/"fixed").
+## Sets (or creates) the w:tblLayout child element of w:tblPr. layout is
+## already the validated OOXML value ("autofit"/"fixed").
 #' @noRd
 oq_set_tbl_layout <- function(tbl_pr, ns, layout) {
   node <- xml2::xml_find_first(tbl_pr, "./w:tblLayout", ns)
@@ -68,9 +67,9 @@ oq_set_tbl_layout <- function(tbl_pr, ns, layout) {
   invisible(NULL)
 }
 
-## Setzt (oder erzeugt) das w:tblW-Kind-Element von w:tblPr. width_fraction
-## ist relativ zur Seitenbreite (0..1, wie bei officedown); OOXML erwartet bei
-## w:type="pct" den Wert in Fuenfzigstel-Prozent (100% Seitenbreite = 5000).
+## Sets (or creates) the w:tblW child element of w:tblPr. width_fraction
+## is relative to the page width (0..1, as in officedown); OOXML expects,
+## for w:type="pct", the value in fiftieths-of-a-percent (100% page width = 5000).
 #' @noRd
 oq_set_tbl_width <- function(tbl_pr, ns, width_fraction) {
   node <- xml2::xml_find_first(tbl_pr, "./w:tblW", ns)
@@ -82,13 +81,13 @@ oq_set_tbl_width <- function(tbl_pr, ns, width_fraction) {
   invisible(NULL)
 }
 
-## Gruppe-2-Felder (officequarto.tables.conditional.*) -> ihr w:tblLook-
-## Attribut plus ob der Wert beim Schreiben invertiert werden muss.
-## band-rows/band-columns sind bewusst positiv formuliert (siehe README),
-## OOXML selbst kennt aber nur die negativ gepolten noHBand/noVBand - die
-## Invertierung passiert hier beim Schreiben, nicht schon bei der
-## Options-Aufloesung (die haelt canonical Werte in ihrer eigenen, positiven
-## Polaritaet, siehe oq_resolve_inverted_aliased() in option-aliases.R).
+## Gruppe 2 fields (officequarto.tables.conditional.*) -> their w:tblLook
+## attribute plus whether the value must be inverted when written.
+## band-rows/band-columns are deliberately phrased positively (see README),
+## but OOXML itself only knows the negatively-polarized noHBand/noVBand - the
+## inversion happens here when writing, not already at option resolution
+## (which holds canonical values in its own, positive polarity, see
+## oq_resolve_inverted_aliased() in option-aliases.R).
 #' @noRd
 officequarto_tbllook_attrs <- list(
   `first-row`    = list(attr = "firstRow",    invert = FALSE),
@@ -99,10 +98,9 @@ officequarto_tbllook_attrs <- list(
   `band-columns` = list(attr = "noVBand",     invert = TRUE)
 )
 
-## Setzt (oder erzeugt) w:tblLook-Attribute von w:tblPr fuer die in
-## conditional_options gesetzten Felder (Namen wie in
-## officequarto_tbllook_attrs, jeweils TRUE/FALSE oder NULL/fehlend fuer
-## "nicht konfiguriert, unveraendert lassen").
+## Sets (or creates) w:tblLook attributes of w:tblPr for the fields set in
+## conditional_options (names as in officequarto_tbllook_attrs, each
+## TRUE/FALSE, or NULL/missing for "not configured, leave unchanged").
 #' @noRd
 oq_set_tbl_look <- function(tbl_pr, ns, conditional_options) {
   node <- xml2::xml_find_first(tbl_pr, "./w:tblLook", ns)
@@ -119,12 +117,12 @@ oq_set_tbl_look <- function(tbl_pr, ns, conditional_options) {
   invisible(NULL)
 }
 
-## Loest ein einzelnes boolesches officequarto.tables.conditional-Feld auf
-## (canonical Name vs. officedown-Alias, ueber oq_resolve_aliased() bzw. bei
-## invert=TRUE ueber oq_resolve_inverted_aliased()) und validiert das
-## Ergebnis als einzelnen TRUE/FALSE-Wert (fail-loud, Konsistenz mit
-## layout/width in Gruppe 1). key_path ist der volle Konfigurationspfad fuer
-## die Fehlermeldung.
+## Resolves a single boolean officequarto.tables.conditional field
+## (canonical name vs. officedown alias, via oq_resolve_aliased() or, for
+## invert=TRUE, via oq_resolve_inverted_aliased()) and validates the
+## result as a single TRUE/FALSE value (fail-loud, consistent with
+## layout/width in Gruppe 1). key_path is the full configuration path for
+## the error message.
 #' @noRd
 oq_resolve_table_bool_option <- function(config, canonical_key, alias_key, invert, key_path, warn_fn, fail_fn) {
   resolved <- if (invert) {
@@ -133,33 +131,30 @@ oq_resolve_table_bool_option <- function(config, canonical_key, alias_key, inver
     oq_resolve_aliased(config, canonical_key, alias_key, "officequarto.tables.conditional", warn_fn)
   }
   if (!is.null(resolved) && (!is.logical(resolved) || length(resolved) != 1 || is.na(resolved))) {
-    fail_fn("%s muss true oder false sein (erhalten: '%s').", key_path, resolved)
+    fail_fn("%s must be true or false (got: '%s').", key_path, resolved)
   }
   resolved
 }
 
-## Wendet table_options ($style/$layout/$width/$conditional, jeweils
-## optional) auf jede w:tbl in einem geparsten document.xml an (in-place via
-## xml2-Referenzsemantik). $conditional ist eine benannte Liste wie von
-## oq_resolve_table_bool_option() befuellt (Namen aus
-## officequarto_tbllook_attrs). Gibt die Anzahl der bearbeiteten Tabellen
-## zurueck.
+## Applies table_options ($style/$layout/$width/$conditional, each
+## optional) to every w:tbl in a parsed document.xml (in place, via
+## xml2's reference semantics). $conditional is a named list as populated
+## by oq_resolve_table_bool_option() (names from
+## officequarto_tbllook_attrs). Returns the number of tables processed.
 #' @noRd
 oq_apply_table_options <- function(document_doc, table_options) {
   ns <- xml2::xml_ns(document_doc)
-  ## Schliesst Pandocs synthetische Wrapper-Tabelle aus: bei beschrifteten
-  ## Tabellen UND Abbildungen fasst Pandoc Beschriftung + eigentlichen Inhalt
-  ## in einer 1x1-Huelltabelle zusammen, deren einzige Zelle direkt einen
-  ## Absatz mit pStyle "ImageCaption" enthaelt (siehe
-  ## table-caption-mapping.R) - dieses Merkmal identifiziert die
-  ## Wrapper-Tabelle direkt und zuverlaessig, unabhaengig davon, ob sie eine
-  ## echte Tabelle oder eine Abbildung umschliesst (eine fruehere Version
-  ## filterte stattdessen nur Tabellen mit einer verschachtelten w:tbl heraus
-  ## - das erkannte zwar den Tabellen-Fall, nicht aber Abbildungs-Wrapper, die
-  ## keine verschachtelte Tabelle enthalten). Ohne den Filter wuerden
-  ## style/layout/width/conditional faelschlich auch auf diese unsichtbare
-  ## Struktur-Tabelle angewendet, nicht nur auf die eigentliche(n)
-  ## Datentabelle(n).
+  ## Excludes Pandoc's synthetic wrapper table: for both captioned tables
+  ## AND figures, Pandoc combines the caption + actual content into a 1x1
+  ## wrapper table whose single cell directly contains a paragraph with
+  ## pStyle "ImageCaption" (see table-caption-mapping.R) - this signature
+  ## identifies the wrapper table directly and reliably, regardless of
+  ## whether it wraps a real table or a figure (an earlier version instead
+  ## only filtered out tables containing a nested w:tbl - that correctly
+  ## recognized the table case, but not figure wrappers, which contain no
+  ## nested table). Without this filter, style/layout/width/conditional
+  ## would be incorrectly applied to this invisible structural table too,
+  ## not just to the actual data table(s).
   tables <- xml2::xml_find_all(
     document_doc,
     "//w:tbl[not(./w:tr/w:tc/w:p/w:pPr/w:pStyle/@w:val='ImageCaption')]",

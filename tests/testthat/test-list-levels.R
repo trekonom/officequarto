@@ -1,23 +1,23 @@
 library(xml2)
 
-test_that("oq_style_for_level() mit Laenge-1-Vektor liefert unabhaengig von der Ebene immer denselben Wert", {
+test_that("oq_style_for_level() with a length-1 vector always returns the same value regardless of level", {
   expect_identical(oq_style_for_level("A", 0L), "A")
   expect_identical(oq_style_for_level("A", 5L), "A")
 })
 
-test_that("oq_style_for_level() waehlt bei ausreichend langem Vektor exakt den Eintrag der jeweiligen Ebene", {
+test_that("oq_style_for_level() picks exactly the entry for the respective level when the vector is long enough", {
   styles3 <- c("L0", "L1", "L2")
   expect_identical(oq_style_for_level(styles3, 0L), "L0")
   expect_identical(oq_style_for_level(styles3, 1L), "L1")
   expect_identical(oq_style_for_level(styles3, 2L), "L2")
 })
 
-test_that("oq_style_for_level() clampt eine tiefere Verschachtelung auf den letzten konfigurierten Eintrag", {
+test_that("oq_style_for_level() clamps a deeper nesting to the last configured entry", {
   styles3 <- c("L0", "L1", "L2")
   expect_identical(oq_style_for_level(styles3, 5L), "L2")
 })
 
-test_that("oq_paragraph_ilvl() liest ein vorhandenes w:ilvl korrekt", {
+test_that("oq_paragraph_ilvl() reads an existing w:ilvl correctly", {
   p_with_ilvl <- xml_find_first(
     read_xml('<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:pPr><w:numPr><w:numId w:val="1"/><w:ilvl w:val="2"/></w:numPr></w:pPr></w:p></w:body></w:document>'),
     "//w:p"
@@ -25,7 +25,7 @@ test_that("oq_paragraph_ilvl() liest ein vorhandenes w:ilvl korrekt", {
   expect_equal(oq_paragraph_ilvl(p_with_ilvl, xml_ns(xml_root(p_with_ilvl))), 2L)
 })
 
-test_that("oq_paragraph_ilvl() faellt bei fehlendem w:ilvl auf Ebene 0 zurueck", {
+test_that("oq_paragraph_ilvl() falls back to level 0 when w:ilvl is missing", {
   p_without_ilvl <- xml_find_first(
     read_xml('<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:pPr><w:numPr><w:numId w:val="1"/></w:numPr></w:pPr></w:p></w:body></w:document>'),
     "//w:p"
@@ -33,7 +33,7 @@ test_that("oq_paragraph_ilvl() faellt bei fehlendem w:ilvl auf Ebene 0 zurueck",
   expect_equal(oq_paragraph_ilvl(p_without_ilvl, xml_ns(xml_root(p_without_ilvl))), 0L)
 })
 
-test_that("oq_resolve_style_ids() loest ein Array vollstaendig und reihenfolgetreu auf", {
+test_that("oq_resolve_style_ids() resolves an array completely and preserving order", {
   name_to_id <- c("Ziel A" = "ZielA", "Ziel B" = "ZielB", "Ziel C" = "ZielC")
   fails_seen <- character(0)
   fail_collect <- function(fmt, ...) fails_seen[[length(fails_seen) + 1]] <<- sprintf(fmt, ...)
@@ -42,7 +42,7 @@ test_that("oq_resolve_style_ids() loest ein Array vollstaendig und reihenfolgetr
   expect_identical(res, c("ZielB", "ZielA", "ZielC"))
 })
 
-test_that("oq_resolve_style_ids() mit einem unbekannten Namen: genau 1 Fehler", {
+test_that("oq_resolve_style_ids() with one unknown name: exactly 1 error", {
   name_to_id <- c("Ziel A" = "ZielA", "Ziel B" = "ZielB", "Ziel C" = "ZielC")
   fails_seen <- character(0)
   fail_collect <- function(fmt, ...) fails_seen[[length(fails_seen) + 1]] <<- sprintf(fmt, ...)
@@ -50,7 +50,7 @@ test_that("oq_resolve_style_ids() mit einem unbekannten Namen: genau 1 Fehler", 
   expect_length(fails_seen, 1)
 })
 
-test_that("oq_resolve_style_ids() mit leerem Array: genau 1 Fehler", {
+test_that("oq_resolve_style_ids() with an empty array: exactly 1 error", {
   name_to_id <- c("Ziel A" = "ZielA", "Ziel B" = "ZielB", "Ziel C" = "ZielC")
   fails_seen <- character(0)
   fail_collect <- function(fmt, ...) fails_seen[[length(fails_seen) + 1]] <<- sprintf(fmt, ...)
@@ -58,7 +58,7 @@ test_that("oq_resolve_style_ids() mit leerem Array: genau 1 Fehler", {
   expect_length(fails_seen, 1)
 })
 
-test_that("oq_apply_style_mapping() clampt eine tiefer verschachtelte Liste korrekt auf den letzten konfigurierten Style", {
+test_that("oq_apply_style_mapping() correctly clamps a more deeply nested list to the last configured style", {
   document_doc <- read_xml(paste0(
     '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>',
     '<w:p><w:pPr><w:numPr><w:numId w:val="1"/><w:ilvl w:val="0"/></w:numPr></w:pPr></w:p>',

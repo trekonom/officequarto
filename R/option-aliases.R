@@ -1,24 +1,23 @@
-## Aufloesung von Konfigurationsoptionen, die sowohl unter ihrem canonical
-## (neuen, sprechenden) Namen als auch unter einem alten officedown-Alias
-## gesetzt sein koennen (Namenskonvention siehe README, Abschnitt
-## "Option reference"). Teil des officequarto R-Pakets - von oq_writeback() (R/writeback.R)
-## verwendet, keine eigenstaendige Ausfuehrung.
+## Resolution of configuration options that can be set either under their
+## canonical (new, descriptive) name or under an old officedown alias
+## (naming convention: see README, "Option reference" section). Part of the
+## officequarto R package - used by oq_writeback() (R/writeback.R), not run
+## standalone.
 
-## config: benannte Liste (z.B. der Wert von format.docx.officequarto.tables).
-## canonical_key/alias_key: die beiden moeglichen Schluessel in config.
-## group_label: fuer die Warnmeldung (z.B. "officequarto.tables"). warn_fn:
-## Funktion(fmt, ...), die bei einem Konflikt aufgerufen wird - wie fail_fn bei
-## oq_resolve_style_id() wird auch hier eine Callback-Funktion statt eines
-## direkten log_msg()-Aufrufs verwendet, damit diese Datei wie style-mapping.R
-## und style-pruning.R eine reine Funktionssammlung ohne eigene Seiteneffekte
-## bleibt.
+## config: named list (e.g. the value of format.docx.officequarto.tables).
+## canonical_key/alias_key: the two possible keys in config.
+## group_label: for the warning message (e.g. "officequarto.tables"). warn_fn:
+## function(fmt, ...) called on a conflict - like fail_fn in
+## oq_resolve_style_id(), a callback function is used here too instead of a
+## direct log_msg() call, so this file stays, like style-mapping.R and
+## style-pruning.R, a pure function collection with no side effects of its
+## own.
 ##
-## Sind canonical Name und Alias gleichzeitig gesetzt und widersprechen sich
-## (unterschiedlicher Wert), gewinnt der canonical Name; warn_fn wird mit einer
-## Meldung aufgerufen, welcher Wert verworfen wurde. Sind sie gleichzeitig
-## gesetzt und identisch, gibt es keine Warnung. Ist nur einer von beiden
-## gesetzt, wird dessen Wert verwendet. Ist keiner gesetzt, wird NULL
-## zurueckgegeben.
+## If the canonical name and the alias are both set and disagree (different
+## value), the canonical name wins; warn_fn is called with a message stating
+## which value was discarded. If both are set and identical, there is no
+## warning. If only one of the two is set, its value is used. If neither is
+## set, NULL is returned.
 #' @noRd
 oq_resolve_aliased <- function(config, canonical_key, alias_key, group_label, warn_fn) {
   canonical_val <- config[[canonical_key]]
@@ -27,8 +26,8 @@ oq_resolve_aliased <- function(config, canonical_key, alias_key, group_label, wa
   if (!is.null(canonical_val) && !is.null(alias_val) && !identical(canonical_val, alias_val)) {
     warn_fn(
       paste0(
-        "%s: sowohl '%s' (%s) als auch der officedown-Alias '%s' (%s) sind gesetzt und ",
-        "widersprechen sich - '%s' gewinnt, der Alias-Wert wird verworfen."
+        "%s: both '%s' (%s) and the officedown alias '%s' (%s) are set and ",
+        "disagree - '%s' wins, the alias value is discarded."
       ),
       group_label, canonical_key, canonical_val, alias_key, alias_val, canonical_key
     )
@@ -38,15 +37,15 @@ oq_resolve_aliased <- function(config, canonical_key, alias_key, group_label, wa
   alias_val
 }
 
-## Ruft oq_resolve_aliased() fuer mehrere Felder derselben Gruppe auf einmal
-## auf und gibt eine benannte Liste zurueck (canonical Name -> aufgeloester
-## Wert oder NULL). fields ist ein benannter Character Vector canonical Name
-## -> officedown-Alias (z.B. c(width = "page_size_width", height =
-## "page_size_height")). Nuetzlich fuer Gruppen mit vielen gleichartigen
-## Feldern (z.B. officequarto.page.size/.margins), um die sonst noetige
-## Wiederholung von oq_resolve_aliased()-Aufrufen zu vermeiden. config darf
-## NULL sein (dann ist jedes Feld NULL, wie oq_resolve_aliased() das auch
-## einzeln handhaben wuerde).
+## Calls oq_resolve_aliased() for several fields of the same group at once
+## and returns a named list (canonical name -> resolved value or NULL).
+## fields is a named character vector canonical name -> officedown alias
+## (e.g. c(width = "page_size_width", height = "page_size_height")). Useful
+## for groups with many similarly-shaped fields (e.g.
+## officequarto.page.size/.margins), to avoid the otherwise-needed
+## repetition of oq_resolve_aliased() calls. config may be NULL (in which
+## case every field is NULL, exactly as oq_resolve_aliased() would also
+## handle it individually).
 #' @noRd
 oq_resolve_fields <- function(config, fields, group_label, warn_fn) {
   stats::setNames(
@@ -58,15 +57,15 @@ oq_resolve_fields <- function(config, fields, group_label, warn_fn) {
   )
 }
 
-## Variante von oq_resolve_aliased() fuer Optionspaare mit ENTGEGENGESETZTER
-## Polaritaet zwischen canonical Name und officedown-Alias (z.B.
-## officequarto.tables.conditional.band-rows, positiv formuliert, vs.
-## officedowns no_hband, negativ formuliert - "band-rows: true" und
-## "no_hband: false" meinen dasselbe). oq_resolve_aliased() selbst eignet
-## sich hierfuer nicht, da dessen Konfliktpruefung Rohwerte auf Gleichheit
-## vergleicht - bei entgegengesetzter Polaritaet waere das irrefuehrend
-## (unterschiedliche Rohwerte koennten trotzdem dieselbe Absicht ausdruecken
-## oder umgekehrt). Der Alias-Wert wird deshalb vor dem Vergleich negiert.
+## Variant of oq_resolve_aliased() for option pairs with OPPOSITE polarity
+## between the canonical name and the officedown alias (e.g.
+## officequarto.tables.conditional.band-rows, phrased positively, vs.
+## officedown's no_hband, phrased negatively - "band-rows: true" and
+## "no_hband: false" mean the same thing). oq_resolve_aliased() itself
+## isn't suited for this, since its conflict check compares raw values for
+## equality - with opposite polarity that would be misleading (different
+## raw values could still express the same intent, or vice versa). The
+## alias value is therefore negated before the comparison.
 #' @noRd
 oq_resolve_inverted_aliased <- function(config, canonical_key, alias_key, group_label, warn_fn) {
   canonical_val <- config[[canonical_key]]
@@ -76,9 +75,9 @@ oq_resolve_inverted_aliased <- function(config, canonical_key, alias_key, group_
   if (!is.null(canonical_val) && !is.null(alias_val) && !identical(canonical_val, alias_val)) {
     warn_fn(
       paste0(
-        "%s: sowohl '%s' (%s) als auch der (umgekehrt gepolte) officedown-Alias '%s' (%s, ",
-        "entspricht %s) sind gesetzt und widersprechen sich - '%s' gewinnt, der Alias-Wert wird ",
-        "verworfen."
+        "%s: both '%s' (%s) and the (inverted-polarity) officedown alias '%s' (%s, ",
+        "equivalent to %s) are set and disagree - '%s' wins, the alias value is ",
+        "discarded."
       ),
       group_label, canonical_key, canonical_val, alias_key, alias_raw, alias_val, canonical_key
     )

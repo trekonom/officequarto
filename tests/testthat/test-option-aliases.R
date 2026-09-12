@@ -1,4 +1,4 @@
-test_that("oq_resolve_aliased(): nur canonical Name gesetzt wird korrekt aufgeloest, keine Warnung", {
+test_that("oq_resolve_aliased(): only the canonical name set resolves correctly, no warning", {
   warnings_seen <- character(0)
   warn_collect <- function(fmt, ...) warnings_seen[[length(warnings_seen) + 1]] <<- sprintf(fmt, ...)
   res <- oq_resolve_aliased(list(`list-number` = "Nummerierung ACME"), "list-number", "ol_style", "officequarto.lists", warn_collect)
@@ -6,7 +6,7 @@ test_that("oq_resolve_aliased(): nur canonical Name gesetzt wird korrekt aufgelo
   expect_length(warnings_seen, 0)
 })
 
-test_that("oq_resolve_aliased(): nur officedown-Alias gesetzt wird korrekt aufgeloest, keine Warnung", {
+test_that("oq_resolve_aliased(): only the officedown alias set resolves correctly, no warning", {
   warnings_seen <- character(0)
   warn_collect <- function(fmt, ...) warnings_seen[[length(warnings_seen) + 1]] <<- sprintf(fmt, ...)
   res <- oq_resolve_aliased(list(ol_style = "Nummerierung ACME"), "list-number", "ol_style", "officequarto.lists", warn_collect)
@@ -14,7 +14,7 @@ test_that("oq_resolve_aliased(): nur officedown-Alias gesetzt wird korrekt aufge
   expect_length(warnings_seen, 0)
 })
 
-test_that("oq_resolve_aliased(): canonical Name und Alias mit gleichem Wert gesetzt: keine Warnung", {
+test_that("oq_resolve_aliased(): canonical name and alias set to the same value: no warning", {
   warnings_seen <- character(0)
   warn_collect <- function(fmt, ...) warnings_seen[[length(warnings_seen) + 1]] <<- sprintf(fmt, ...)
   res <- oq_resolve_aliased(list(`list-number` = "X", ol_style = "X"), "list-number", "ol_style", "officequarto.lists", warn_collect)
@@ -22,7 +22,7 @@ test_that("oq_resolve_aliased(): canonical Name und Alias mit gleichem Wert gese
   expect_length(warnings_seen, 0)
 })
 
-test_that("oq_resolve_aliased(): bei widerspruechlichem canonical/Alias-Wert gewinnt canonical, genau 1 Warnung", {
+test_that("oq_resolve_aliased(): on a conflicting canonical/alias value, canonical wins, exactly 1 warning", {
   warnings_seen <- character(0)
   warn_collect <- function(fmt, ...) warnings_seen[[length(warnings_seen) + 1]] <<- sprintf(fmt, ...)
   res <- oq_resolve_aliased(list(`list-number` = "Canonical-Wert", ol_style = "Alias-Wert"), "list-number", "ol_style", "officequarto.lists", warn_collect)
@@ -30,14 +30,14 @@ test_that("oq_resolve_aliased(): bei widerspruechlichem canonical/Alias-Wert gew
   expect_length(warnings_seen, 1)
 })
 
-test_that("oq_resolve_aliased(): weder canonical noch Alias gesetzt ergibt NULL", {
+test_that("oq_resolve_aliased(): neither canonical nor alias set yields NULL", {
   warnings_seen <- character(0)
   warn_collect <- function(fmt, ...) warnings_seen[[length(warnings_seen) + 1]] <<- sprintf(fmt, ...)
   res <- oq_resolve_aliased(list(), "list-number", "ol_style", "officequarto.lists", warn_collect)
   expect_null(res)
 })
 
-test_that("oq_resolve_aliased(): officequarto.tables.width ueber den officedown-Alias 'tables_width' wird korrekt aufgeloest", {
+test_that("oq_resolve_aliased(): officequarto.tables.width resolves correctly via the officedown alias 'tables_width'", {
   warnings_seen <- character(0)
   warn_collect <- function(fmt, ...) warnings_seen[[length(warnings_seen) + 1]] <<- sprintf(fmt, ...)
   res <- oq_resolve_aliased(list(tables_width = 0.8), "width", "tables_width", "officequarto.tables", warn_collect)
@@ -45,7 +45,7 @@ test_that("oq_resolve_aliased(): officequarto.tables.width ueber den officedown-
   expect_length(warnings_seen, 0)
 })
 
-test_that("oq_resolve_inverted_aliased(): nur canonical Name gesetzt wird korrekt aufgeloest, keine Warnung", {
+test_that("oq_resolve_inverted_aliased(): only the canonical name set resolves correctly, no warning", {
   warnings_seen <- character(0)
   warn_collect <- function(fmt, ...) warnings_seen[[length(warnings_seen) + 1]] <<- sprintf(fmt, ...)
   res <- oq_resolve_inverted_aliased(list(`band-rows` = TRUE), "band-rows", "tables_conditional_no_hband", "officequarto.tables.conditional", warn_collect)
@@ -53,7 +53,7 @@ test_that("oq_resolve_inverted_aliased(): nur canonical Name gesetzt wird korrek
   expect_length(warnings_seen, 0)
 })
 
-test_that("oq_resolve_inverted_aliased(): nur Alias gesetzt wird korrekt negiert (no_hband=FALSE -> band-rows=TRUE)", {
+test_that("oq_resolve_inverted_aliased(): only the alias set is negated correctly (no_hband=FALSE -> band-rows=TRUE)", {
   warnings_seen <- character(0)
   warn_collect <- function(fmt, ...) warnings_seen[[length(warnings_seen) + 1]] <<- sprintf(fmt, ...)
   res <- oq_resolve_inverted_aliased(list(tables_conditional_no_hband = FALSE), "band-rows", "tables_conditional_no_hband", "officequarto.tables.conditional", warn_collect)
@@ -61,7 +61,7 @@ test_that("oq_resolve_inverted_aliased(): nur Alias gesetzt wird korrekt negiert
   expect_length(warnings_seen, 0)
 })
 
-test_that("oq_resolve_inverted_aliased(): canonical und (negierter) Alias mit gleicher Absicht gesetzt: keine Warnung", {
+test_that("oq_resolve_inverted_aliased(): canonical and (negated) alias set with the same intent: no warning", {
   warnings_seen <- character(0)
   warn_collect <- function(fmt, ...) warnings_seen[[length(warnings_seen) + 1]] <<- sprintf(fmt, ...)
   res <- oq_resolve_inverted_aliased(list(`band-rows` = TRUE, tables_conditional_no_hband = FALSE), "band-rows", "tables_conditional_no_hband", "officequarto.tables.conditional", warn_collect)
@@ -69,7 +69,7 @@ test_that("oq_resolve_inverted_aliased(): canonical und (negierter) Alias mit gl
   expect_length(warnings_seen, 0)
 })
 
-test_that("oq_resolve_inverted_aliased(): bei widerspruechlicher Absicht gewinnt canonical, genau 1 Warnung", {
+test_that("oq_resolve_inverted_aliased(): on conflicting intent, canonical wins, exactly 1 warning", {
   warnings_seen <- character(0)
   warn_collect <- function(fmt, ...) warnings_seen[[length(warnings_seen) + 1]] <<- sprintf(fmt, ...)
   res <- oq_resolve_inverted_aliased(list(`band-rows` = TRUE, tables_conditional_no_hband = TRUE), "band-rows", "tables_conditional_no_hband", "officequarto.tables.conditional", warn_collect)

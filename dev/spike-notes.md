@@ -1,620 +1,604 @@
-# Spike-Notizen
+# Spike Notes
 
-Ergebnisse aus Phase 0 (Setup & Spike), verifiziert am 2026-08-28 mit
+Results from Phase 0 (Setup & Spike), verified on 2026-08-28 with
 `quarto 1.8.24`, `Rscript 4.5.2`, `pandoc 3.10.1`.
 
-## Spike A — `reference-doc` allein reicht für Style-Übernahme
+## Spike A — `reference-doc` alone is enough for style inheritance
 
-`format: docx: reference-doc: original.docx` reicht **ohne jeden eigenen Code**, um Styles,
-Header, Footer und Section-Properties (Seitenränder, Papierformat) aus einem beliebigen
-Original-`.docx` zu übernehmen. Das ist natives Pandoc-Verhalten (der docx-Writer benutzt das
-Referenzdokument als Vorlage für `styles.xml`, `header*.xml`, `footer*.xml` und `sectPr`).
+`format: docx: reference-doc: original.docx` is enough, **with no custom code at all**, to inherit
+styles, header, footer, and section properties (margins, paper size) from an arbitrary original
+`.docx`. This is native Pandoc behavior (the docx writer uses the reference document as a template
+for `styles.xml`, `header*.xml`, `footer*.xml`, and `sectPr`).
 
-**Überraschender Zusatzfund, der Phase 3 grundlegend verändert hat:** Ein per `reference-doc`
-gerendertes `.docx` enthält Header/Footer/Section-Properties des Originals bereits *vollständig
-und unverändert* — verifiziert per `unzip`-Diff zwischen `original.docx` und dem reinen
-Pandoc-Ergebnis `report.docx`, noch bevor irgendein eigener Post-Render-Code lief. Das
-ursprünglich geplante "Body des Originals manuell entfernen und Rendering-Body einfügen, dabei
-Header/Footer erhalten" (Phase-3-Spezifikation) ist damit für den Kern-Anwendungsfall bereits
-durch Pandoc selbst erledigt — ein zusätzlicher XML-Merge-Schritt bringt hier keinen Mehrwert.
+**Surprising additional finding that fundamentally changed Phase 3:** A `.docx` rendered via
+`reference-doc` already contains the original's header/footer/section properties *completely and
+unchanged* — verified via an `unzip` diff between `original.docx` and the raw Pandoc result
+`report.docx`, even before any custom post-render code had run. The originally planned "manually
+strip the original docx's body and splice in the rendering body, while preserving header/footer"
+(Phase 3 spec) is thus already handled for the core use case by Pandoc itself — an additional XML
+merge step brings no added value here.
 
-Versuch, das im Konzept beschriebene manuelle Body-Ersetzen trotzdem umzusetzen
-(`officer::body_add_docx()`, um den Rendering-Output in eine Kopie des Originals einzufügen),
-ist an einem Bug/Grenzfall von `officer 0.7.3` gescheitert: Sobald der Body eines Dokuments
-vollständig geleert wird (0 Absätze) oder zwei strukturell sehr ähnliche Dokumente (beide mit
-eigenen Header/Footer/Sections, da beide von `original.docx` abstammen) gemergt werden, wirft
-`print()` beim Reserialisieren einen Fehler in `process_sections_content()` (Zeilen-Mismatch
-zwischen Content-Sections und Header/Footer-Dateien). Reproduzierbar mit einem Minimalbeispiel
-(zwei Absätze, ein Header, ein Footer).
+An attempt to still implement the manual body-replacement described in the concept
+(`officer::body_add_docx()`, to insert the rendering output into a copy of the original) failed on
+an `officer 0.7.3` bug/edge case: as soon as a document's body is fully emptied (0 paragraphs) or
+two structurally very similar documents (both with their own header/footer/sections, since both
+descend from `original.docx`) are merged, `print()` throws an error during re-serialization in
+`process_sections_content()` (a row-count mismatch between content sections and header/footer
+files). Reproducible with a minimal example (two paragraphs, one header, one footer).
 
-**Konsequenz für Phase 3:** Der Post-Render-Hook baut nicht mehr selbst den Body zusammen,
-sondern arbeitet mit dem bereits korrekten Pandoc-Ergebnis weiter (siehe Abschnitt "Was der Hook
-tatsächlich noch beiträgt" unten).
+**Consequence for Phase 3:** The post-render hook no longer assembles the body itself, but instead
+works with the already-correct Pandoc result (see "What the hook actually still contributes"
+below).
 
-## Was der Hook tatsächlich noch beiträgt
+## What the hook actually still contributes
 
-Was Pandoc **nicht** aus dem Original übernimmt: `docProps/core.xml` (Titel, Subject, Keywords,
-Description, Category) und `docProps/custom.xml` (frei definierte Custom-Properties, z. B.
-Vertraulichkeitsstufe, Dokumentennummer). Pandoc schreibt dafür ein neues, weitgehend leeres
-`core.xml` auf Basis der `.qmd`-Metadaten. Genau das übernimmt `scripts/writeback.R`: Es arbeitet
-mit einer Kopie des bereits korrekten gerenderten `.docx` in einem temporären Verzeichnis,
-überträgt `dc:subject`/`cp:keywords`/`dc:description`/`cp:category` sowie `docProps/custom.xml`
-aus dem Original hinein und überschreibt damit die von Quarto erzeugte `.docx` direkt an Ort und
-Stelle (keine zweite Ausgabedatei; optional per `officequarto-keep-rendered: true` lässt sich das
-ungepatchte Pandoc-Ergebnis zusätzlich als `<name>.quarto-rendered.docx` behalten).
+What Pandoc does **not** carry over from the original: `docProps/core.xml` (title, subject,
+keywords, description, category) and `docProps/custom.xml` (freely defined custom properties, e.g.
+confidentiality level, document number). Pandoc instead writes a new, largely empty `core.xml`
+based on the `.qmd` metadata. This is exactly what `scripts/writeback.R` handles: it works with a
+copy of the already-correct rendered `.docx` in a temporary directory, transfers
+`dc:subject`/`cp:keywords`/`dc:description`/`cp:category` as well as `docProps/custom.xml` from the
+original into it, and thereby overwrites the `.docx` produced by Quarto directly in place (no
+second output file; optionally, `officequarto-keep-rendered: true` additionally keeps the
+unpatched Pandoc result as `<name>.quarto-rendered.docx`).
 
-**Bekannte Grenze:** Wenn das gerenderte Pandoc-Dokument den Part `docProps/custom.xml` selbst
-noch nicht kennt (in `[Content_Types].xml`/`_rels/.rels` registriert), würde ein reines
-Überschreiben dieser Datei einen nicht referenzierten Part erzeugen. Im getesteten Fall (Original
-als `reference-doc`) ist der Part durch Pandoc bereits korrekt registriert; für exotischere
-Ausgangsdokumente ist das nicht garantiert und bleibt dokumentierte Einschränkung des Prototyps.
+**Known limitation:** If the rendered Pandoc document doesn't yet know about the `docProps/
+custom.xml` part itself (registered in `[Content_Types].xml`/`_rels/.rels`), simply overwriting
+this file would create an unreferenced part. In the tested case (original as `reference-doc`), the
+part is already correctly registered by Pandoc; for more exotic source documents this isn't
+guaranteed and remains a documented limitation of the prototype.
 
 ## Spike B — `contributes: project:` in `_extension.yml`
 
-Funktioniert wie erwartet, **ist aber kein Zero-Config-Mechanismus**: `quarto add` installiert
-nur die Extension-Dateien. Der Post-Render-Hook wird erst aktiv, wenn das Nutzerprojekt in seiner
-eigenen `_quarto.yml` `project: { type: officequarto }` setzt. Verifiziert per Gegenprobe: mit
-`project: type: default` (kein `officequarto`) läuft `writeback.R` nachweislich **nicht** —
-`report.written-back.docx` wird nicht erzeugt. Mit `project: type: officequarto` läuft der Hook
-zuverlässig bei jedem `quarto render`.
+Works as expected, **but is not a zero-config mechanism**: `quarto add` only installs the
+extension files. The post-render hook only becomes active once the user's project sets
+`project: { type: officequarto }` in its own `_quarto.yml`. Verified by counter-test: with
+`project: type: default` (no `officequarto`), `writeback.R` demonstrably does **not** run —
+`report.written-back.docx` is not produced. With `project: type: officequarto`, the hook runs
+reliably on every `quarto render`.
 
-## Spike C — Umgebungsvariablen im Post-Render-Skript
+## Spike C — Environment variables in the post-render script
 
-Zuverlässig verfügbar (per `Sys.getenv()` bestätigt):
+Reliably available (confirmed via `Sys.getenv()`):
 
-- `QUARTO_PROJECT_OUTPUT_FILES` — newline-separierte Liste der Output-Dateien, **relativ** zu
-  `QUARTO_PROJECT_OUTPUT_DIR` (im Test: `report.docx`)
-- `QUARTO_PROJECT_OUTPUT_DIR` — absoluter Pfad (im Test: `.../template`)
-- `QUARTO_PROJECT_RENDER_ALL` — `"1"` bei Full-Render
-- `QUARTO_PROJECT_DIR` — absoluter Projekt-Root, wird u. a. genutzt, um `original.docx` und die
-  Projektkonfiguration zu finden
+- `QUARTO_PROJECT_OUTPUT_FILES` — newline-separated list of output files, **relative** to
+  `QUARTO_PROJECT_OUTPUT_DIR` (in the test: `report.docx`)
+- `QUARTO_PROJECT_OUTPUT_DIR` — absolute path (in the test: `.../template`)
+- `QUARTO_PROJECT_RENDER_ALL` — `"1"` on a full render
+- `QUARTO_PROJECT_DIR` — absolute project root, used among other things to locate
+  `original.docx` and the project configuration
 
-Den Pfad des `reference-doc` selbst liefert keine Env-Variable — dafür wird `quarto inspect
-<project_dir>` aufgerufen und `config.format.docx["reference-doc"]` aus dem JSON gelesen. Das ist
-robuster als eigenes YAML-Parsing von `_quarto.yml`, weil `quarto inspect` bereits Merges/
-Defaults auflöst.
+No environment variable provides the path of the `reference-doc` itself — for that, `quarto
+inspect <project_dir>` is called and `config.format.docx["reference-doc"]` is read from the JSON.
+This is more robust than hand-parsing `_quarto.yml`'s own YAML, because `quarto inspect` already
+resolves merges/defaults.
 
-## Spike D — Style-Mapping (Body/Listen), verifiziert am 2026-08-28
+## Spike D — Style mapping (body/lists), verified on 2026-08-28
 
-Ausgangsannahme aus der Recherche (officedown/Pandoc-Interna) war, Pandoc verwende feste
-Style-IDs `Normal` (Body) und `ListParagraph` (Listen). Das war **unvollständig**: Am echten
-gerenderten Dokument zeigte sich, dass Pandoc je nach Kontext unterschiedliche Style-Namen wählt,
-die im `reference-doc` existieren:
+The initial assumption from research (officedown/Pandoc internals) was that Pandoc uses fixed
+style IDs `Normal` (body) and `ListParagraph` (lists). This turned out to be **incomplete**: on the
+actual rendered document it showed that Pandoc picks different style names depending on context,
+which must exist in `reference-doc`:
 
-- Body-Absätze direkt nach einer Überschrift → `FirstParagraph`
-- Listen-Absätze aus "tight" Markdown-Listen (keine Leerzeile zwischen Einträgen, der
-  Normalfall) → `Compact` — **sowohl für Bullet- als auch für nummerierte Listen**
-- `Normal`/`ListParagraph` kommen nur in anderen Konstellationen vor (z. B. "loose" Listen,
-  Body-Absätze ohne vorausgehende Überschrift)
+- Body paragraphs directly following a heading → `FirstParagraph`
+- List paragraphs from "tight" markdown lists (no blank line between entries, the normal case) →
+  `Compact` — **for both bullet and numbered lists alike**
+- `Normal`/`ListParagraph` only occur in other constellations (e.g. "loose" lists, body paragraphs
+  with no preceding heading)
 
-Verifiziert per `unzip`+Python-Regex-Diff am realen `report.docx`: alle 9 Absätze trugen explizite
-`pStyle`-Werte aus `{Title, Titre2, FirstParagraph, Compact}`, `ListParagraph` kam gar nicht vor.
-**Konsequenz:** Listen-Absätze werden nicht am Style-Namen erkannt, sondern an der Präsenz von
-`<w:numPr>` (zuverlässig, unabhängig vom gewählten Style-Namen); Body-Absätze werden über eine
-Allowlist bekannter Rollennamen erkannt (`Normal`, `FirstParagraph`, `Compact`, `BodyText`,
-`Body Text`) — siehe `scripts/style-mapping.R`.
+Verified via `unzip`+Python regex diff on the real `report.docx`: all 9 paragraphs carried explicit
+`pStyle` values from `{Title, Titre2, FirstParagraph, Compact}`; `ListParagraph` did not occur at
+all. **Consequence:** list paragraphs are not detected by style name, but by the presence of
+`<w:numPr>` (reliable, independent of the chosen style name); body paragraphs are detected via an
+allowlist of known role names (`Normal`, `FirstParagraph`, `Compact`, `BodyText`, `Body Text`) —
+see `scripts/style-mapping.R`.
 
-Ebenfalls verifiziert: `word/numbering.xml` löst `numId` → `abstractNumId` → `w:numFmt` (Ebene 0)
-zuverlässig auf; im Test hatte die Bullet-Liste `numFmt="bullet"`, die nummerierte Liste
-`numFmt="decimal"` — mit unterschiedlichen `numId`s (1001 vs. 1002), aber identischem `pStyle`
-(`Compact`) auf Absatzebene. Ohne den `numFmt`-Umweg wäre Bullet/Nummerierung nicht unterscheidbar
-gewesen.
+Also verified: `word/numbering.xml` reliably resolves `numId` → `abstractNumId` → `w:numFmt` (level
+0); in the test the bullet list had `numFmt="bullet"`, the numbered list `numFmt="decimal"` — with
+different `numId`s (1001 vs. 1002), but identical `pStyle` (`Compact`) at the paragraph level.
+Without the `numFmt` detour, bullet vs. numbered would not have been distinguishable.
 
-Außerdem bestätigt: `word/styles.xml` im gerenderten Output enthält alle Style-Definitionen des
-`reference-doc` unverändert (inkl. selbst ergänzter Custom-Styles) plus von Pandoc zusätzlich
-benötigte Styles (z. B. Syntax-Highlighting-Token-Styles) — keine zweite Extraktion aus dem
-`reference-doc` nötig, `work_dir/word/styles.xml` reicht. Und: `quarto inspect` liefert einen neu
-hinzugefügten verschachtelten Key `format.docx.officequarto-styles` genauso zuverlässig wie
-`reference-doc` (per Gegenprobe mit einem Testwert bestätigt).
+Also confirmed: `word/styles.xml` in the rendered output contains all style definitions from
+`reference-doc` unchanged (including one's own custom styles) plus styles additionally needed by
+Pandoc (e.g. syntax-highlighting token styles) — no second extraction from `reference-doc` is
+needed, `work_dir/word/styles.xml` is sufficient. And: `quarto inspect` returns a newly added
+nested key `format.docx.officequarto-styles` just as reliably as `reference-doc` (confirmed via a
+counter-test with a test value).
 
-## Spike E — Style-Pruning, verifiziert am 2026-08-29
+## Spike E — Style pruning, verified on 2026-08-29
 
-Auf den ersten Blick harmlos formulierter Befund in Spike D ("plus von Pandoc zusätzlich benötigte
-Styles, z. B. Syntax-Highlighting-Token-Styles") stellte sich als groesser heraus als gedacht:
-`original.docx` definiert 27 Styles; das rohe Pandoc-Ergebnis (`report.quarto-rendered.docx`, vor
-jeglichem officequarto-Post-Processing) enthaelt 59 — 32 zusaetzliche, ausschliesslich
-Syntax-Highlighting-Styles (`SourceCode`, `KeywordTok`, `StringTok`, ...), obwohl `report.qmd` zum
-Testzeitpunkt gar keinen Codeblock enthielt. Verifiziert per Style-ID-Diff (`w:styleId` in
-`word/styles.xml`): alle 27 Original-Styles sind unveraendert vorhanden, die 32 Extras kommen
-ausschliesslich von Pandoc hinzu — nichts geht verloren. Laut Nutzer zeigt {officedown} dasselbe
-Verhalten; es ist also eine generelle Eigenschaft von Pandocs docx-Writer, nicht spezifisch fuer
-den `reference-doc`-Mechanismus.
+A finding from Spike D that seemed harmless at first glance ("plus styles additionally needed by
+Pandoc, e.g. syntax-highlighting token styles") turned out to be bigger than expected:
+`original.docx` defines 27 styles; the raw Pandoc result (`report.quarto-rendered.docx`, before any
+officequarto post-processing) contains 59 — 32 extra ones, exclusively syntax-highlighting styles
+(`SourceCode`, `KeywordTok`, `StringTok`, ...), even though `report.qmd` did not contain a single
+code block at the time of testing. Verified via a style-ID diff (`w:styleId` in `word/styles.xml`):
+all 27 original styles are present unchanged, the 32 extras come exclusively from Pandoc — nothing
+is lost. According to the user, {officedown} shows the same behavior; it is therefore a general
+property of Pandoc's docx writer, not specific to the `reference-doc` mechanism.
 
-Auf expliziten Wunsch entfernt `writeback.R` diese Extras seitdem wieder (per Default): `word/
-styles.xml` des reference-doc wird zusaetzlich zu `core.xml`/`custom.xml` aus dem Original
-extrahiert, und jeder `<w:style>` im gerenderten `word/styles.xml`, dessen `styleId` dort nicht
-vorkommt, wird entfernt (`scripts/style-pruning.R`).
+At the user's explicit request, `writeback.R` has since removed these extras again (by default):
+the reference-doc's `word/styles.xml` is additionally extracted from the original alongside
+`core.xml`/`custom.xml`, and every `<w:style>` in the rendered `word/styles.xml` whose `styleId`
+doesn't occur there is removed (`scripts/style-pruning.R`).
 
-Getestet auch der Grenzfall "Style wird noch verwendet": Ein Testabsatz mit echtem Codeblock in
-`report.qmd` sorgt dafuer, dass `SourceCode`/`KeywordTok`/... tatsaechlich per `w:pStyle`/`w:rStyle`
-referenziert werden. Bewusste Entscheidung (vom Nutzer bestaetigt): auch dann wird der Style
-entfernt statt behalten — der betroffene Absatz/Run faellt auf Words Default-Formatierung zurueck,
-`writeback.R` loggt dafuer eine Warnung mit der Liste der betroffenen Style-IDs. Verifiziert: das
-resultierende `document.xml`/`styles.xml` bleibt wohlgeformtes XML (kein Crash, keine defekte
-Datei), der `pStyle`-Wert `SourceCode` existiert im Absatz weiter, obwohl die Style-Definition
-fehlt — genau das von Word tolerierte Verhalten (stiller Fallback auf Default-Formatierung, kein
-Reparatur-Dialog).
+Also tested the edge case "style is still in use": a test paragraph with a real code block in
+`report.qmd` ensures that `SourceCode`/`KeywordTok`/... are actually referenced via
+`w:pStyle`/`w:rStyle`. Deliberate decision (confirmed by the user): even then the style is removed
+rather than kept — the affected paragraph/run falls back to Word's default formatting, and
+`writeback.R` logs a warning listing the affected style IDs for this. Verified: the resulting
+`document.xml`/`styles.xml` remains well-formed XML (no crash, no corrupted file), the `pStyle`
+value `SourceCode` continues to exist on the paragraph even though the style definition is missing
+— exactly the behavior Word tolerates (silent fallback to default formatting, no repair dialog).
 
-Gegenprobe an einem echten externen Projekt (`../hello-wordto`, UU-Word-Template mit 476 Styles,
-`hello-wordto.qmd` ohne jeglichen Code): rohes Pandoc-Ergebnis hatte 508 Styles (476 + dieselben 32
-Extras), nach Pruning wieder exakt 476 — identisch mit dem Template. Bestaetigt, dass das
-Verhalten nicht spezifisch fuer die kleine ACME-Testvorlage ist, sondern generell fuer beliebige
-reference-docs greift, auch sehr grosse.
+Counter-test against a real external project (`../hello-wordto`, a UU Word template with 476
+styles, `hello-wordto.qmd` without any code): the raw Pandoc result had 508 styles (476 + the same
+32 extras), and after pruning exactly 476 again — identical to the template. Confirms that the
+behavior isn't specific to the small ACME test template, but applies generally to arbitrary
+reference-docs, even very large ones.
 
-## Spike F — Code-Block-Ausnahme (`officequarto-pandoc-styles.code-block`), verifiziert am 2026-08-29
+## Spike F — Code-block exception (`officequarto-pandoc-styles.code-block`), verified on 2026-08-29
 
-Vor dem ersten Commit von Spike E kam der Wunsch nach einer Opt-in-Ausnahme fuer genau diesen
-Codeblock-Fall: entweder Pandocs eigene Codeblock-Formatierung vollstaendig behalten, oder die
-Codeblock-Absaetze auf einen eigenen reference-doc-Style ummappen (analog zu `body`/`list-bullet`/
-`list-number`), waehrend der Default (kein Codeblock-Konfig) unveraendert bleibt.
+Before the first commit of Spike E, a request came in for an opt-in exception for exactly this
+code-block case: either keep Pandoc's own code-block formatting entirely, or remap the code-block
+paragraphs onto a custom reference-doc style (analogous to `body`/`list-bullet`/`list-number`),
+while the default (no code-block config) remains unchanged.
 
-`SourceCode` erwies sich (anders als `Normal`/`FirstParagraph`/`Compact` in Spike D) als stabile,
-kontextunabhaengige Pandoc-Style-ID fuer den Codeblock-Absatz selbst — ein einfacher
-Gleichheitscheck in `oq_apply_style_mapping` genuegt, keine Allowlist noetig. Fuer
-`code-block: true` reicht es, die Menge der "zu behaltenden" Style-IDs vor dem Pruning-Aufruf um
-alle `SourceCode`/`*Tok`-IDs zu erweitern (`oq_is_pandoc_code_style_id()`) — `oq_prune_foreign_styles`
-selbst brauchte dafuer keine Aenderung, da es ohnehin nur eine beliebige "keep set"-Menge entgegennimmt.
+`SourceCode` turned out (unlike `Normal`/`FirstParagraph`/`Compact` in Spike D) to be a stable,
+context-independent Pandoc style ID for the code-block paragraph itself — a simple equality check
+in `oq_apply_style_mapping` is enough, no allowlist needed. For `code-block: true`, it's enough to
+extend the set of "styles to keep" before the pruning call with all `SourceCode`/`*Tok` IDs
+(`oq_is_pandoc_code_style_id()`) — `oq_prune_foreign_styles` itself needed no change for this,
+since it already accepts an arbitrary "keep set" to begin with.
 
-Nachtraeglicher Wunsch (noch vor dem ersten Commit dieser Funktion): `code-block` nicht verschachtelt
-unter `officequarto-styles`, sondern in einem eigenen, gleichrangigen Abschnitt
-`officequarto-pandoc-styles` (Begruendung: es geht um von Pandoc hinzugefuegte Styles, nicht um das
-Ummappen eigener reference-doc-Styles — inhaltlich ein anderer Konfigurationsbereich). Dabei musste
-die Gate-Bedingung fuer den Style-Mapping-Block in `writeback.R` von `!is.null(style_config)` auf
-`!is.null(style_config) || !is.null(code_block_config)` erweitert werden, sonst haette
-`code-block` ohne gleichzeitig gesetztes `officequarto-styles` (body/list-bullet/list-number) gar
-nicht gegriffen — verifiziert per Testfall mit *nur* `officequarto-pandoc-styles.code-block`
-gesetzt (kein `officequarto-styles` in der Config): Codeblock-Absatz wird trotzdem korrekt auf den
-konfigurierten Style umgemappt, Body-Absaetze bleiben unangetastet bei Pandocs Rollennamen. Auch
-`oq_resolve_style_id()` musste angepasst werden: der volle Konfigurationspfad fuer Fehlermeldungen
-wird jetzt vom Aufrufer uebergeben (`"officequarto-styles.body"` vs.
-`"officequarto-pandoc-styles.code-block"`), statt den Praefix `officequarto-styles.` hart zu
-kodieren.
+Subsequent request (still before the first commit of this feature): `code-block` should not be
+nested under `officequarto-styles`, but placed in its own, sibling section
+`officequarto-pandoc-styles` (rationale: it's about styles added by Pandoc, not about remapping
+one's own reference-doc styles — a different configuration area in substance). This required
+widening the gate condition for the style-mapping block in `writeback.R` from
+`!is.null(style_config)` to `!is.null(style_config) || !is.null(code_block_config)`, otherwise
+`code-block` would not have taken effect at all without `officequarto-styles`
+(body/list-bullet/list-number) also being set — verified via a test case with *only*
+`officequarto-pandoc-styles.code-block` set (no `officequarto-styles` in the config): the
+code-block paragraph is still correctly remapped to the configured style, body paragraphs remain
+untouched at Pandoc's role names. `oq_resolve_style_id()` also had to be adapted: the full
+configuration path for error messages is now passed in by the caller (`"officequarto-styles.body"`
+vs. `"officequarto-pandoc-styles.code-block"`), instead of hard-coding the prefix
+`officequarto-styles.`.
 
-Verifiziert (`template/_quarto.yml` nutzt jetzt dauerhaft `officequarto-pandoc-styles:
-{code-block: "Code ACME"}` als String-Mapping-Testfall, ein vierter ACME-Custom-Style in
+Verified (`template/_quarto.yml` now permanently uses `officequarto-pandoc-styles:
+{code-block: "Code ACME"}` as a string-mapping test case, a fourth ACME custom style in
 `dev/make-sample-docx.R`):
-- `code-block` unset (Default): unveraendert wie Spike E (32 entfernt, inkl. `SourceCode`).
-- `code-block: "Code ACME"`: `SourceCode`-Absatz wird auf `CodeACME` umgemappt (kein
-  `SourceCode`-Verweis mehr, keine Warnung dafuer), die `*Tok`-Laufstile im Codeblock bleiben aber
-  weiterhin referenziert-aber-entfernt (Warnung wie gehabt) — bewusst getrennte Zustaendigkeit
-  Block-Style vs. Syntax-Highlighting-Farben.
-- `code-block: true` (manuell in einem Scratch-Projekt getestet, nicht Teil der dauerhaften
-  Testvorlage): 0 entfernt, alle 32 `SourceCode`/`*Tok`-Styles bleiben unveraendert erhalten, keine
-  Warnung, volle Syntax-Highlighting-Farbgebung im Ergebnis.
-- Ungueltiger Wert (z. B. eine Zahl): bricht sofort mit klarer Fehlermeldung ab, noch vor der
-  Pro-Datei-Schleife.
+- `code-block` unset (default): unchanged from Spike E (32 removed, including `SourceCode`).
+- `code-block: "Code ACME"`: the `SourceCode` paragraph is remapped to `CodeACME` (no more
+  `SourceCode` reference, no warning for it), but the `*Tok` run styles in the code block remain
+  referenced-but-removed (warning as before) — deliberately separate concerns of block style vs.
+  syntax-highlighting colors.
+- `code-block: true` (tested manually in a scratch project, not part of the permanent test
+  template): 0 removed, all 32 `SourceCode`/`*Tok` styles remain unchanged, no warning, full
+  syntax-highlighting coloring in the result.
+- Invalid value (e.g. a number): aborts immediately with a clear error message, before the
+  per-output-file loop even runs.
 
-## Spike G — `list-letter` (Buchstaben-Listen), verifiziert am 2026-08-29
+## Spike G — `list-letter` (letter lists), verified on 2026-08-29
 
-Frage vor der Implementierung: erzeugt Pandocs docx-Writer fuer Buchstaben-Listen (`a.`/`b.`/`c.`
-bzw. `A.`/`B.`/`C.` in der Markdown-Quelle) ueberhaupt einen von `bullet`/`decimal` unterscheidbaren
-`w:numFmt`-Wert, oder faellt das unter Pandocs generische Nummerierung wie alles andere auch?
+Question before implementation: does Pandoc's docx writer even produce a `w:numFmt` value for
+letter lists (`a.`/`b.`/`c.` or `A.`/`B.`/`C.` in the markdown source) distinguishable from
+`bullet`/`decimal`, or does this fall under Pandoc's generic numbering like everything else?
 
-Empirisch per direktem `pandoc test.md -o test.docx --standalone` (Test-Markdown mit je einer
-Buchstaben-, Zahlen- und Grossbuchstaben-Liste) geprueft, unabhaengig von officequarto:
-`word/numbering.xml` enthaelt danach `w:numFmt`-Werte `bullet`, `decimal` **und** `lowerLetter`
-(fuer `a.`/`b.`/`c.`) als eigene, unterscheidbare Werte — Grossbuchstaben-Marker (`A.`/`B.`) waeren
-analog `upperLetter` (nicht separat mitgetestet, aber laut OOXML-Spezifikation das erwartete
-Gegenstueck zu `lowerLetter`). Buchstaben-Listen sind damit genauso zuverlaessig ueber
-`word/numbering.xml` erkennbar wie Bullet- vs. Zahlen-Listen in Spike D — keine Sonderbehandlung
-noetig, nur ein zusaetzlicher Zweig in der bestehenden `numFmt`-Fallunterscheidung.
+Checked empirically via a direct `pandoc test.md -o test.docx --standalone` (test markdown with
+one letter list, one number list, and one uppercase-letter list each), independent of officequarto:
+`word/numbering.xml` afterwards contains `w:numFmt` values `bullet`, `decimal`, **and**
+`lowerLetter` (for `a.`/`b.`/`c.`) as distinct, distinguishable values — uppercase markers
+(`A.`/`B.`) would analogously be `upperLetter` (not separately tested, but per the OOXML spec the
+expected counterpart to `lowerLetter`). Letter lists are thus just as reliably detectable via
+`word/numbering.xml` as bullet vs. number lists in Spike D — no special handling needed, just an
+additional branch in the existing `numFmt` case distinction.
 
-Umgesetzt als eigener Bucket `list-letter` (`officequarto_letter_num_fmts <- c("lowerLetter",
-"upperLetter")` in `style-mapping.R`), getrennt von `list-number` (das weiterhin `decimal`,
-roemische Ziffern etc. abdeckt) — beide Faelle in einer Option zusammengefasst statt separater
-Optionen fuer Klein-/Grossbuchstaben, analog dazu, wie `list-number` bereits `decimal` und
-roemische Ziffern in einem Bucket zusammenfasst. Hat kein officedown-Vorbild (officedown kennt nur
-`ol.style`/`ul.style`), daher als officequarto-eigene Option ohne Alias eingefuehrt — kein
-Konflikt mit der [[officedown-Alias-Konvention]] (siehe `option-aliases.R`), da es schlicht keinen
-zu mappenden officedown-Namen gibt.
+Implemented as its own bucket `list-letter` (`officequarto_letter_num_fmts <- c("lowerLetter",
+"upperLetter")` in `style-mapping.R`), separate from `list-number` (which continues to cover
+`decimal`, roman numerals, etc.) — both cases combined into one option instead of separate options
+for lower-/uppercase letters, analogous to how `list-number` already combines `decimal` and roman
+numerals into one bucket. Has no officedown precedent (officedown only knows `ol.style`/
+`ul.style`), so introduced as an officequarto-only option with no alias — no conflict with the
+[[officedown alias convention]] (see `option-aliases.R`), since there simply is no officedown name
+to map to.
 
-Verifiziert am funktionierenden Testprojekt (fuenfter ACME-Custom-Style `BuchstabierungACME` in
-`dev/make-sample-docx.R`, dritte Liste `a./b./c.` in `template/report.qmd`,
-`officequarto-styles.list-letter: "Buchstabierung ACME"` in `template/_quarto.yml`): 3
-Buchstaben-Listen-Absaetze werden korrekt auf `BuchstabierungACME` umgemappt, `list-number`
-(separat auf `NummerierungACME` gemappt) bleibt bei weiterhin nur 3 Absaetzen unveraendert — keine
-Vermischung der beiden Buckets.
+Verified on the working test project (fifth ACME custom style `BuchstabierungACME` in
+`dev/make-sample-docx.R`, third list `a./b./c.` in `template/report.qmd`,
+`officequarto-styles.list-letter: "Buchstabierung ACME"` in `template/_quarto.yml`): 3 letter-list
+paragraphs are correctly remapped to `BuchstabierungACME`, `list-number` (separately mapped to
+`NummerierungACME`) remains unchanged at still only 3 paragraphs — no mixing of the two buckets.
 
-## Spike H — Tabellen-Basisoptionen (Gruppe 1) und `tab.lp`-Verzicht, verifiziert am 2026-08-29
+## Spike H — Table base options (Gruppe 1) and skipping `tab.lp`, verified on 2026-08-29
 
-Zwei offene Fragen vor der Implementierung von `officequarto-tables` (Gruppe 1 des
-officedown-Options-Ports: `style`/`layout`/`width`, officedown-Vorbild: `tables = list(style=,
-layout=, width=, topcaption=, tab.lp=)`):
+Two open questions before implementing `officequarto-tables` (Gruppe 1 of the officedown option
+port: `style`/`layout`/`width`; officedown precedent: `tables = list(style=, layout=, width=,
+topcaption=, tab.lp=)`):
 
-**1. Braucht officequarto ein `tab.lp`/`fig.lp`-Aequivalent?** Recherchiert (Quartos eigene
-Crossref-Dokumentation, `quarto.org/docs/authoring/cross-reference-options.html` und
-`.../cross-references.html`, sowie eine Quarto-Maintainer-Diskussion zu Docx-Crossrefs,
-`github.com/orgs/quarto-dev/discussions/8503`) statt angenommen: Nein. `tab.lp` ist in
-officedown/bookdown ein reines **Autoren-Syntax-Konzept** — der Praefix, an dem bookdowns
-`\@ref(tab:xyz)`-Parser erkennt, dass ein Label sich auf eine Tabelle bezieht — kein
-Rendering-Schalter. Quartos eigenes Aequivalent (`#tbl-xyz`/`#fig-xyz`) ist eine fixe,
-nicht-konfigurierbare Quarto-Autoren-Konvention, die schon beim Parsen der `.qmd` aufgeloest wird —
-lange bevor `writeback.R` (das nur das fertig gerenderte docx sieht) ueberhaupt laeuft. Kein
-Ansatzpunkt in der Post-Render-Architektur. Das sichtbare Praefix-Textproblem ("Tabelle" statt
-"Table") ist ausserdem bereits nativ durch Quartos eigene `crossref.tbl-title`/`fig-title`
-YAML-Optionen geloest — keine officequarto-Option dafuer noetig. Randbefund fuer eine spaetere
-Gruppe 3 (Tabellen-/Abbildungs-Beschriftungen): Quartos Docx-Crossref-Captions sind aktuell
-statischer, fest eingebackener Text statt echter Word-`SEQ`-Felder (offene Quarto-Luecke) — der
-Post-Render-XML-Zugriff von officequarto waere ein plausibler Ort, um das spaeter nachzuruesten.
+**1. Does officequarto need a `tab.lp`/`fig.lp` equivalent?** Researched (Quarto's own crossref
+documentation, `quarto.org/docs/authoring/cross-reference-options.html` and
+`.../cross-references.html`, as well as a Quarto maintainer discussion on docx crossrefs,
+`github.com/orgs/quarto-dev/discussions/8503`) rather than assumed: No. `tab.lp` in
+officedown/bookdown is a pure **authoring-syntax concept** — the prefix by which bookdown's
+`\@ref(tab:xyz)` parser recognizes that a label refers to a table — not a rendering switch.
+Quarto's own equivalent (`#tbl-xyz`/`#fig-xyz`) is a fixed, non-configurable Quarto authoring
+convention that is already resolved when the `.qmd` is parsed — long before `writeback.R` (which
+only ever sees the fully rendered docx) runs at all. No point of integration in the post-render
+architecture. The visible prefix-text concern ("Tabelle" instead of "Table") is furthermore already
+natively solved by Quarto's own `crossref.tbl-title`/`fig-title` YAML options — no officequarto
+option needed for that. Side finding for a later Gruppe 3 (table/figure captions): Quarto's docx
+crossref captions are currently static, already-baked-in text rather than real Word `SEQ` fields
+(an open Quarto gap) — officequarto's post-render XML access would be a plausible place to retrofit
+this later.
 
-**2. `style` gegen welche Styles aufloesen?** `officequarto-tables.style` referenziert
-Tabellen-Styles (`w:type="table"`), nicht Absatz-Styles wie `body`/`list-*` — `oq_style_name_to_id()`
-in `style-mapping.R` wurde daher um einen `type`-Parameter erweitert (`"paragraph"`
-Default, `"table"` fuer diesen Fall), statt eine zweite fast identische Funktion anzulegen. Beim
-Pruefen der Test-Vorlage zeigte sich: `original.docx` (von `officer::read_docx()` erzeugt) enthaelt
-bereits vier eingebaute Tabellen-Styles, darunter den Basis-Style mit der ID `TableauNormal` (nicht
-`TableNormal` wie im generischen OOXML-Beispiel — officer-Basisvorlage ist franzoesisch benannt).
-Der neue ACME-Tabellen-Style (`TabelleACME`) baut deshalb auf `TableauNormal` auf, nicht auf einen
-angenommenen `TableNormal`.
+**2. Resolve `style` against which styles?** `officequarto-tables.style` references table styles
+(`w:type="table"`), not paragraph styles like `body`/`list-*` — `oq_style_name_to_id()` in
+`style-mapping.R` was therefore extended with a `type` parameter (`"paragraph"` default, `"table"`
+for this case), instead of creating a second, nearly identical function. When checking the test
+template it turned out: `original.docx` (produced by `officer::read_docx()`) already contains four
+built-in table styles, including the base style with the ID `TableauNormal` (not `TableNormal` as
+in the generic OOXML example — officer's base template is named in French). The new ACME table
+style (`TabelleACME`) is therefore built on top of `TableauNormal`, not an assumed `TableNormal`.
 
-**Zusaetzlicher Implementierungsfund (nicht vorab recherchiert, beim ersten Testrender entdeckt):**
-ein per `xml2::xml_add_child(tbl_pr, "w:tblLayout")` ohne `.where` neu erzeugtes Element landet
-einfach als letztes Kind von `w:tblPr` — bei einer von Pandoc bereits mit `w:tblStyle`, `w:tblW`,
-`w:tblLook` vorbelegten `w:tblPr` also *hinter* `w:tblLook`, obwohel `w:tblLayout` laut
-OOXML-Schema (`CT_TblPrBase`) *vor* `w:tblLook` stehen muss. Word selbst toleriert das
-(rendert trotzdem korrekt), aber nicht schema-konform. Behoben durch `oq_add_tbl_pr_child()`
-(`table-mapping.R`), das die Zielposition anhand einer festen `officequarto_tblpr_order`-Sequenz
-bestimmt statt blind anzuhaengen — verifiziert per `check-writeback.R`-Assertion auf die konkrete
-resultierende Kindelement-Reihenfolge (`tblStyle, tblW, tblLayout, tblLook`).
+**Additional implementation finding (not researched in advance, discovered during the first test
+render):** an element newly created via `xml2::xml_add_child(tbl_pr, "w:tblLayout")` without
+`.where` simply lands as the last child of `w:tblPr` — for a `w:tblPr` already pre-populated by
+Pandoc with `w:tblStyle`, `w:tblW`, `w:tblLook`, that means it lands *after* `w:tblLook`, even
+though `w:tblLayout` must, per the OOXML schema (`CT_TblPrBase`), come *before* `w:tblLook`. Word
+itself tolerates this (still renders correctly), but it isn't schema-compliant. Fixed via
+`oq_add_tbl_pr_child()` (`table-mapping.R`), which determines the target position from a fixed
+`officequarto_tblpr_order` sequence instead of blindly appending — verified via a
+`check-writeback.R` assertion on the actual resulting child-element order (`tblStyle, tblW,
+tblLayout, tblLook`).
 
-## Spike I — Tabellen-Beschriftungen (Gruppe 3), verifiziert am 2026-08-29
+## Spike I — Table captions (Gruppe 3), verified on 2026-08-29
 
-Vor der Implementierung von `officequarto-tables.caption` empirisch geprueft, wie Quarto/Pandoc
-Tabellen-Beschriftungen im docx-Output tatsaechlich erzeugen (Testrender: `#tbl-example`-Tabelle
-mit Beschriftung, unabhaengig von officequarto, direkt per `quarto render`):
+Before implementing `officequarto-tables.caption`, checked empirically how Quarto/Pandoc actually
+produce table captions in docx output (test render: a `#tbl-example` table with a caption,
+independent of officequarto, via a direct `quarto render`):
 
-**Struktur:** eine beschriftete Tabelle wird von Pandoc in eine synthetische 1x1-"Wrapper"-Tabelle
-eingebettet, deren einzige Zelle den Beschriftungsabsatz (`pStyle="ImageCaption"`) gefolgt von der
-eigentlichen, verschachtelten Tabelle enthaelt (plus `w:bookmarkStart`/`w:bookmarkEnd` fuer den
-Crossref-Anker). `ImageCaption` ist dabei ein einziger, fester Pandoc-Style, gemeinsam genutzt von
-Tabellen- UND Abbildungs-Beschriftungen — keine eigene "TableCaption"-Style-ID.
+**Structure:** a captioned table is embedded by Pandoc into a synthetic 1x1 "wrapper" table, whose
+single cell contains the caption paragraph (`pStyle="ImageCaption"`) followed by the actual, nested
+table (plus `w:bookmarkStart`/`w:bookmarkEnd` for the crossref anchor). `ImageCaption` here is a
+single, fixed Pandoc style, shared by both table AND figure captions — there is no dedicated
+"TableCaption" style ID.
 
-**Wichtiger Fund, der die Gruppe-1/2-Implementierung nachtraeglich betraf:** `oq_apply_table_options()`s
-urspruengliche `//w:tbl`-Selektion traf durch diese Wrapper-Struktur unbeabsichtigt BEIDE Tabellen
-(die unsichtbare Wrapper-Tabelle UND die echte Datentabelle) — verifiziert am eigenen
-Testrender ("Tabellen-Optionen angewendet: 2 Tabelle(n)." statt der erwarteten 1, sobald die
-Test-Tabelle eine Beschriftung bekam). Behoben durch `[not(.//w:tbl)]` in der XPath-Selektion
-(schliesst jede `w:tbl` aus, die selbst eine verschachtelte `w:tbl` enthaelt) — dieselbe Korrektur
-war auch in `check-writeback.R`s eigener Tabellen-Lookup-XPath noetig.
+**Important finding that retroactively affected the Gruppe 1/2 implementation:**
+`oq_apply_table_options()`'s original `//w:tbl` selection unintentionally matched BOTH tables (the
+invisible wrapper table AND the real data table) due to this wrapper structure — verified on our
+own test render ("Table options applied: 2 table(s)." instead of the expected 1, as soon as the
+test table got a caption). Fixed via `[not(.//w:tbl)]` in the XPath selection (excludes any `w:tbl`
+that itself contains a nested `w:tbl`) — the same fix was also needed in `check-writeback.R`'s own
+table-lookup XPath.
 
-**Kernproblem fuer pre/sep/number-bold:** die Beschriftung ist vollstaendig statischer,
-eingebackener Text — "Table 1: My table caption" als EIN `<w:r><w:t>`-Lauf, kein echtes
-Word-SEQ-Feld (bestaetigt bereits durch die `tab.lp`-Recherche vor Gruppe 1, siehe oben; hier am
-konkreten XML nochmals verifiziert). Versucht: den generierten Praefix aus
-`crossref.tbl-title`/`title-delim` vorherzusagen, um ihn beim Ersetzen gezielt abzuschneiden.
-Empirisch verworfen: ein Testrender mit `crossref: {tbl-title: "Tabelle", title-delim: "--"}`
-erzeugte den Text `"Tabelle\xa01– My table caption"` — Pandocs Smart-Typography-Konvertierung
-wandelt `"--"` in einen echten Halbgeviertstrich ("–") um und setzt ein nicht-brechendes
-Leerzeichen vor die Zahl; der tatsaechlich gerenderte Text weicht damit vom konfigurierten
-Rohwert ab, eine Vorhersage aus der Config waere unzuverlaessig.
+**Core problem for prefix/separator/number-bold:** the caption is entirely static, baked-in text —
+"Table 1: My table caption" as ONE `<w:r><w:t>` run, no real Word SEQ field (already confirmed by
+the `tab.lp` research before Gruppe 1, see above; here verified again on the actual XML). Attempted:
+predicting the generated prefix from `crossref.tbl-title`/`title-delim`, in order to cut it off
+specifically during replacement. Empirically discarded: a test render with
+`crossref: {tbl-title: "Tabelle", title-delim: "--"}` produced the text `"Tabelle\xa01– My table
+caption"` — Pandoc's smart-typography conversion turns `"--"` into a real en dash ("–") and inserts
+a non-breaking space before the number; the actually rendered text thus deviates from the
+configured raw value, so predicting it from config would be unreliable.
 
-**Loesung:** an der Zahl selbst verankern statt am umgebenden Text — Ziffern sind von der
-Typography-Konvertierung nicht betroffen. `officequarto` zaehlt Tabellen-Beschriftungen selbst in
-Dokumentreihenfolge (identisch zu Pandocs eigener Zaehlung, da nur beschriftete Tabellen ueberhaupt
-einen Beschriftungsabsatz erzeugen) und sucht die erwartete Zahl per Wortgrenzen-Lookaround-Regex
-(`(?<![\p{L}\p{N}])N(?![\p{L}\p{N}])`), nicht per einfachem Teilstring-Treffer — verifiziert u.a.
-gegen den Grenzfall, dass die gesuchte Zahl zufaellig auch als Teil einer anderen Zahl im
-eigentlichen Beschriftungstext vorkommt (z.B. "1" in "1990"), siehe `dev/check-caption-parsing.R`.
+**Solution:** anchor on the number itself instead of the surrounding text — digits are unaffected
+by the typography conversion. `officequarto` counts table captions itself in document order
+(identical to Pandoc's own counting, since only captioned tables produce a caption paragraph at
+all) and searches for the expected number via a word-boundary lookaround regex (`(?<!
+[\p{L}\p{N}])N(?![\p{L}\p{N}])`), not via a simple substring match — verified among other things
+against the edge case where the searched-for number happens to also occur as part of another
+number within the actual caption text (e.g. "1" in "1990"), see `dev/check-caption-parsing.R`.
 
-## Spike J — Abbildungen-Basisoptionen (Gruppe 4), verifiziert am 2026-08-29
+## Spike J — Figure base options (Gruppe 4), verified on 2026-08-29
 
-Vor der Implementierung von `officequarto-plots` empirisch geprueft (Testrender: `#fig-example`-
-Abbildung mit Beschriftung, unabhaengig von officequarto, direkt per `quarto render`), wie Pandoc
-eine Abbildung im docx-Output strukturiert.
+Before implementing `officequarto-plots`, checked empirically (test render: a `#fig-example`
+figure with a caption, independent of officequarto, via a direct `quarto render`) how Pandoc
+structures a figure in docx output.
 
-**Fund 1 — Abbildungs-Absaetze tragen denselben Rollennamen wie Body-Absaetze:** der Absatz, der
-das `w:drawing` traegt, hat `pStyle="Compact"` - denselben kontextabhaengigen Pandoc-Rollennamen,
-den `officequarto_body_role_styles` (Spike D) bereits als "Body-Text" behandelt. Ohne Gegenmassnahme
-haette `officequarto-styles.body` (falls konfiguriert) also faelschlich auch Abbildungs-Absaetze
-umgemappt. Behoben durch eine explizite Ausnahme in `oq_apply_style_mapping()`
-(`style-mapping.R`): Absaetze mit einem `w:drawing`-Nachfahren werden von der Body-Rollen-Pruefung
-ausgenommen und stattdessen dediziert von `oq_apply_plot_options()` (`plot-mapping.R`) behandelt -
-Abbildungs-Absaetze werden ueber die Praesenz von `w:drawing` erkannt, nicht ueber den Style-Namen
-(analoges Prinzip wie Listen-Absaetze ueber `w:numPr`, nicht ueber den Style-Namen, Spike D).
+**Finding 1 — figure paragraphs carry the same role name as body paragraphs:** the paragraph
+carrying the `w:drawing` has `pStyle="Compact"` — the same context-dependent Pandoc role name that
+`officequarto_body_role_styles` (Spike D) already treats as "body text". Without a countermeasure,
+`officequarto-styles.body` (if configured) would therefore also incorrectly remap figure
+paragraphs. Fixed via an explicit exception in `oq_apply_style_mapping()` (`style-mapping.R`):
+paragraphs with a `w:drawing` descendant are excluded from the body-role check and instead
+dedicated to `oq_apply_plot_options()` (`plot-mapping.R`) — figure paragraphs are detected via the
+presence of `w:drawing`, not via the style name (the same principle as list paragraphs being
+detected via `w:numPr`, not via the style name, Spike D).
 
-**Fund 2 — auch Abbildungen werden in Pandocs 1x1-Wrapper-Tabelle eingebettet:** identische
-Struktur wie bei beschrifteten Tabellen (Spike I), nur mit Bild- statt Tabellen-Inhalt in der
-Zelle. Das bedeutete einen zweiten echten Bug, der erst beim eigenen Testrender dieser Gruppe
-auffiel: `oq_apply_table_options()`s Filter aus Gruppe 3 (`[not(.//w:tbl)]`, schliesst Tabellen mit
-verschachtelter Tabelle aus) erkannte zwar korrekt den Tabellen-Wrapper-Fall, NICHT aber den
-Abbildungs-Wrapper-Fall (dessen Zelle keine verschachtelte Tabelle enthaelt, nur Bild- und
-Beschriftungsabsatz) - Log zeigte faelschlich "Tabellen-Optionen angewendet: 2 Tabelle(n)." statt
-der erwarteten 1, sobald die Test-Abbildung eine Beschriftung bekam. Behoben durch ein praeziseres,
-direktes Erkennungsmerkmal statt der indirekten Ableitung ueber verschachtelte Tabellen:
-`//w:tbl[not(./w:tr/w:tc/w:p/w:pPr/w:pStyle/@w:val='ImageCaption')]` - schliesst jede Tabelle aus,
-deren eigene direkte Zelle einen `ImageCaption`-Absatz enthaelt, unabhaengig davon, ob diese
-Zelle eine Tabelle oder eine Abbildung umschliesst. Setzt voraus, dass
-`oq_apply_table_options()` VOR `oq_apply_table_captions()` laeuft (aktuelle Reihenfolge in
-`writeback.R`) - danach waere `ImageCaption` ggf. schon auf einen Nutzer-Style umgemappt und das
-Merkmal wuerde nicht mehr greifen.
+**Finding 2 — figures are also embedded in Pandoc's 1x1 wrapper table:** identical structure as
+for captioned tables (Spike I), just with image content instead of table content in the cell. This
+meant a second real bug, only discovered during this group's own test render:
+`oq_apply_table_options()`'s Gruppe 3 filter (`[not(.//w:tbl)]`, excludes tables with a nested
+table) correctly detected the table-wrapper case, but NOT the figure-wrapper case (whose cell
+contains no nested `w:tbl`, just an image paragraph and a caption paragraph) — the log incorrectly
+showed "Table options applied: 2 table(s)." instead of the expected 1, as soon as the test figure
+got a caption. Fixed via a more precise, direct detection signature instead of the indirect
+derivation via nested tables: `//w:tbl[not(./w:tr/w:tc/w:p/w:pPr/w:pStyle/@w:val='ImageCaption')]`
+— excludes any table whose own direct cell contains an `ImageCaption`-styled paragraph, regardless
+of whether that cell wraps a table or a figure. This requires `oq_apply_table_options()` to run
+BEFORE `oq_apply_table_captions()` (the current order in `writeback.R`) — after that point,
+`ImageCaption` might already have been remapped to a user style and the signature would no longer
+match.
 
-## Spike K — Querverweis-Nummerierung (Gruppe 9), verifiziert am 2026-08-29
+## Spike K — Crossref numbering (Gruppe 9), verified on 2026-08-29
 
-Vor der Implementierung von `officequarto-crossref.numbered` zwei Dinge empirisch geprueft statt
-angenommen.
+Before implementing `officequarto-crossref.numbered`, two things were checked empirically instead
+of assumed.
 
-**1. `w:anchor`/`w:name` beim Lesen unpraefigiert.** Die bestehende Dokumentation (siehe
-`CLAUDE.md`) haelt bereits fest, dass xml2-Attribut-SCHREIBZUGRIFFE auf OOXML-Knoten den
-Namespace-Praefix brauchen (`xml_attr(node, "w:val") <- x`, nicht `"val"`). Fuer den umgekehrten
-Fall - LESEN - war das noch nicht explizit verifiziert; Gruppe 9 braucht `w:anchor` (an
-`w:hyperlink`) und `w:name` (an `w:bookmarkStart`) zuverlaessig lesbar. Per kleinem xml2-Testskript
-bestaetigt: Lesen funktioniert nur UNPRAEFIGIERT (`xml_attr(node, "anchor")`/`xml_attr(node,
-"name")`) - der praefigierte Versuch (`"w:anchor"`) liefert `NA`. Passt zum bereits bekannten
-Verhalten von `styleId` (auch dort unpraefigiert gelesen) - also eine generelle xml2-Asymmetrie
-zwischen Lesen und Schreiben, nicht ein Einzelfall.
+**1. `w:anchor`/`w:name` are unprefixed when reading.** The existing documentation (see
+`CLAUDE.md`) already notes that xml2 attribute WRITES on OOXML nodes need the namespace prefix
+(`xml_attr(node, "w:val") <- x`, not `"val"`). For the reverse case — READING — this had not yet
+been explicitly verified; Gruppe 9 needs `w:anchor` (on `w:hyperlink`) and `w:name` (on
+`w:bookmarkStart`) to be reliably readable. Confirmed via a small xml2 test script: reading only
+works UNPREFIXED (`xml_attr(node, "anchor")`/`xml_attr(node, "name")`) — the prefixed attempt
+(`"w:anchor"`) returns `NA`. This matches the already-known behavior of `styleId` (also read
+unprefixed there) — so it's a general xml2 asymmetry between reading and writing, not an isolated
+case.
 
-**2. Struktur von Pandocs generierten Crossref-Hyperlinks.** Bereits bei der `tab.lp`-Recherche vor
-Gruppe 1 miterfasst (Testrender einer `@tbl-example`-Referenz): `<w:hyperlink w:anchor="tbl-example">`
-mit einem einzelnen `<w:r><w:rPr><w:rStyle w:val="Hyperlink"/></w:rPr><w:t>Table 1</w:t></w:r>` -
-identisch aufgebaut zu den Beschriftungen selbst (statischer, fest eingebackener Text, kein
-Word-Feld). Das bedeutet: der Ersatztext fuer `numbered: false` kann nicht aus einem lebendigen
-Feld kommen, sondern muss - wie bei pre/sep/number-bold in Gruppe 3/5 - per Text-Ersetzung erfolgen.
+**2. Structure of Pandoc's generated crossref hyperlinks.** Already captured during the `tab.lp`
+research before Gruppe 1 (test render of a `@tbl-example` reference):
+`<w:hyperlink w:anchor="tbl-example">` with a single
+`<w:r><w:rPr><w:rStyle w:val="Hyperlink"/></w:rPr><w:t>Table 1</w:t></w:r>` — structured
+identically to the captions themselves (static, baked-in text, no Word field). This means: the
+replacement text for `numbered: false` cannot come from a live field, but must be done via text
+replacement — like prefix/separator/number-bold in Gruppe 3/5.
 
-**Design-Konsequenz:** anstatt Beschriftungen fuer Gruppe 9 ein zweites Mal zu suchen und zu
-parsen, wurde `oq_apply_captions()` (Gruppe 3/5, `table-caption-mapping.R`) so erweitert, dass sie
-IMMER (nicht nur wenn `needs_text_rewrite`) den Beschriftungstext per `oq_split_caption_text()`
-ermittelt und zusammen mit dem zugehoerigen Bookmark-Namen (`oq_caption_anchor_name()`, findet
-`w:bookmarkStart` als Geschwister der Beschriftung in derselben Wrapper-Zelle) in einer
-`anchor_text`-Rueckgabe sammelt - unabhaengig davon, ob `officequarto-tables.caption`/
-`-plots.caption` selbst konfiguriert sind. `writeback.R` erweitert dafuer das Gate, ab dem der
-Beschriftungs-Verarbeitungsblock ueberhaupt laeuft, um `crossref_rewrite_needed` (true nur bei
-explizitem `numbered: false`) - Gruppe 9 allein reicht damit aus, um die Beschriftungserkennung
-"still" anzustossen, auch ohne jede eigene Gruppe-3/5-Konfiguration.
+**Design consequence:** rather than searching for and parsing captions a second time for Gruppe 9,
+`oq_apply_captions()` (Gruppe 3/5, `table-caption-mapping.R`) was extended to ALWAYS (not only when
+`needs_text_rewrite`) determine the caption text via `oq_split_caption_text()` and collect it,
+together with the associated bookmark name (`oq_caption_anchor_name()`, finds `w:bookmarkStart` as
+a sibling of the caption in the same wrapper cell), in an `anchor_text` return value — independent
+of whether `officequarto-tables.caption`/`-plots.caption` are configured themselves.
+`writeback.R` widens the gate that decides whether the caption-processing block runs at all to
+include `crossref_rewrite_needed` (true only for explicit `numbered: false`) — Gruppe 9 alone is
+enough to silently trigger caption detection, even without any Gruppe 3/5 configuration of its
+own.
 
-Verifiziert am funktionierenden Testprojekt: `report.qmd` erhielt einen Satz mit
-`@tbl-kennzahlen`/`@fig-umsatz`-Referenzen; nach dem Rendern mit `officequarto-crossref: {reference_num:
-false}` (officedown-Alias) zeigen beide Hyperlinks korrekt den reinen Beschriftungstext
-("Quartalskennzahlen"/"Umsatzentwicklung") statt "Table 1"/"Figure 1" - und zwar unveraendert vom
-gleichzeitig konfigurierten `prefix`/`separator` der Beschriftungen selbst (die nur den
-Beschriftungsabsatz betreffen, nicht den in `anchor_text` gesammelten reinen `rest`-Text).
+Verified on the working test project: `report.qmd` received a sentence with `@tbl-kennzahlen`/
+`@fig-umsatz` references; after rendering with `officequarto-crossref: {reference_num: false}`
+(officedown alias), both hyperlinks correctly show the plain caption text
+("Quartalskennzahlen"/"Umsatzentwicklung") instead of "Table 1"/"Figure 1" — and unaffected by the
+simultaneously configured `prefix`/`separator` of the captions themselves (which only affect the
+caption paragraph, not the plain `rest` text collected in `anchor_text`).
 
-## Spike L — Beschriftungen ohne Crossref-ID (`TableCaption` vs. `ImageCaption`), verifiziert am 2026-08-29
+## Spike L — Captions without a crossref ID (`TableCaption` vs. `ImageCaption`), verified on 2026-08-29
 
-Fehlerbericht des Nutzers gegen `../hello-wordto` (ein echtes externes Konsumenten-Projekt, kein
-Dev-Symlink-Setup): `officequarto-tables.caption.style` wurde dort trotz Konfiguration NICHT auf
-die Tabellen-Beschriftung angewendet. `hello-wordto.qmd` nutzt schlichte Pandoc-Beschriftungen
-ohne Crossref-ID (`: Table 1 Caption` bzw. `![Figure 1 ...](img){fig-alt=...}`, kein `{#tbl-...}`/
-`{#fig-...}`) — anders als `template/report.qmd` in diesem Repo, das ausschliesslich
-Crossref-verwaltete Beschriftungen (`{#tbl-kennzahlen}`/`{#fig-umsatz}`) testete. Root-Cause-Analyse
-per direktem Vergleich des rohen (`officequarto-keep-rendered`) gegen den fertig gepatchten
-Pandoc-Output ergab zwei bis dahin unbekannte, empirisch verifizierte Tatsachen:
+User bug report against `../hello-wordto` (a real external consumer project, not a dev symlink
+setup): `officequarto-tables.caption.style` was NOT applied to the table caption there despite
+being configured. `hello-wordto.qmd` uses plain Pandoc captions without a crossref ID
+(`: Table 1 Caption` or `![Figure 1 ...](img){fig-alt=...}`, no `{#tbl-...}`/`{#fig-...}`) — unlike
+`template/report.qmd` in this repo, which only ever tested crossref-managed captions
+(`{#tbl-kennzahlen}`/`{#fig-umsatz}`). Root-cause analysis via a direct comparison of the raw
+(`officequarto-keep-rendered`) against the finished, patched Pandoc output yielded two previously
+unknown, empirically verified facts:
 
-**1. Zwei strukturell verschiedene Pandoc-Repraesentationen fuer Beschriftungen**, abhaengig davon,
-ob eine Crossref-ID vergeben wurde:
+**1. Two structurally different Pandoc representations for captions**, depending on whether a
+crossref ID was assigned:
 
-- *Mit* `{#tbl-...}`/`{#fig-...}` (der bisher einzige getestete Fall): Beschriftung+Inhalt werden
-  in eine synthetische 1×1-Wrapper-Tabelle gepackt, beide Beschriftungsarten teilen sich den
-  Pandoc-Style `ImageCaption` (bereits dokumentiert, siehe Gruppe 3 oben).
-- *Ohne* Crossref-ID (schlichte Markdown-Beschriftung): KEINE Wrapper-Tabelle — Beschriftungs-
-  Absatz und Inhalt (`w:tbl` bzw. Bild-Absatz) stehen als schlichte Geschwister direkt im
-  Dokumentkoerper (`w:body`). UND: Tabellen-Beschriftungen nutzen hier einen ANDEREN, bisher
-  unbekannten Style — `TableCaption`, nicht `ImageCaption` — waehrend Abbildungs-Beschriftungen
-  weiterhin `ImageCaption` nutzen (Bild-Absatz selbst traegt zusaetzlich `CaptionedFigure`). Die
-  reale Tabelle bekommt in diesem Fall zusaetzlich ein eigenes `<w:tblCaption w:val="..." />` in
-  ihrer `w:tblPr` spendiert (ein Accessibility-Attribut, von officequarto nicht angefasst).
+- *With* `{#tbl-...}`/`{#fig-...}` (the only case tested so far): caption+content are packed into a
+  synthetic 1×1 wrapper table, both caption types share the Pandoc style `ImageCaption` (already
+  documented, see Gruppe 3 above).
+- *Without* a crossref ID (a plain markdown caption): NO wrapper table — the caption paragraph and
+  the content (`w:tbl` or image paragraph) sit as plain siblings directly in the document body
+  (`w:body`). AND: table captions here use a DIFFERENT, previously unknown style —
+  `TableCaption`, not `ImageCaption` — while figure captions continue to use `ImageCaption` (the
+  image paragraph itself additionally carries `CaptionedFigure`). The real table also gets its own
+  `<w:tblCaption w:val="..." />` in this case, added to its `w:tblPr` (an accessibility attribute,
+  untouched by officequarto).
 
-  Ausserdem: schlichte (Crossref-lose) Beschriftungen werden von Quarto ueberhaupt NICHT
-  nummeriert — der Beschriftungstext ist reiner, unveraenderter Nutzertext ohne generiertes
-  "Table N:"/"Figure N:"-Praefix. `oq_split_caption_text()`s Ziffern-Verankerung kann deshalb in
-  seltenen Faellen (Beschriftungstext enthaelt zufaellig genau die von officequarto intern
-  mitgezaehlte laufende Nummer als eigenstaendige Ziffer) einen Treffer liefern, obwohl semantisch
-  gar keine generierte Nummer vorliegt — bleibt als dokumentierte Grenzfall-Einschraenkung
-  bestehen (kein Bugfix noetig fuer den gemeldeten Fehler, aber im Hinterkopf zu behalten).
+  Also: plain (crossref-less) captions are not numbered by Quarto at all — the caption text is
+  pure, unmodified user text with no generated "Table N:"/"Figure N:" prefix. In rare cases,
+  `oq_split_caption_text()`'s digit-anchoring can therefore produce a match (caption text happens
+  to contain, as a standalone digit, exactly the running number officequarto is internally
+  counting), even though semantically no generated number is present at all — remains a documented
+  edge-case limitation (no bug fix needed for the reported error, but worth keeping in mind).
 
-**2. Die bisherige Erkennungsheuristik (`[../w:tbl]` bzw. `[not(../w:tbl)]` — "Elternelement hat
-irgendein `w:tbl`-Kind") war nur im Wrapper-Fall zufaellig korrekt.** Im Nicht-Wrapper-Fall ist das
-Elternelement `w:body` selbst, und `w:body` enthaelt so gut wie immer IRGENDEINE Tabelle
-irgendwo im Dokument — die Pruefung schlug dadurch auf JEDE `ImageCaption`-Beschriftung im ganzen
-Dokument an, unabhaengig von tatsaechlicher struktureller Naehe. Ergebnis in `hello-wordto`: die 3
-Abbildungs-Beschriftungen (Style `ImageCaption`, Geschwister von `w:body`, das anderswo eine
-Tabelle enthaelt) wurden faelschlich vom TABELLEN-Beschriftungs-Finder eingesammelt (Log zeigte "3
-gefunden" statt der erwarteten 1), waehrend die echte Tabellen-Beschriftung (Style `TableCaption`)
-von KEINEM der beiden Finder erkannt wurde (Style-Mismatch) — Tabellen- und Abbildungs-
-Beschriftungen wurden also nicht nur uebersehen, sondern teilweise regelrecht vertauscht.
+**2. The previous detection heuristic (`[../w:tbl]` or `[not(../w:tbl)]` — "parent element has any
+`w:tbl` child") was only correct by coincidence in the wrapper case.** In the non-wrapper case, the
+parent element is `w:body` itself, and `w:body` almost always contains SOME table somewhere in the
+document — the check therefore fired on EVERY `ImageCaption` caption in the whole document,
+regardless of actual structural proximity. Result in `hello-wordto`: the 3 figure captions (style
+`ImageCaption`, siblings of `w:body`, which elsewhere contains a table) were incorrectly picked up
+by the TABLE caption finder (the log showed "3 found" instead of the expected 1), while the real
+table caption (style `TableCaption`) was recognized by NEITHER finder (style mismatch) — table and
+figure captions were thus not just overlooked, but partly outright swapped.
 
-**Fix**: beide Finder (`oq_find_table_caption_paragraphs()`/`oq_find_plot_caption_paragraphs()`,
-`table-caption-mapping.R`/`plot-caption-mapping.R`) sowie die zugehoerigen Inhaltsknoten-Finder
-(`oq_table_caption_content()`/`oq_plot_caption_content()`, fuer `$above`) wurden von der
-"Elternelement hat ein `w:tbl`-Kind"-Heuristik auf direkte Positionsnaehe umgestellt: eine
-Tabellen-Beschriftung ist ein Absatz mit Style `TableCaption` ODER `ImageCaption`, dessen
-UNMITTELBAR folgendes Geschwisterelement eine `w:tbl` ist; eine Abbildungs-Beschriftung ist ein
-Absatz mit Style `ImageCaption`, dessen UNMITTELBAR vorangehendes Geschwisterelement einen
-Bild-Absatz (`w:drawing`) enthaelt. Das gilt nachweislich einheitlich fuer beide Pandoc-
-Repraesentationen (verifiziert: Pandocs Default-Reihenfolge ist in BEIDEN Faellen "Beschriftung vor
-der Tabelle" / "Beschriftung nach der Abbildung") und ist zugleich praeziser als die alte Heuristik
-selbst im bereits funktionierenden Wrapper-Fall.
+**Fix**: both finders (`oq_find_table_caption_paragraphs()`/`oq_find_plot_caption_paragraphs()`,
+`table-caption-mapping.R`/`plot-caption-mapping.R`) as well as the associated content-node finders
+(`oq_table_caption_content()`/`oq_plot_caption_content()`, for `$above`) were switched from the
+"parent element has a `w:tbl` child" heuristic to direct positional proximity: a table caption is a
+paragraph styled `TableCaption` OR `ImageCaption` whose IMMEDIATELY following sibling element is a
+`w:tbl`; a figure caption is a paragraph styled `ImageCaption` whose IMMEDIATELY preceding sibling
+element contains an image paragraph (`w:drawing`). This demonstrably holds uniformly across both
+Pandoc representations (verified: Pandoc's default order is "caption before the table" / "caption
+after the figure" in BOTH cases) and is also more precise than the old heuristic even in the
+already-working wrapper case.
 
-Regressionsabdeckung: `template/report.qmd` bekam einen zweiten, Crossref-losen Tabellen- und
-Abbildungs-Testfall ("Beschriftung ohne Crossref-ID"-Abschnitt, Beschriftungstexte bewusst OHNE
-Ziffern, um Punkt 1 oben nicht versehentlich mitzutesten); `check-writeback.R` prueft, dass beide
-ebenfalls den konfigurierten Style bekommen. Gegen `../hello-wordto` (der urspruengliche
-Fehlerbericht) End-to-End nachgerendert und verifiziert: Tabellen- UND alle drei Abbildungs-
-Beschriftungen tragen jetzt korrekt den konfigurierten `"caption"`-Style (`Bijschrift` als
-resolvter Style-ID im dortigen, niederlaendisch lokalisierten `reference-doc`).
+Regression coverage: `template/report.qmd` gained a second, crossref-less table and figure test
+case ("caption without a crossref ID" section, caption texts deliberately WITHOUT digits, so as not
+to accidentally also test point 1 above); `check-writeback.R` checks that both also get the
+configured style. Re-rendered and verified end-to-end against `../hello-wordto` (the original bug
+report): the table AND all three figure captions now correctly carry the configured `"caption"`
+style (`Bijschrift` as the resolved style ID in that Dutch-localized `reference-doc`).
 
-## Spike M — `officequarto.style-map`-Quell-IDs fuer eingebaute Word-Rollen sind reference-doc-abhaengig, verifiziert am 2026-08-29
+## Spike M — `officequarto.style-map` source IDs for built-in Word roles are reference-doc dependent, verified on 2026-08-29
 
-Nutzerbericht gegen `../hello-wordto`: `officequarto.style-map: {"Quote": [BlockQuote]}` sollte
-Absaetze einer nativen Markdown-Zitat-Auszeichnung (`> ...`) auf den Style `"Quote"` umleiten -
-funktioniert aber nicht (0 Absaetze umgemappt), obwohl derselbe Mechanismus fuer explizit per
-`custom-style="Quote"` ausgezeichnete Absaetze korrekt greift (die laufen gar nicht ueber
-`style-map` - Pandocs `custom-style`-Handling loest den Zielstyle direkt selbst auf).
+User report against `../hello-wordto`: `officequarto.style-map: {"Quote": [BlockQuote]}` was
+supposed to redirect paragraphs of a native markdown blockquote marker (`> ...`) to the `"Quote"`
+style — but doesn't work (0 paragraphs remapped), even though the same mechanism works correctly
+for paragraphs explicitly tagged via `custom-style="Quote"` (those don't go through `style-map` at
+all — Pandoc's `custom-style` handling resolves the target style directly itself).
 
-**Root Cause** (verifiziert per `officequarto.keep-rendered: true` + Rohdokument-Inspektion): der
-native `> `-Blockquote bekommt in `../hello-wordto`s Rendering tatsaechlich `pStyle="Bloktekst"`
-zugewiesen, nicht `"BlockQuote"`. Der Grund: `Bloktekst` ist die (niederlaendisch lokalisierte)
-`styleId` des in diesem `reference-doc` bereits vorhandenen eingebauten Word-Styles mit
-Anzeigenamen `"Block Text"` - Pandocs docx-Writer erkennt fuer bestimmte Element-Typen mit einem
-eingebauten Word-Rollen-Aequivalent (Blockquote ist einer davon), dass `reference-doc` diese Rolle
-bereits definiert, und referenziert dann DEREN echte `styleId` weiter, statt seine eigene generische
-`"BlockQuote"`-ID zu verwenden. `officequarto`s eigenes `original.docx`-Testtemplate definiert
-dagegen gar keinen eingebauten Blockquote-aequivalenten Style, weshalb Pandoc dort mangels
-Alternative auf seine generische `"BlockQuote"`-ID zurueckfaellt - weshalb das README/CLAUDE.md-
-Beispiel (`"Zitat ACME": [BlockQuote]`) dort "zufaellig" funktionieren wuerde, aber nie tatsaechlich
-end-to-end gegen echten Blockquote-Content in `template/report.qmd` getestet wurde (nur als
-Illustration in der Doku, nicht in `check-style-map.R`, das ausschliesslich synthetische XML-
-Testfaelle mit frei erfundenen IDs verwendet, oder in `check-writeback.R`, das nur den `Title`-Fall
-prueft).
+**Root cause** (verified via `officequarto.keep-rendered: true` + raw-document inspection): the
+native `> ` blockquote is actually assigned `pStyle="Bloktekst"` in `../hello-wordto`'s rendering,
+not `"BlockQuote"`. The reason: `Bloktekst` is the (Dutch-localized) `styleId` of the built-in Word
+style with the display name `"Block Text"` already present in this `reference-doc` — for certain
+element types with a built-in Word role equivalent (blockquote is one of them), Pandoc's docx
+writer detects that `reference-doc` already defines this role, and then references that style's
+real `styleId` instead of using its own generic `"BlockQuote"` ID. officequarto's own
+`original.docx` test template, by contrast, defines no built-in blockquote-equivalent style at
+all, which is why Pandoc falls back there, for lack of an alternative, to its generic
+`"BlockQuote"` ID — which is why the README/CLAUDE.md example (`"Zitat ACME": [BlockQuote]`)
+"happened" to work there, but was never actually tested end-to-end against real blockquote content
+in `template/report.qmd` (only used as an illustration in the docs, not in `check-style-map.R`,
+which only uses synthetic XML test cases with made-up IDs, or in `check-writeback.R`, which only
+checks the `Title` case).
 
-**Konsequenz**: die bisherige Doku-Aussage, `style-map`-Quell-IDs seien "Pandocs eigene, stabile,
-technische Style-IDs" (uneingeschraenkt portabel), stimmt so nur fuer Pandoc-eigene, generische
-Rollen ohne eingebautes Word-Aequivalent (`Normal`, `FirstParagraph`, `Compact`, `SourceCode`,
-`ImageCaption`/`TableCaption` - siehe Spike L). Fuer Rollen mit einem echten eingebauten Word-
-Gegenstueck (mindestens `Blockquote` bestaetigt; vermutlich auch weitere wie Ueberschriften-Ebenen)
-haengt die tatsaechlich von Pandoc vergebene `pStyle`-ID vom jeweiligen `reference-doc` ab -
-identisch zum bereits bekannten Lokalisierungsphaenomen bei Caption-Styles. Keine Code-Aenderung
-noetig (der `style-map`-Mechanismus selbst - Gleichheitsvergleich der `pStyle`-ID - funktioniert
-exakt wie entworfen); dies ist eine Doku-Luecke, kein Bug. README/CLAUDE.md um einen entsprechenden
-Hinweis ergaenzt: vor dem Einsatz von `style-map` fuer eingebaute-Rollen-Content den tatsaechlich
-gerenderten `pStyle` per `officequarto.keep-rendered: true` nachschlagen, statt eine feste ID wie
-`BlockQuote` anzunehmen.
+**Consequence**: the previous documentation claim that `style-map` source IDs are "Pandoc's own,
+stable, technical style IDs" (unconditionally portable) only holds for Pandoc's own generic roles
+with no built-in Word equivalent (`Normal`, `FirstParagraph`, `Compact`, `SourceCode`,
+`ImageCaption`/`TableCaption` — see Spike L). For roles with a genuine built-in Word counterpart
+(confirmed at least for `Blockquote`; presumably also others such as heading levels), the `pStyle`
+ID actually assigned by Pandoc depends on the respective `reference-doc` — identical to the already
+known localization phenomenon for caption styles. No code change needed (the `style-map` mechanism
+itself — equality comparison of the `pStyle` ID — works exactly as designed); this is a
+documentation gap, not a bug. README/CLAUDE.md were amended with a corresponding note: before using
+`style-map` for built-in-role content, look up the actually rendered `pStyle` via
+`officequarto.keep-rendered: true`, instead of assuming a fixed ID like `BlockQuote`.
 
-## Spike O — `numId`/`ilvl`-Vergabe bei verschachtelten Listen, verifiziert am 2026-08-30
+## Spike O — `numId`/`ilvl` assignment for nested lists, verified on 2026-08-30
 
-Vorarbeit fuer die Listen-Style-pro-Verschachtelungsebene-Funktion
-(`officequarto.lists.list-bullet`/`list-number`/`list-letter` als Array statt Skalar). Zwei Fragen
-vorab per echtem Render geklaert (Scratch-`.qmd` mit 3-stufig verschachtelter Bullet-Liste,
-3-stufig verschachtelter Nummern-Liste, und einer `a.`-Buchstaben-Liste mit `i.`-Roemisch-Zahlen-
-Unterliste, gegen `original.docx` gerendert, `word/numbering.xml`/`word/document.xml` des
-ungepatchten Pandoc-Ergebnisses inspiziert):
+Preliminary work for the style-per-nesting-level feature for lists
+(`officequarto.lists.list-bullet`/`list-number`/`list-letter` as an array instead of a scalar). Two
+questions clarified up front via a real render (a scratch `.qmd` with a 3-level nested bullet list,
+a 3-level nested number list, and an `a.` letter list with an `i.` roman-numeral sublist, rendered
+against `original.docx`, `word/numbering.xml`/`word/document.xml` of the unpatched Pandoc result
+inspected):
 
-- **`w:ilvl` ist bei JEDEM Listen-Absatz explizit gesetzt**, auch auf der obersten Ebene
-  (`w:ilvl="0"` steht immer da) — die urspruengliche Annahme "fehlt `w:ilvl` implizit Ebene 0"
-  ist fuer Pandoc-erzeugte Listen gar nicht relevant, da Pandoc es nie wegLaesst. Trotzdem bleibt
-  ein Default-auf-0-Fallback in `oq_paragraph_ilvl()` sinnvoll (defensiv, ECMA-376-konform, falls
-  ein Absatz je aus anderer Quelle stammt).
-- **Pandoc vergibt pro Verschachtelungsebene einen komplett eigenen `numId` (und damit auch einen
-  eigenen `abstractNum`)** — z. B. die 3-stufige Bullet-Liste bekam `numId` 1001/1002/1003 fuer
-  Ebene 0/1/2, jeweils mit eigenem `abstractNum`. Es wird NIE ein einzelner `numId` ueber mehrere
-  Ebenen hinweg wiederverwendet.
-- **Jeder so erzeugte `abstractNum` definiert an ALLEN 9 `w:lvl`-Eintraegen denselben `w:numFmt`**
-  (z. B. `abstractNum` 991 fuer die verschachtelte Bullet-Ebene: `bullet` an Ebene 0 bis 8
-  identisch; ebenso bei Nummern- und Buchstaben-Listen). Auch der Uebergang von einer
-  `lowerLetter`-Liste zu einer verschachtelten `lowerRoman`-Unterliste (`a.` → `i.`) erzeugt
-  zwei voellig getrennte `numId`/`abstractNum`-Paare (1007/99711 rein `lowerLetter`, 1008/99511
-  rein `lowerRoman`) statt eines gemeinsamen `abstractNum` mit gemischten Formaten pro Ebene.
+- **`w:ilvl` is explicitly set on EVERY list paragraph**, even at the top level (`w:ilvl="0"` is
+  always present) — the original assumption "`w:ilvl` implicitly missing means level 0" turns out
+  to be irrelevant for Pandoc-generated lists at all, since Pandoc never omits it. Still, keeping a
+  default-to-0 fallback in `oq_paragraph_ilvl()` makes sense (defensive, ECMA-376 compliant, in
+  case a paragraph ever comes from another source).
+- **Pandoc assigns a completely separate `numId` (and thus also a separate `abstractNum`) per
+  nesting level** — e.g. the 3-level bullet list got `numId` 1001/1002/1003 for level 0/1/2, each
+  with its own `abstractNum`. A single `numId` is NEVER reused across multiple levels.
+- **Every `abstractNum` created this way defines the same `w:numFmt` at ALL 9 `w:lvl` entries**
+  (e.g. `abstractNum` 991 for the nested bullet level: `bullet` at levels 0 through 8 identically;
+  likewise for number and letter lists). Even the transition from a `lowerLetter` list to a nested
+  `lowerRoman` sublist (`a.` → `i.`) produces two completely separate `numId`/`abstractNum` pairs
+  (1007/99711 purely `lowerLetter`, 1008/99511 purely `lowerRoman`) instead of one shared
+  `abstractNum` with mixed formats per level.
 
-**Konsequenz:** Die beim Planen befuerchtete Bucket-Fehlklassifizierung (ein Absatz wird anhand von
-Ebene 0 des `numId` eingeordnet, obwohl seine eigene Ebene ein anderes `numFmt` hat) ist bei
-Pandoc-erzeugten Listen **strukturell unerreichbar** — jeder `numId` traegt exakt ein `numFmt` ueber
-alle Ebenen hinweg, Ebene-0-Lookup ist also fuer jeden Absatz, der diesen `numId` referenziert,
-bereits korrekt. `oq_num_fmt_map()` bleibt deshalb unveraendert (Ebene-0-Lookup); es gibt keinen
-`oq_num_fmt_for()`. Was tatsaechlich noetig ist und umgesetzt wird: `w:ilvl` pro Absatz lesen, um
-die richtige **Style**-Ebene aus einem konfigurierten Array (`list-bullet: [...]`) auszuwaehlen -
-das eigentliche vom Nutzer gemeldete Problem, unabhaengig von der (hier ausgeschlossenen)
-Bucket-Frage.
+**Consequence:** The bucket misclassification feared during planning (a paragraph gets classified
+based on level 0 of the `numId`, even though its own level has a different `numFmt`) is
+**structurally unreachable** for Pandoc-generated lists — every `numId` carries exactly one
+`numFmt` across all levels, so a level-0 lookup is already correct for every paragraph referencing
+that `numId`. `oq_num_fmt_map()` therefore remains unchanged (level-0 lookup); there is no
+`oq_num_fmt_for()`. What actually is needed and gets implemented: reading `w:ilvl` per paragraph in
+order to select the correct **style** level from a configured array (`list-bullet: [...]`) — the
+actual issue reported by the user, independent of the (here ruled-out) bucket question.
 
-## Spike P — Bookmark-Struktur um crossref-nummerierte Beschriftungen, verifiziert am 2026-08-30
+## Spike P — Bookmark structure around crossref-numbered captions, verified on 2026-08-30
 
-Vorarbeit fuer eine geplante Funktion "echte" Word-Auto-Nummerierung (live `SEQ`/`REF`-Felder statt
-statisch gebackenem Text fuer Tabellen-/Abbildungs-Beschriftungen und Querverweise, analog zu
-{officedown}s per `officer` erzeugten Feldern). Vor der Implementierung per echtem Render (`quarto
-render report.qmd`, ungepatchtes `report.quarto-rendered.docx` inspiziert) geprueft, was
-`oq_caption_anchor_name()`s bisherige Kommentierung ("ein leeres Bookmark-Paar als Geschwister der
-Beschriftung, zwischen Beschriftung und Tabelle") tatsaechlich in der Roh-XML bedeutet:
+Preliminary work for a planned feature: "real" Word auto-numbering (live `SEQ`/`REF` fields
+instead of statically baked-in text for table/figure captions and cross-references, analogous to
+{officedown}'s fields produced via `officer`). Before implementation, checked via a real render
+(`quarto render report.qmd`, the unpatched `report.quarto-rendered.docx` inspected) what
+`oq_caption_anchor_name()`'s previous comment ("an empty bookmark pair as a sibling of the caption,
+between the caption and the table") actually means in the raw XML:
 
-**Ergebnis: Die bisherige Beschreibung ist falsch/unvollstaendig.** Das Bookmark ist kein
-eng benachbartes leeres Paar zwischen Beschriftungs-Absatz und Tabelle, sondern umschliesst den
-**gesamten Zellinhalt** (Beschriftung UND echte Tabelle bzw. Abbildung UND Beschriftung):
+**Result: the previous description is wrong/incomplete.** The bookmark is not a tightly adjacent
+empty pair between the caption paragraph and the table, but instead spans the **entire cell
+content** (caption AND real table, or image AND caption):
 
-- **Tabellen** (`{#tbl-kennzahlen}`): `<w:tc><w:tcPr/>` → `<w:bookmarkStart w:id="23"
-  w:name="tbl-kennzahlen"/>` → Beschriftungs-Absatz (`pStyle="ImageCaption"`, Text `"Table 1:
-  Quartalskennzahlen"`) → die komplette echte, verschachtelte `<w:tbl>` → `<w:bookmarkEnd
-  w:id="23"/>` → ein leerer `<w:p/>` → `</w:tc>`. Das Bookmark umspannt also
-  Beschriftung UND die gesamte Tabelle, nicht nur eine Luecke dazwischen.
-- **Abbildungen** (`{#fig-umsatz}`): umgekehrte Reihenfolge (Bild vor Beschriftung, wie an anderer
-  Stelle dokumentiert), aber gleiches Prinzip: `<w:bookmarkStart w:name="fig-umsatz"/>` →
-  Bild-Absatz → Beschriftungs-Absatz (`"Figure 1: Umsatzentwicklung"`) → `<w:bookmarkEnd/>`.
-- `w:bookmarkStart`/`w:bookmarkEnd` sind reine Positions-Marker (kein Container-Element), koennen
-  daher beliebig weit auseinanderliegende Geschwister-Positionen markieren — genau das passiert
-  hier, keine Pandoc-Anomalie, sondern Pandocs uebliche Technik fuer Section-/Heading-Bookmarks
-  (dieselbe Technik ist an denselben Ebenen fuer jede Ueberschrift im Dokument zu beobachten, z. B.
-  `w:name="kennzahlen"` umspannt den gesamten Abschnitt "Kennzahlen").
-- **Bestaetigt** (kleiner, aber wichtiger Nebenfund): `w:bookmarkStart/@id` wird wie `@name`/
-  `@anchor`/`@styleId` beim LESEN unpraefixiert gelesen (`xml_attr(node, "id")`, nicht `"w:id"`) -
-  per `Rscript`-Probe direkt verifiziert, exakt dieselbe xml2-Asymmetrie wie an anderer Stelle
-  dokumentiert.
+- **Tables** (`{#tbl-kennzahlen}`): `<w:tc><w:tcPr/>` → `<w:bookmarkStart w:id="23"
+  w:name="tbl-kennzahlen"/>` → caption paragraph (`pStyle="ImageCaption"`, text `"Table 1:
+  Quartalskennzahlen"`) → the complete real, nested `<w:tbl>` → `<w:bookmarkEnd w:id="23"/>` → an
+  empty `<w:p/>` → `</w:tc>`. So the bookmark spans the caption AND the entire table, not just a
+  gap in between.
+- **Figures** (`{#fig-umsatz}`): reverse order (image before caption, as documented elsewhere), but
+  the same principle: `<w:bookmarkStart w:name="fig-umsatz"/>` → image paragraph → caption
+  paragraph (`"Figure 1: Umsatzentwicklung"`) → `<w:bookmarkEnd/>`.
+- `w:bookmarkStart`/`w:bookmarkEnd` are pure position markers (not container elements), and can
+  therefore mark arbitrarily far-apart sibling positions — exactly what happens here, not a Pandoc
+  anomaly, but Pandoc's usual technique for section/heading bookmarks (the same technique can be
+  observed at the same level for every heading in the document, e.g. `w:name="kennzahlen"` spans
+  the entire "Kennzahlen" section).
+- **Confirmed** (a small but important side finding): `w:bookmarkStart/@id` is, like `@name`/
+  `@anchor`/`@styleId`, read unprefixed (`xml_attr(node, "id")`, not `"w:id"`) — verified directly
+  via an `Rscript` probe, the exact same xml2 asymmetry documented elsewhere.
 
-**Konsequenz fuer die geplante SEQ/REF-Feld-Funktion:** `oq_find_caption_bookmark()` darf NICHT
-annehmen, `w:bookmarkEnd` sei der naechste Sibling nach `w:bookmarkStart` oder liege in der Naehe
-des Beschriftungs-Absatzes - es muss ueber die gesamte Zelle nach einem `w:bookmarkEnd` mit
-passender `@id` gesucht werden (XPath `@w:id`-Praedikat, wie andernorts in diesem Codebase ueblich).
-Funktional ist das kein Problem fuer den Plan: das existierende (grosszuegig umspannende) Bookmark
-wird ohnehin entfernt und durch ein neues, eng um die SEQ-Feld-Ziffer gelegtes Paar mit demselben
-Namen ersetzt (praeziser als das Original, nicht weniger praezise) - nur die *Lokalisierung* des
-zu entfernenden Original-Paars muss diese tatsaechliche Struktur beruecksichtigen, nicht die
-urspruenglich angenommene enge Paarung.
+**Consequence for the planned SEQ/REF field feature:** `oq_find_caption_bookmark()` must NOT
+assume that `w:bookmarkEnd` is the next sibling after `w:bookmarkStart` or lies near the caption
+paragraph — it must search the entire cell for a `w:bookmarkEnd` with a matching `@id` (an XPath
+`@w:id` predicate, as is customary elsewhere in this codebase). Functionally this is not a problem
+for the plan: the existing (widely spanning) bookmark is removed anyway and replaced by a new pair,
+tightly wrapped around the SEQ field's numeral, with the same name (more precise than the original,
+not less) — only the *localization* of the original pair to be removed must take this actual
+structure into account, not the originally assumed tight pairing.
 
-**Cross-Check gegen `../hello-wordto`s echtes UU-Template (2026-08-30):** Da `hello-wordto.qmd`
-bislang keine crossref-nummerierten Tabellen/Abbildungen enthielt (nur einfache Beschriftungen ohne
-`{#tbl-...}`/`{#fig-...}`-ID), wurde ein kleiner, dauerhaft im Dokument verbleibender Testfall
-("Example of a crossref-numbered table and figure", Abschnitt "Additional officequarto test
-cases") ergaenzt, um die obige Struktur auch gegen das komplexere Realwelt-Template zu pruefen
-(dieselbe Vorsicht, die bereits Spike L/M dort echte, in der kleinen ACME-Vorlage nicht sichtbare
-Bugs gefunden hat). Ergebnis: **identische Struktur** wie oben - `w:bookmarkStart` vor dem
-Beschriftungs-/Bild-Absatz, `w:bookmarkEnd` erst nach dem gesamten Zellinhalt, exakt dieselbe
-Reihenfolge Tabelle (Beschriftung→Tabelle) vs. Abbildung (Bild→Beschriftung). Keine Abweichung
-diesmal - die Struktur ist stabil ueber beide getesteten reference-docs hinweg.
+**Cross-check against `../hello-wordto`'s real UU template (2026-08-30):** Since
+`hello-wordto.qmd` had so far not contained any crossref-numbered tables/figures (only plain
+captions without a `{#tbl-...}`/`{#fig-...}` ID), a small test case that permanently stays in the
+document ("Example of a crossref-numbered table and figure", "Additional officequarto test cases"
+section) was added, to check the above structure against the more complex real-world template as
+well (the same caution that already found real bugs in Spike L/M, invisible in the small ACME
+template). Result: **identical structure** as above — `w:bookmarkStart` before the caption/image
+paragraph, `w:bookmarkEnd` only after the entire cell content, exactly the same order for table
+(caption→table) vs. figure (image→caption). No deviation this time — the structure is stable
+across both reference-docs tested.
 
-## Spike Q — Zwei echte Bugs in der Live-Nummerierung, gefunden per Realrender gegen ../hello-wordto, behoben am 2026-08-30
+## Spike Q — Two real bugs in live numbering, found via a real render against ../hello-wordto, fixed on 2026-08-30
 
-Anders als Spike P (Struktur an sich stabil) fand dieser Test zwei echte Implementierungsfehler in
-`oq_caption_anchor_name()`/`oq_find_caption_bookmark()`/`oq_apply_captions()` - beide nur durch die
-Inhaltsvielfalt von `../hello-wordto` (echte Ueberschriften-Bookmarks, ein Mix aus schlichten und
-crossref-nummerierten Beschriftungen) aufgedeckt, kein Synthetik-Test haette sie gefunden. Nach
-`hello-wordto.qmd` ergaenzt: ein Abschnitt "Example of a crossref-numbered table and figure" mit
-echtem `{#tbl-crossref-check}`/`{#fig-crossref-check}` (siehe Spike P) plus `officequarto.crossref.
-auto-number: true` in dessen `_quarto.yml` - erster Realtest der neuen Funktion ueberhaupt.
+Unlike Spike P (structure itself stable), this test found two real implementation errors in
+`oq_caption_anchor_name()`/`oq_find_caption_bookmark()`/`oq_apply_captions()` — both only uncovered
+by the content variety of `../hello-wordto` (real heading bookmarks, a mix of plain and
+crossref-numbered captions), no synthetic test would have found them. Added to `hello-wordto.qmd`:
+a section "Example of a crossref-numbered table and figure" with a real
+`{#tbl-crossref-check}`/`{#fig-crossref-check}` (see Spike P) plus
+`officequarto.crossref.auto-number: true` in its `_quarto.yml` — the first real-world test of the
+new feature at all.
 
-**Bug 1 - fremdes Bookmark gestohlen:** `oq_caption_anchor_name()`/`oq_find_caption_bookmark()`
-suchten das ERSTE `w:bookmarkStart` im Elternelement der Beschriftung, OHNE zu pruefen, ob dieses
-Elternelement ueberhaupt eine Pandoc-Wrapper-Zelle ist. Bei einer SCHLICHTEN (Nicht-Crossref-)
-Beschriftung ist das Elternelement stattdessen `w:body` selbst (kein Wrapper-Table im Nicht-
-Crossref-Fall) - dort liegen ALLE Bookmarks des Dokuments als Geschwister, u.a. jedes
-Ueberschriften-Anker-Bookmark (Quarto generiert fuer jede Ueberschrift automatisch einen Slug-
-Bookmark, z.B. `example-of-plain-formatted-text`). Ohne Guard griff die Funktion faelschlich das
-naechstgelegene, voellig unabhaengige Ueberschriften-Bookmark, `oq_convert_caption_to_field()`
-ENTFERNTE es dann als vermeintliches altes Beschriftungs-Bookmark und baute darunter ein SEQ-Feld
-auf - zerstoerte damit ein echtes Sprungziel im Dokument (verifiziert: 3 falsche `SEQ Figure`-Felder
-mit den Namen dreier zufaellig benachbarter Ueberschriften-Bookmarks statt gar keinem Fund).
-**Fix:** beide Funktionen pruefen jetzt zuerst `xml_name(xml_parent(caption_p)) == "tc"` - nur
-innerhalb einer echten Wrapper-Zelle wird ueberhaupt nach einem Bookmark gesucht. Das ist
-strukturell exakt die Bedingung, unter der Pandoc ueberhaupt ein Beschriftungs-Bookmark anlegt.
+**Bug 1 — a foreign bookmark stolen:** `oq_caption_anchor_name()`/`oq_find_caption_bookmark()`
+searched for the FIRST `w:bookmarkStart` in the caption's parent element, WITHOUT checking whether
+that parent element is even a Pandoc wrapper cell. For a PLAIN (non-crossref) caption, the parent
+element is instead `w:body` itself (no wrapper table in the non-crossref case) — there, ALL
+bookmarks in the document sit as siblings, including every heading's auto-generated anchor bookmark
+(Quarto automatically generates a slug bookmark for every heading, e.g.
+`example-of-plain-formatted-text`). Without a guard, the function incorrectly grabbed the nearest,
+completely unrelated heading bookmark, and `oq_convert_caption_to_field()` then REMOVED it as a
+supposed old caption bookmark and built a SEQ field in its place — thereby destroying a real jump
+target in the document (verified: 3 bogus `SEQ Figure` fields with the names of three randomly
+adjacent heading bookmarks, instead of no match at all). **Fix:** both functions now first check
+`xml_name(xml_parent(caption_p)) == "tc"` — a bookmark search only happens at all within a real
+wrapper cell. This is structurally exactly the condition under which Pandoc ever creates a caption
+bookmark in the first place.
 
-**Bug 2 - Zaehler durch schlichte Beschriftungen aus dem Tritt gebracht:** `oq_apply_captions()`
-zaehlte JEDE gefundene Beschriftung (schlicht oder crossref-nummeriert) in einem gemeinsamen,
-1-basierten Zaehler, der als "erwartete Zahl" an `oq_split_caption_text()` ging - unter der Annahme,
-das entspreche Pandocs/Quartos eigener Zaehlung (so im Code-Kommentar dokumentiert, aber nie gegen
-einen Dokumentaufbau mit schlichter Beschriftung VOR einer crossref-nummerierten Beschriftung
-DERSELBEN Art getestet). Tatsaechlich nummeriert Quarto schlichte Beschriftungen ueberhaupt nicht
-mit - sie verbrauchen keinen Nummernkreis-Schritt. Stand in `hello-wordto.qmd` eine schlichte
-Tabellen-Beschriftung ("Table 1 Caption", reiner Platzhaltertext ohne echte Nummer) VOR der einzigen
-echten crossref-nummerierten Tabelle ("Table 1: ..."), bekam letztere von officequarto die erwartete
-Zahl 2 zugewiesen (zweite gefundene Beschriftung), obwohl ihre tatsaechlich eingebackene Zahl 1 war
-(sie ist die einzige echte nummerierte Tabelle) - `oq_split_caption_text()` matchte folglich NICHT,
-und die Beschriftung blieb bei JEDEM Feature (prefix/separator/number-bold, crossref.numbered:
-false, crossref.auto-number) still unangetastet. **Fix:** der Zaehler in `oq_apply_captions()` wird
-jetzt nur fuer tatsaechlich bookmark-markierte Beschriftungen hochgezaehlt (`oq_caption_anchor_name()`
-liefert NA fuer schlichte Beschriftungen, siehe Bug 1s Fix) - schlichte Beschriftungen nehmen
-ueberhaupt nicht mehr am Zaehler/Parsing teil, exakt wie Quartos eigenes Verhalten.
+**Bug 2 — the counter thrown off by plain captions:** `oq_apply_captions()` counted EVERY found
+caption (plain or crossref-numbered) in one shared, 1-based counter, which was passed as the
+"expected number" to `oq_split_caption_text()` — under the assumption that this matches Pandoc's/
+Quarto's own counting (as documented in the code comment, but never tested against a document
+layout with a plain caption BEFORE a crossref-numbered caption of the SAME type). In fact, Quarto
+doesn't number plain captions at all — they don't consume a numbering-sequence step. When
+`hello-wordto.qmd` had a plain table caption ("Table 1 Caption", pure placeholder text with no real
+number) BEFORE the single real crossref-numbered table ("Table 1: ..."), the latter was assigned
+the expected number 2 by officequarto (the second caption found), even though its actual baked-in
+number was 1 (it's the only real numbered table) — `oq_split_caption_text()` consequently did NOT
+match, and the caption was silently left untouched for EVERY feature (prefix/separator/number-bold,
+crossref.numbered: false, and auto-number). **Fix:** the counter in `oq_apply_captions()` is now
+only incremented for captions that actually carry a bookmark (`oq_caption_anchor_name()` returns NA
+for plain captions, see the fix for Bug 1) — plain captions no longer participate in counting/
+parsing at all, exactly matching Quarto's own behavior.
 
-**Wichtig:** Bug 2 betraf nicht nur die neue `auto-number`-Funktion, sondern war ein bereits
-bestehender, latenter Fehler in der schon laenger existierenden Beschriftungs-Logik (`prefix`/
-`separator`/`number-bold`, `crossref.numbered: false`) - nur unbemerkt, weil `officequarto`s eigenes
-Test-Template (`template/report.qmd`) die crossref-nummerierte Tabelle immer VOR der schlichten
-platziert (die umgekehrte Reihenfolge, die den Bug ausloest, kam dort nie vor). Beide Bugs jetzt mit
-dedizierten Regressionstests in `dev/check-auto-number.R` abgedeckt (synthetischer Nachbau beider
-Szenarien) und end-to-end gegen `../hello-wordto` erneut verifiziert - keine falschen Feld-
-Umwandlungen mehr, alle 18 Ueberschriften-Bookmarks unangetastet, genau 1 `SEQ Table` + 1
-`SEQ Figure` (statt vorher 1 + 3).
+**Important:** Bug 2 affected not just the new `auto-number` feature, but was a pre-existing,
+latent bug in the already longer-existing caption logic (`prefix`/`separator`/`number-bold`,
+`crossref.numbered: false`) — only unnoticed because officequarto's own test template
+(`template/report.qmd`) always places the crossref-numbered table BEFORE the plain one (the
+reverse order that triggers the bug never occurred there). Both bugs are now covered by dedicated
+regression tests in `dev/check-auto-number.R` (synthetic reproduction of both scenarios) and
+re-verified end-to-end against `../hello-wordto` — no more incorrect field conversions, all 18
+heading bookmarks untouched, exactly 1 `SEQ Table` + 1 `SEQ Figure` (instead of the previous 1 +
+3).
 
-## Offene Fragen aus Abschnitt 3 des Konzepts — Status
+## Open questions from section 3 of the concept — status
 
-| Frage | Status |
+| Question | Status |
 |---|---|
-| `contributes: project:` funktioniert? | Ja, mit der oben genannten Aktivierungspflicht |
-| `reference-doc` reicht für Style-Übernahme? | Ja, inkl. Header/Footer/Section-Properties — mehr als ursprünglich angenommen |
-| Zuverlässige Env-Variablen? | `QUARTO_PROJECT_OUTPUT_FILES`/`_OUTPUT_DIR`/`_DIR`, siehe oben |
-| Eigener Projekttyp nötig? | `type:` ja, aber `type: default` reicht — die Extension muss keinen eigenen Custom-Type definieren |
-| Content-Zuordnung beim Zurückschreiben? | MVP schreibt Metadaten zurück, nicht den Body (der ist durch `reference-doc` bereits korrekt) — Body-Bookmark-Zuordnung bleibt zukünftige Ausbaustufe |
-| R-Verfügbarkeit prüfen? | `writeback.R` prüft `xml2`/`jsonlite`, `quarto`-CLI, `zip`/`unzip` per `requireNamespace`/`Sys.which` und bricht mit verständlicher Meldung ab; ein fehlendes `Rscript` selbst kann das Skript naturgemäß nicht abfangen (siehe README) |
+| Does `contributes: project:` work? | Yes, with the activation requirement noted above |
+| Is `reference-doc` enough for style inheritance? | Yes, including header/footer/section properties — more than originally assumed |
+| Reliable environment variables? | `QUARTO_PROJECT_OUTPUT_FILES`/`_OUTPUT_DIR`/`_DIR`, see above |
+| Is a custom project type needed? | `type:` yes, but `type: default` is enough — the extension doesn't need to define its own custom type |
+| Content mapping on write-back? | The MVP writes metadata back, not the body (which is already correct via `reference-doc`) — body/bookmark mapping remains a future extension stage |
+| Check R availability? | `writeback.R` checks `xml2`/`jsonlite`, the `quarto` CLI, `zip`/`unzip` via `requireNamespace`/`Sys.which` and aborts with an understandable message; a missing `Rscript` itself naturally cannot be caught by the script (see README) |

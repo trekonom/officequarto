@@ -1,40 +1,39 @@
-## Kernlogik fuer Gruppe 7 (freies Style-Mapping) des officedown-Options-
-## Ports: officequarto.style-map (officedown: mapstyles). Teil des
-## officequarto R-Pakets - von oq_writeback() (R/writeback.R) verwendet,
-## keine eigenstaendige Ausfuehrung. Benoetigt: xml2,
-## oq_resolve_style_id()/oq_set_pstyle() aus style-mapping.R (im selben
-## Package-Namespace, keine explizite Ladereihenfolge noetig).
+## Core logic for Gruppe 7 (free-form style mapping) of the officedown
+## option port: officequarto.style-map (officedown: mapstyles). Part of the
+## officequarto R package - used by oq_writeback() (R/writeback.R), not run
+## standalone. Requires: xml2,
+## oq_resolve_style_id()/oq_set_pstyle() from style-mapping.R (in the same
+## package namespace, no explicit load order needed).
 ##
-## Anders als officequarto.styles/.tables/.plots (feste, kuratierte Rollen
-## mit Pandoc-spezifischer Erkennungslogik: numPr fuer Listen, w:drawing fuer
-## Abbildungen, etc.) ist dies ein generischer Escape-Hatch: eine freie
-## Zuordnungstabelle Ziel-Style -> Liste von Quell-pStyle-IDs, die direkt per
-## pStyle-Gleichheitsvergleich umgemappt werden - keine Detection-Logik, der
-## Nutzer gibt die genauen Style-IDs an, die umgemappt werden sollen.
-##
-## Quell- und Ziel-Seite werden bewusst asymmetrisch behandelt (wie schon bei
-## SourceCode/code-block in style-mapping.R): die Quell-Seite sind Pandocs
-## eigene, stabile, technische Style-IDs (z.B. "Normal", "BlockQuote",
-## "Heading1") - direkter Gleichheitsvergleich, keine Aufloesung noetig, und
-## kein Fehler, wenn eine Quell-ID im konkreten Dokument gar nicht vorkommt
-## (dann ist die Regel dort einfach wirkungslos). Die Ziel-Seite ist ein
-## echter, in reference-doc sichtbarer Style, deshalb ueber
-## oq_resolve_style_id() als Anzeigename aufgeloest (fail-loud wie ueberall
-## sonst in diesem Projekt).
-##
-## Laeuft bewusst als LETZTER Schritt der Style-Mapping-Pipeline in
-## writeback.R (nach officequarto.styles/.lists/.pandoc-styles/.tables/.plots) -
-## zu diesem Zeitpunkt tragen die meisten Absaetze bereits ihre finale
-## pStyle, sodass eine uebliche Regel (Pandoc-Quellnamen als Schluessel)
-## automatisch nur noch unberuehrte Absaetze trifft, waehrend eine bewusst
-## auf einen bereits umgemappten Zielnamen zielende Regel diesen trotzdem
-## noch erreichen kann.
+## Unlike officequarto.styles/.tables/.plots (fixed, curated roles with
+## Pandoc-specific detection logic: numPr for lists, w:drawing for figures,
+## etc.), this is a generic escape hatch: a free-form mapping table target
+## style -> list of source pStyle IDs, remapped directly via pStyle equality
+## comparison - no detection logic, the user specifies the exact style IDs
+## to be remapped.
 
-## Loest die Konfiguration (benannte Liste: Ziel-Style-Anzeigename -> Vektor
-## von Quell-pStyle-IDs) in eine Named Character Vector Quell-pStyle-ID ->
-## Ziel-styleId auf. Bricht (ueber fail_fn) ab, wenn ein Ziel-Style-Name
-## nicht in reference-doc existiert, oder eine Quell-pStyle-ID mehreren
-## Zielen zugeordnet wird (mehrdeutig).
+## Source and target sides are deliberately handled asymmetrically (as
+## already done for SourceCode/code-block in style-mapping.R): the source
+## side is Pandoc's own, stable, technical style IDs (e.g. "Normal",
+## "BlockQuote", "Heading1") - direct equality comparison, no resolution
+## needed, and no error if a source ID doesn't occur in the actual document
+## at all (then the rule is simply a no-op there). The target side is a
+## real style visible in reference-doc, so it's resolved via
+## oq_resolve_style_id() as a display name (fail-loud like everywhere else
+## in this project).
+##
+## Deliberately runs as the LAST step of the style-mapping pipeline in
+## writeback.R (after officequarto.styles/.lists/.pandoc-styles/.tables/.plots) -
+## by that point most paragraphs already carry their final pStyle, so a
+## typical rule (keyed on Pandoc source names) automatically only touches
+## paragraphs left untouched so far, while a rule deliberately targeting an
+## already-remapped target name can still reach it anyway.
+
+## Resolves the configuration (named list: target style display name ->
+## vector of source pStyle IDs) into a named character vector source
+## pStyle ID -> target styleId. Aborts (via fail_fn) if a target style name
+## doesn't exist in reference-doc, or if a source pStyle ID is assigned to
+## more than one target (ambiguous).
 #' @noRd
 oq_resolve_style_map <- function(style_map_config, name_to_id, fail_fn) {
   source_to_target <- character(0)
@@ -48,8 +47,8 @@ oq_resolve_style_map <- function(style_map_config, name_to_id, fail_fn) {
       if (source_id %in% names(source_to_target)) {
         fail_fn(
           paste0(
-            "officequarto.style-map: Quell-Style '%s' ist mehreren Zielen zugeordnet ",
-            "('%s' und '%s') - jeder Quell-Style darf nur einem Ziel zugeordnet sein."
+            "officequarto.style-map: source style '%s' is assigned to more than one ",
+            "target ('%s' and '%s') - each source style may only be assigned to one target."
           ),
           source_id, source_to_target[[source_id]], target_id
         )
@@ -60,17 +59,17 @@ oq_resolve_style_map <- function(style_map_config, name_to_id, fail_fn) {
   source_to_target
 }
 
-## Wendet die aufgeloeste Quell-pStyle-ID -> Ziel-styleId-Zuordnung auf jeden
-## Absatz eines geparsten document.xml (oder, via paragraph_xpath,
-## footnotes.xml/endnotes.xml - siehe oq_note_paragraph_xpath() in
-## style-mapping.R, Issue #2 "Footnote/endnote paragraph styling") an
-## (in-place via xml2-Referenzsemantik). paragraph_xpath default "//w:p" ist
-## bereits Wurzel-agnostisch (kein w:body-Anker), fuer footnotes.xml/
-## endnotes.xml aber ohne die separator/continuationSeparator-Ausschluesse
-## faelschlich auf deren pStyle-losen (= "Normal") Absatz anwendbar - deshalb
-## der Parameter statt einfacher Wiederverwendung des Defaults. Absaetze ohne
-## pStyle gelten als "Normal" (wie ueberall sonst in diesem Projekt). Gibt die
-## Anzahl umgemappter Absaetze zurueck.
+## Applies the resolved source-pStyle-ID -> target-styleId mapping to
+## every paragraph of a parsed document.xml (or, via paragraph_xpath,
+## footnotes.xml/endnotes.xml - see oq_note_paragraph_xpath() in
+## style-mapping.R, Issue #2 "Footnote/endnote paragraph styling")
+## (in-place via xml2 reference semantics). The paragraph_xpath default
+## "//w:p" is already root-agnostic (no w:body anchor), but for
+## footnotes.xml/endnotes.xml, without the separator/continuationSeparator
+## exclusions, it would incorrectly apply to their pStyle-less (= "Normal")
+## paragraph - hence the parameter instead of simply reusing the default.
+## Paragraphs without a pStyle count as "Normal" (as everywhere else in
+## this project). Returns the number of remapped paragraphs.
 #' @noRd
 oq_apply_style_map <- function(document_doc, source_to_target, paragraph_xpath = "//w:p") {
   if (length(source_to_target) == 0) return(0L)

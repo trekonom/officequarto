@@ -1,33 +1,33 @@
-## Kernlogik fuer Gruppe 9 (Querverweis-Nummerierung) des officedown-
-## Options-Ports: officequarto.crossref.numbered (officedown:
-## reference_num). Teil des officequarto R-Pakets - von oq_writeback() (R/writeback.R)
-## verwendet, keine eigenstaendige Ausfuehrung. Benoetigt: xml2.
+## Core logic for Gruppe 9 (cross-reference numbering) of the officedown
+## option port: officequarto.crossref.numbered (officedown:
+## reference_num). Part of the officequarto R package - used by
+## oq_writeback() (R/writeback.R), not run standalone. Requires: xml2.
 ##
-## officedown/bookdown zeigt Querverweise standardmaessig als Nummer
-## ("Table 1"). `numbered: false` zeigt stattdessen den Beschriftungstext
-## ohne Nummer (z.B. "Quartalskennzahlen"). Wie tab.lp/fig.lp und wie
-## pre/sep/number-bold in Gruppe 3/5 betrifft dies bereits von Quarto/Pandoc
-## VOR diesem Post-Render-Hook zu statischem Text aufgeloeste Crossrefs
-## (w:hyperlink mit w:anchor auf den Beschriftungs-Bookmark, empirisch
-## verifiziert bei der tab.lp-Recherche vor Gruppe 1) - es gibt kein
-## lebendiges Feld, das umgeschaltet werden koennte, nur Text, der ersetzt
-## wird. anchor_text (siehe oq_apply_captions() in table-caption-mapping.R)
-## liefert dafuer bereits die noetige Bookmark-Name -> Beschriftungstext-
-## Zuordnung, gesammelt waehrend der Beschriftungsverarbeitung (Gruppe 3/5) -
-## unabhaengig davon, ob diese selbst konfiguriert sind (writeback.R stellt
-## sicher, dass Gruppe 3/5 "still", ohne eigene Style-/Text-Aenderungen,
-## mitlaufen, sobald officequarto.crossref.numbered: false gesetzt ist, auch
-## wenn officequarto.tables.caption/.plots.caption selbst nicht konfiguriert
-## wurden).
+## officedown/bookdown displays cross-references as a number by default
+## ("Table 1"). `numbered: false` instead displays the caption's
+## descriptive text without a number (e.g. "Quarterly figures"). Like
+## tab.lp/fig.lp and like pre/sep/number-bold in Gruppe 3/5, this concerns
+## crossrefs that Quarto/Pandoc already resolve to static text BEFORE this
+## post-render hook ever runs (w:hyperlink with w:anchor pointing at the
+## caption's bookmark, verified empirically during the tab.lp research
+## before Gruppe 1) - there's no live field that could be switched, only
+## text that gets replaced. anchor_text (see oq_apply_captions() in
+## table-caption-mapping.R) already supplies the needed bookmark-name ->
+## caption-text mapping for this, collected during caption processing
+## (Gruppe 3/5) - regardless of whether those are configured themselves
+## (writeback.R ensures Gruppe 3/5 run "silently", without their own
+## style/text changes, as soon as officequarto.crossref.numbered: false is
+## set, even when officequarto.tables.caption/.plots.caption themselves
+## aren't configured).
 
-## Ersetzt den Text jedes w:hyperlink[@w:anchor], dessen Anker ein
-## Schluessel in anchor_text ist, durch den zugehoerigen Beschriftungstext
-## (in-place via xml2-Referenzsemantik). Ein Hyperlink kann mehrere Laeufe
-## haben (z.B. bei Inline-Formatierung um den Verweistext) - der erste Lauf
-## erhaelt den vollen Ersatztext, alle weiteren werden entfernt (Pandocs
-## generierte Crossref-Hyperlinks sind typischerweise ein einzelner Lauf;
-## mehrere Laeufe werden hier defensiv behandelt, nicht als erwarteter
-## Regelfall). Gibt die Anzahl ersetzter Hyperlinks zurueck.
+## Replaces the text of every w:hyperlink[@w:anchor] whose anchor is a key
+## in anchor_text with the corresponding caption text (in-place via xml2
+## reference semantics). A hyperlink can have several runs (e.g. with
+## inline formatting around the reference text) - the first run gets the
+## full replacement text, all further runs are removed (Pandoc's generated
+## crossref hyperlinks are typically a single run; multiple runs are
+## handled here defensively, not as the expected case). Returns the number
+## of replaced hyperlinks.
 #' @noRd
 oq_apply_crossref_text <- function(document_doc, anchor_text) {
   if (length(anchor_text) == 0) return(0L)
@@ -55,35 +55,34 @@ oq_apply_crossref_text <- function(document_doc, anchor_text) {
   n
 }
 
-## Ersetzt den Inhalt jedes w:hyperlink[@w:anchor], dessen Anker in
-## converted_anchors auftaucht (von oq_apply_captions()s Feld-Umwandlung
-## zurueckgegeben, siehe table-caption-mapping.R/oq_convert_caption_to_field()),
-## durch ein echtes, live nummerierendes Word-REF-Feld statt statischem Text -
-## fuer officequarto.crossref.auto-number (kein officedown-Aequivalent,
-## {officedown} ist immer feld-basiert). Feldcode " REF <anchor> \h " (per
-## Hyperlink-Schalter, analog zu {officer}s run_reference() - bytecode-
-## introspiziert, siehe dev/spike-notes.md Spike P), als 3-Lauf-Feld (fldChar
-## begin -> instrText -> fldChar end, beide mit w:dirty="true", KEIN
-## fldChar type="separate", kein zwischengespeicherter Ergebnis-Lauf - exakt
-## dasselbe Muster wie das SEQ-Feld in oq_convert_caption_to_field()).
-## {officedown} bestaetigt: die Klickbarkeit kommt vom w:hyperlink-Element
-## selbst (bereits vorhanden, unveraendert), nicht vom \h-Schalter allein -
-## nur der Inhalt DES Hyperlinks aendert sich.
+## Replaces the content of every w:hyperlink[@w:anchor] whose anchor
+## appears in converted_anchors (returned by oq_apply_captions()'s field
+## conversion, see table-caption-mapping.R/oq_convert_caption_to_field())
+## with a real, live-numbering Word REF field instead of static text - for
+## officequarto.crossref.auto-number (no officedown equivalent,
+## {officedown} is always field-based). Field code " REF <anchor> \h " (via
+## the hyperlink switch, analogous to {officer}'s run_reference() -
+## bytecode-introspected, see dev/spike-notes.md Spike P), as a 3-run field
+## (fldChar begin -> instrText -> fldChar end, both with w:dirty="true", NO
+## fldChar type="separate", no cached-result run - exactly the same
+## pattern as the SEQ field in oq_convert_caption_to_field()).
+## {officedown} confirms: clickability comes from the w:hyperlink element
+## itself (already present, unchanged), not from the \h switch alone -
+## only the content INSIDE the hyperlink changes.
 ##
-## Anders als oq_apply_crossref_text() (die den ersten Lauf wiederverwendet)
-## werden hier SAEMTLICHE vorhandenen Laeufe entfernt, da ihr statischer
-## Text-Inhalt im Feld-Fall nicht weiterverwendet wird - nur die rPr des
-## ersten Laufs (z.B. w:rStyle="Hyperlink") wird auf alle drei neuen
-## Feld-Laeufe uebertragen (via oq_clone_rpr_with_bold() aus
-## table-caption-mapping.R, derselben Hilfsfunktion, die
-## oq_convert_caption_to_field() fuer das SEQ-Feld verwendet - hier ohne
-## number_bold, also reines rPr-Klonen ohne Fett-Override), damit der
-## Querverweis optisch weiterhin wie ein Hyperlink aussieht, auch bevor Word
-## das Feld bei der naechsten Neuberechnung (automatisch beim Layout/Oeffnen,
-## siehe oben) durch die tatsaechliche Zahl ersetzt. Ein Hyperlink ohne jeden
-## Lauf (atypisches Dokument) bleibt unangetastet, dieselbe defensive
-## Behandlung wie in oq_apply_crossref_text(). Gibt die Anzahl umgewandelter
-## Hyperlinks zurueck.
+## Unlike oq_apply_crossref_text() (which reuses the first run), ALL
+## existing runs are removed here, since their static text content isn't
+## reused in the field case - only the rPr of the first run (e.g.
+## w:rStyle="Hyperlink") is carried over onto all three new field runs
+## (via oq_clone_rpr_with_bold() from table-caption-mapping.R, the same
+## helper function oq_convert_caption_to_field() uses for the SEQ field -
+## here without number_bold, i.e. pure rPr cloning with no bold override),
+## so the cross-reference still visually looks like a hyperlink even
+## before Word replaces the field with the actual number on its next
+## recalculation (automatic on layout/open, see above). A hyperlink with
+## no runs at all (an atypical document) is left untouched, the same
+## defensive handling as in oq_apply_crossref_text(). Returns the number
+## of converted hyperlinks.
 #' @noRd
 oq_apply_crossref_fields <- function(document_doc, converted_anchors) {
   if (length(converted_anchors) == 0) return(0L)

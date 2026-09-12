@@ -90,10 +90,10 @@ test_that("a fully-expanded, all-default oq_create_project() scaffold still rend
   dir.create(work_dir)
   on.exit(unlink(work_dir, recursive = TRUE), add = TRUE)
 
-  ## Pandocs eigenes eingebautes Default-reference.docx - ein garantiert
-  ## gueltiges, minimales reference-doc, ohne Abhaengigkeit von
-  ## template/original.docx (per .Rbuildignore nicht im gebauten Paket
-  ## enthalten, existiert also in einer R-CMD-check-Umgebung nicht).
+  ## Pandoc's own built-in default reference.docx - a guaranteed valid,
+  ## minimal reference-doc, with no dependency on template/original.docx
+  ## (excluded from the built package via .Rbuildignore, so it doesn't exist
+  ## in an R-CMD-check environment).
   ref_doc <- file.path(work_dir, "pandoc-default-reference.docx")
   status <- system2("quarto", c("pandoc", "--print-default-data-file", "reference.docx"),
                      stdout = ref_doc, stderr = FALSE)

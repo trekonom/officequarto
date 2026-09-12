@@ -7,57 +7,55 @@ check_split <- function(text, expected_number, expected_title_prefix, expected_n
   expect_identical(res$rest, expected_rest, label = label)
 }
 
-test_that("oq_split_caption_text(): einfacher Standardfall (Pandoc-Default-Format)", {
-  check_split("Table 1: My table caption", 1, "Table ", "1", ": ", "My table caption", "einfacher Standardfall (Pandoc-Default-Format)")
+test_that("oq_split_caption_text(): simple default case (Pandoc default format)", {
+  check_split("Table 1: My table caption", 1, "Table ", "1", ": ", "My table caption", "simple default case (Pandoc default format)")
 })
 
-test_that("oq_split_caption_text(): typographisch konvertierter Trenner (Halbgeviertstrich, NBSP)", {
-  ## Smart-Typography-konvertierter Trenner (Halbgeviertstrich statt "--")
-  ## plus nicht-brechendes Leerzeichen vor der Zahl - siehe dev/spike-notes.md.
-  check_split("Tabelle 1– My table caption", 1, "Tabelle ", "1", "– ", "My table caption", "typographisch konvertierter Trenner (Halbgeviertstrich, NBSP)")
+test_that("oq_split_caption_text(): typographically converted separator (en dash, NBSP)", {
+  ## Smart-typography-converted separator (en dash instead of "--") plus a
+  ## non-breaking space before the number - see dev/spike-notes.md.
+  check_split("Tabelle 1– My table caption", 1, "Tabelle ", "1", "– ", "My table caption", "typographically converted separator (en dash, NBSP)")
 })
 
-test_that("oq_split_caption_text(): zweistellige Zahl (Grenzfall fuer Wortgrenzen-Verankerung)", {
-  check_split("Table 10: Tenth table", 10, "Table ", "10", ": ", "Tenth table", "zweistellige Zahl (Grenzfall fuer Wortgrenzen-Verankerung)")
+test_that("oq_split_caption_text(): two-digit number (edge case for word-boundary anchoring)", {
+  check_split("Table 10: Tenth table", 10, "Table ", "10", ": ", "Tenth table", "two-digit number (edge case for word-boundary anchoring)")
 })
 
-test_that("oq_split_caption_text(): Zahl im Beschriftungstext selbst wird nicht faelschlich getroffen", {
-  ## Die gesuchte Zahl (1) darf nicht faelschlich innerhalb einer anderen Zahl
-  ## im Beschriftungstext selbst (1990) getroffen werden.
-  check_split("Table 1: Comparing 1990 and 2000", 1, "Table ", "1", ": ", "Comparing 1990 and 2000", "Zahl im Beschriftungstext selbst wird nicht faelschlich getroffen")
+test_that("oq_split_caption_text(): a number within the caption text itself is not falsely matched", {
+  ## The sought number (1) must not be falsely matched inside another number
+  ## within the caption text itself (1990).
+  check_split("Table 1: Comparing 1990 and 2000", 1, "Table ", "1", ": ", "Comparing 1990 and 2000", "a number within the caption text itself is not falsely matched")
 })
 
-test_that("oq_split_caption_text(): kein Treffer erwartet (Zahl nicht im Text)", {
-  ## Erwartete Zahl kommt im Text gar nicht in verankerbarer Form vor (z.B.
-  ## abweichendes Format) - matched=FALSE, damit der Aufrufer den Text
-  ## unveraendert laesst statt etwas Falsches zu raten.
+test_that("oq_split_caption_text(): no match expected (number not present in the text)", {
+  ## The expected number doesn't occur in the text in anchorable form at all
+  ## (e.g. a different format) - matched=FALSE, so the caller leaves the text
+  ## unchanged instead of guessing something wrong.
   res_no_match <- oq_split_caption_text("Some caption without any number", 1)
   expect_false(isTRUE(res_no_match$matched))
 })
 
-test_that("Issue #3 (Regressionstest): schlichte (nicht-crossref) Beschriftung mit zufaellig passender Ziffer im Text bleibt trotz konfiguriertem prefix/separator unangetastet", {
-  ## Regressionstest fuer GH-Issue #3 ("Caption digit-anchoring false positive
-  ## on plain (non-crossref) captions"): eine schlichte Beschriftung ohne
-  ## Crossref-ID hat KEINE Pandoc-Wrapper-Zelle (Elternelement ist w:body,
-  ## nicht w:tc) und wird von Quarto ueberhaupt nicht nummeriert. Ihr eigener,
-  ## vom Nutzer verfasster Text koennte zufaellig eine Ziffer enthalten, die
-  ## mit officequartos intern mitgezaehlter laufender Beschriftungsnummer
-  ## uebereinstimmt - das war das im Issue beschriebene Risiko eines
-  ## faelschlich verankerten Splits, sobald prefix/separator/number-bold
-  ## konfiguriert sind.
+test_that("Issue #3 (regression test): plain (non-crossref) caption with a digit in its text that happens to match stays untouched despite configured prefix/separator", {
+  ## Regression test for GH issue #3 ("Caption digit-anchoring false positive
+  ## on plain (non-crossref) captions"): a plain caption without a crossref
+  ## ID has NO Pandoc wrapper cell (parent is w:body, not w:tc) and isn't
+  ## numbered by Quarto at all. Its own, user-authored text could
+  ## accidentally contain a digit that matches officequarto's internally
+  ## tracked running caption count - that was the risk described in the
+  ## issue of a falsely anchored split, once prefix/separator/number-bold
+  ## are configured.
   ##
-  ## Inzwischen bereits (als Nebeneffekt des Spike-Q-Zaehler-Fixes fuer
-  ## officequarto.crossref.auto-number, siehe oq_apply_captions() in
-  ## table-caption-mapping.R) strukturell ausgeschlossen: oq_apply_captions()
-  ## ruft oq_split_caption_text() ueberhaupt nur auf, wenn
-  ## oq_caption_anchor_name() ein echtes Bookmark auflöst - und das ist
-  ## empirisch nur fuer eine echte, per Wrapper-Zelle crossref-nummerierte
-  ## Beschriftung der Fall (siehe CLAUDE.md/Spike Q). Eine schlichte
-  ## Beschriftung wird deshalb komplett uebersprungen, bevor ueberhaupt geparst
-  ## wird - unabhaengig davon, welche Ziffern ihr Text enthaelt. Dieser Test
-  ## prueft das end-to-end ueber oq_apply_captions() (nicht nur
-  ## oq_split_caption_text() isoliert wie oben), da genau diese Gate-Logik in
-  ## oq_apply_captions() selbst sitzt.
+  ## Now already (as a side effect of the Spike Q counter fix for
+  ## officequarto.crossref.auto-number, see oq_apply_captions() in
+  ## table-caption-mapping.R) structurally excluded: oq_apply_captions()
+  ## only ever calls oq_split_caption_text() when oq_caption_anchor_name()
+  ## resolves a real bookmark - and that is empirically only ever true for a
+  ## genuine, wrapper-cell crossref-numbered caption (see CLAUDE.md/Spike
+  ## Q). A plain caption is therefore skipped entirely before any parsing is
+  ## even attempted - regardless of which digits its text contains. This
+  ## test checks that end-to-end via oq_apply_captions() (not just
+  ## oq_split_caption_text() in isolation like above), since exactly this
+  ## gate logic sits in oq_apply_captions() itself.
   doc_issue3 <- xml2::read_xml(paste0(
     '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>',
     '<w:p><w:pPr><w:pStyle w:val="TableCaption"/></w:pPr><w:r><w:t xml:space="preserve">Sales grew 1 percent in 2020</w:t></w:r></w:p>',

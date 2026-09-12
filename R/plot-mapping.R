@@ -1,35 +1,34 @@
-## Kernlogik fuer Gruppe 4 (Abbildungen-Basis) des officedown-Options-Ports:
-## officequarto.plots.style/align. Teil des officequarto R-Pakets - von
-## oq_writeback() (R/writeback.R) verwendet, keine eigenstaendige
-## Ausfuehrung. Benoetigt: xml2, oq_set_pstyle() aus style-mapping.R (im
-## selben Package-Namespace, keine explizite Ladereihenfolge noetig).
+## Core logic for Gruppe 4 (figure basics) of the officedown option port:
+## officequarto.plots.style/align. Part of the officequarto R package - used
+## by oq_writeback() (R/writeback.R), not run standalone. Requires: xml2,
+## oq_set_pstyle() from style-mapping.R (in the same package namespace, no
+## explicit load order needed).
 ##
-## `fig.lp` (officedown) wurde bewusst NICHT portiert - identische
-## Begruendung wie `tab.lp` (siehe table-mapping.R/README): ein
-## bookdown-Autoren-Syntax-Konzept ohne Entsprechung in Quartos
-## Post-Render-Architektur.
+## `fig.lp` (officedown) was deliberately NOT ported - identical
+## reasoning as `tab.lp` (see table-mapping.R/README): a bookdown
+## authoring-syntax concept with no equivalent in Quarto's post-render
+## architecture.
 ##
-## `topcaption` (officedown: Beschriftung oben/unten) ist bewusst NICHT Teil
-## dieser Datei - es ist eine strukturelle Absatz-Umsortierung (Beschriftung
-## vor/nach der Abbildung), analog zum bewusst zurueckgestellten
-## officequarto.tables.caption.above (siehe table-mapping.R), und soll
-## gemeinsam fuer Tabellen UND Abbildungen implementiert werden, sobald
-## Gruppe 5 (Abbildungs-Beschriftungen) steht.
+## `topcaption` (officedown: caption above/below) is deliberately NOT part
+## of this file - it's a structural paragraph reorder (caption before/after
+## the figure), analogous to the deliberately deferred
+## officequarto.tables.caption.above (see table-mapping.R), and is meant to
+## be implemented jointly for tables AND figures once Gruppe 5 (figure
+## captions) exists.
 
-## Findet alle Abbildungs-Absaetze: ein w:p mit einem w:drawing-Nachfahren -
-## verlaesslicher als ueber den pStyle-Namen, da Pandoc dafuer denselben
-## kontextabhaengigen Rollennamen wie fuer Body-Absaetze verwendet (z.B.
-## "Compact", empirisch verifiziert) - siehe style-mapping.R, das
-## w:drawing-Absaetze deshalb explizit von der Body-Rollen-Zuordnung
-## ausnimmt, damit sich die beiden Features nicht um denselben Absatz
-## streiten.
+## Finds all figure paragraphs: a w:p with a w:drawing descendant - more
+## reliable than going by the pStyle name, since Pandoc uses the same
+## context-dependent role name for these as for body paragraphs (e.g.
+## "Compact", empirically verified) - see style-mapping.R, which therefore
+## explicitly excludes w:drawing paragraphs from the body-role assignment,
+## so the two features don't fight over the same paragraph.
 #' @noRd
 oq_find_plot_paragraphs <- function(document_doc, ns) {
   xml2::xml_find_all(document_doc, "//w:p[.//w:drawing]", ns)
 }
 
-## Setzt (oder erzeugt) w:jc (Absatz-Ausrichtung) eines Absatzes. align ist
-## bereits der validierte OOXML-Wert ("left"/"center"/"right").
+## Sets (or creates) w:jc (paragraph alignment) of a paragraph. align is
+## already the validated OOXML value ("left"/"center"/"right").
 #' @noRd
 oq_set_paragraph_align <- function(p, ns, align) {
   ppr <- xml2::xml_find_first(p, "./w:pPr", ns)
@@ -44,9 +43,9 @@ oq_set_paragraph_align <- function(p, ns, align) {
   invisible(NULL)
 }
 
-## Wendet plot_options ($style/$align, jeweils optional) auf jeden
-## Abbildungs-Absatz an (in-place via xml2-Referenzsemantik). Gibt die Anzahl
-## bearbeiteter Absaetze zurueck.
+## Applies plot_options ($style/$align, each optional) to every figure
+## paragraph (in place, via xml2's reference semantics). Returns the number
+## of paragraphs processed.
 #' @noRd
 oq_apply_plot_options <- function(document_doc, plot_options) {
   ns <- xml2::xml_ns(document_doc)

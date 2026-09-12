@@ -1,10 +1,10 @@
 library(xml2)
 
-## Baut eine synthetische Wrapper-Zelle nach der in Spike P verifizierten
-## Struktur nach: w:bookmarkStart VOR der Beschriftung, ein Platzhalter-Inhalt
-## (steht fuer die echte Tabelle/Abbildung), w:bookmarkEnd erst DANACH - das
-## Bookmark umspannt also grosszuegig, nicht eng anliegend, und die
-## bookmarkEnd-Suche muss deshalb per @id erfolgen, nicht per Adjazenz.
+## Builds a synthetic wrapper cell following the structure verified in Spike
+## P: w:bookmarkStart BEFORE the caption, some placeholder content (standing
+## in for the real table/figure), w:bookmarkEnd only AFTER that - so the
+## bookmark spans widely rather than tightly, and the bookmarkEnd lookup
+## therefore has to happen via @id, not via adjacency.
 build_doc <- function(caption_text = "Table 1: Meine Tabelle") {
   read_xml(paste0(
     '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:tbl><w:tr><w:tc>',
@@ -18,7 +18,7 @@ build_doc <- function(caption_text = "Table 1: Meine Tabelle") {
 
 get_caption_p <- function(doc) xml_find_first(doc, "//w:p[w:pPr/w:pStyle/@w:val='ImageCaption']", xml_ns(doc))
 
-test_that("SEQ-Feld wird korrekt aufgebaut (7 Knoten, instrText, 2 dirty fldChars, altes umspannendes Bookmark-Paar entfernt)", {
+test_that("SEQ field is built correctly (7 nodes, instrText, 2 dirty fldChars, old spanning bookmark pair removed)", {
   doc <- build_doc()
   ns <- xml_ns(doc)
   p <- get_caption_p(doc)
@@ -42,14 +42,14 @@ test_that("SEQ-Feld wird korrekt aufgebaut (7 Knoten, instrText, 2 dirty fldChar
   expect_identical(xml_attr(fld_chars[[1]], "fldCharType"), "begin")
   expect_identical(xml_attr(fld_chars[[2]], "fldCharType"), "end")
 
-  ## alte, grosszuegig umspannende Bookmark-Paar-Knoten muessen aus der Zelle
-  ## verschwunden sein (nur das neue, eng anliegende Paar bleibt, jetzt
-  ## innerhalb des Beschriftungsabsatzes)
+  ## the old, widely spanning bookmark pair nodes must be gone from the cell
+  ## (only the new, tightly adjacent pair remains, now inside the caption
+  ## paragraph)
   remaining_bookmarks <- xml_find_all(doc, "//w:bookmarkStart | //w:bookmarkEnd", ns)
   expect_length(remaining_bookmarks, 2)
 })
 
-test_that("Bookmark-Name und -ID werden vom entfernten Original uebernommen (repositioniert, nicht neu erfunden)", {
+test_that("bookmark name and ID are carried over from the removed original (repositioned, not reinvented)", {
   doc <- build_doc()
   ns <- xml_ns(doc)
   p <- get_caption_p(doc)
@@ -62,7 +62,7 @@ test_that("Bookmark-Name und -ID werden vom entfernten Original uebernommen (rep
   expect_identical(xml_attr(bm_start, "id"), "7")
 })
 
-test_that("Abbildungs-Variante verwendet 'SEQ Figure \\\\* Arabic'", {
+test_that("the figure variant uses 'SEQ Figure \\\\* Arabic'", {
   doc_fig <- build_doc("Figure 1: Mein Diagramm")
   ns_fig <- xml_ns(doc_fig)
   p_fig <- get_caption_p(doc_fig)
@@ -73,7 +73,7 @@ test_that("Abbildungs-Variante verwendet 'SEQ Figure \\\\* Arabic'", {
   expect_identical(instr_fig, "SEQ Figure \\* Arabic")
 })
 
-test_that("number_bold wird korrekt auf Praefix- und alle 3 Feld-Laeufe angewendet (TRUE/FALSE/unset), niemals auf den Trenner+Rest-Lauf", {
+test_that("number_bold is applied correctly to the prefix run and all 3 field runs (TRUE/FALSE/unset), never to the separator+rest run", {
   test_bold <- function(number_bold, label) {
     d <- build_doc()
     n <- xml_ns(d)
@@ -81,9 +81,9 @@ test_that("number_bold wird korrekt auf Praefix- und alle 3 Feld-Laeufe angewend
     fr <- xml_find_first(cp, "./w:r", n)
     sp <- oq_split_caption_text(xml_text(xml_find_first(fr, "./w:t", n)), 1)
     oq_convert_caption_to_field(cp, n, fr, sp, "Table", list(number_bold = number_bold))
-    ## Praefix-Lauf + 3 Feld-Laeufe = die ersten 4 w:r-Kinder; der letzte w:r
-    ## ist der Trenner+Rest-Lauf und darf NIE eine rPr bekommen (erbt vom
-    ## Style).
+    ## prefix run + 3 field runs = the first 4 w:r children; the last w:r is
+    ## the separator+rest run and must NEVER get an rPr (inherits from the
+    ## style).
     all_runs <- xml_find_all(cp, "./w:r", n)
     expect_length(all_runs, 5)
     prefix_and_field_runs <- all_runs[1:4]
@@ -107,7 +107,7 @@ test_that("number_bold wird korrekt auf Praefix- und alle 3 Feld-Laeufe angewend
   test_bold(NULL, "number_bold=NULL")
 })
 
-test_that("oq_apply_captions() mit auto_number=TRUE laesst eine nicht-crossref-nummerierte Beschriftung (matched=FALSE) unangetastet", {
+test_that("oq_apply_captions() with auto_number=TRUE leaves a non-crossref-numbered caption (matched=FALSE) untouched", {
   doc_plain <- build_doc("Eine Beschriftung ganz ohne Zahl")
   ns_plain <- xml_ns(doc_plain)
   p_plain <- get_caption_p(doc_plain)
@@ -119,16 +119,16 @@ test_that("oq_apply_captions() mit auto_number=TRUE laesst eine nicht-crossref-n
   expect_length(xml_find_all(doc_plain, "//w:instrText", ns_plain), 0)
 })
 
-test_that("oq_caption_anchor_name()/oq_convert_caption_to_field() ignorieren ein fremdes Bookmark ausserhalb einer Wrapper-Zelle, statt es zu stehlen/entfernen (Regressionstest, gefunden gegen ../hello-wordto)", {
-  ## Regressionstest fuer einen echten, per Render gegen ../hello-wordto
-  ## gefundenen Bug: eine crossref-nummerierte Beschriftung OHNE
-  ## Wrapper-Zelle (Elternelement ist w:body, nicht w:tc) neben einem
-  ## voellig unabhaengigen Ueberschriften-Bookmark im selben Elternelement.
-  ## Vor dem Fix griff oq_find_caption_bookmark() faelschlich dieses fremde
-  ## Bookmark, entfernte es und baute darunter ein SEQ-Feld auf - zerstoerte
-  ## damit ein echtes, unabhaengiges Sprungziel. Der
-  ## xml_name(parent) == "tc"-Guard muss das verhindern: kein Bookmark-Fund,
-  ## kein entferntes fremdes Bookmark, kein erzeugtes Feld.
+test_that("oq_caption_anchor_name()/oq_convert_caption_to_field() ignore a foreign bookmark outside a wrapper cell, instead of stealing/removing it (regression test, found against ../hello-wordto)", {
+  ## Regression test for a real bug found via a render against
+  ## ../hello-wordto: a crossref-numbered caption WITHOUT a wrapper cell
+  ## (parent is w:body, not w:tc) sitting next to a completely unrelated
+  ## heading bookmark in the same parent element. Before the fix,
+  ## oq_find_caption_bookmark() incorrectly grabbed this foreign bookmark,
+  ## removed it, and built a SEQ field in its place - destroying a real,
+  ## independent jump target. The xml_name(parent) == "tc" guard must
+  ## prevent this: no bookmark found, no foreign bookmark removed, no field
+  ## created.
   doc_foreign_bm <- read_xml(paste0(
     '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>',
     '<w:bookmarkStart w:id="24" w:name="ein-unabhaengiges-kapitel"/>',
@@ -150,19 +150,17 @@ test_that("oq_caption_anchor_name()/oq_convert_caption_to_field() ignorieren ein
   expect_false(is.na(remaining_foreign_bm))
 })
 
-test_that("oq_apply_captions() zaehlt eine vorausgehende schlichte Beschriftung nicht mit - die nachfolgende crossref-nummerierte Beschriftung wird trotzdem korrekt erkannt (Regressionstest, gefunden gegen ../hello-wordto)", {
-  ## eine schlichte (Nicht-Crossref-)Beschriftung, die VOR einer
-  ## crossref-nummerierten Beschriftung DERSELBEN Art im Dokument steht.
-  ## Quarto nummeriert die schlichte Beschriftung ueberhaupt nicht mit - die
-  ## urspruengliche Implementierung zaehlte aber JEDE gefundene Beschriftung
-  ## (auch schlichte) in EINEM gemeinsamen Zaehler, sodass die
-  ## crossref-nummerierte Beschriftung einen um 1 zu hohen erwarteten
-  ## Zahlenwert bekam, oq_split_caption_text() faelschlich nicht matchte und
-  ## die Beschriftung stillschweigend unangetastet blieb - bei JEDEM Feature
-  ## (prefix/separator/number-bold, crossref.numbered: false,
-  ## crossref.auto-number). Der Zaehler darf nur fuer tatsaechlich
-  ## bookmark-markierte (= von Quarto wirklich nummerierte) Beschriftungen
-  ## hochgezaehlt werden.
+test_that("oq_apply_captions() does not count a preceding plain caption - the following crossref-numbered caption is still detected correctly (regression test, found against ../hello-wordto)", {
+  ## A plain (non-crossref) caption that sits BEFORE a crossref-numbered
+  ## caption of the SAME type in the document. Quarto doesn't number the
+  ## plain caption at all - but the original implementation counted EVERY
+  ## found caption (plain ones included) in ONE shared counter, so the
+  ## crossref-numbered caption got an expected number that was 1 too high,
+  ## oq_split_caption_text() incorrectly failed to match, and the caption
+  ## was silently left untouched - for EVERY feature (prefix/separator/
+  ## number-bold, crossref.numbered: false, crossref.auto-number). The
+  ## counter must only be incremented for captions that actually carry a
+  ## bookmark (i.e. are really numbered by Quarto).
   doc_mixed <- read_xml(paste0(
     '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>',
     '<w:p><w:pPr><w:pStyle w:val="TableCaption"/></w:pPr><w:r><w:t xml:space="preserve">Table 1 Caption</w:t></w:r></w:p>',
@@ -185,7 +183,7 @@ test_that("oq_apply_captions() zaehlt eine vorausgehende schlichte Beschriftung 
   expect_length(xml_find_all(doc_mixed, "//w:bookmarkStart[@w:name='tbl-crossref-check']", ns_mixed), 1)
 })
 
-test_that("oq_convert_caption_to_field() no-opt (NA_character_), wenn kein Bookmark gefunden wird", {
+test_that("oq_convert_caption_to_field() no-ops (NA_character_) when no bookmark is found", {
   doc_no_bm <- read_xml(paste0(
     '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>',
     '<w:p><w:pPr><w:pStyle w:val="TableCaption"/></w:pPr><w:r><w:t xml:space="preserve">Table 1: Ohne Bookmark</w:t></w:r></w:p>',
@@ -201,21 +199,21 @@ test_that("oq_convert_caption_to_field() no-opt (NA_character_), wenn kein Bookm
   expect_length(xml_find_all(doc_no_bm, "//w:instrText", ns_no_bm), 0)
 })
 
-test_that("oq_apply_captions() faellt bei fehlgeschlagener Feld-Umwandlung (kein Bookmark) auf statischen Text-Rewrite zurueck, statt die Beschriftung unangetastet zu lassen (Review-Fund)", {
-  ## Fallback auf Text-Rewrite: auto_number=TRUE, die Beschriftung IST
-  ## bookmarkiert (anchor_name loest auf, nimmt also am Zaehler/Parsing teil
-  ## - siehe oben), aber oq_find_caption_bookmark() findet kein passendes
-  ## w:bookmarkEnd zur @id (z.B. weil es fehlt) - oq_convert_caption_to_field()
-  ## liefert NA_character_. oq_apply_captions() darf die Beschriftung dann
-  ## NICHT unangetastet lassen, sondern muss auf denselben statischen
-  ## Text-Rewrite zurueckfallen wie ohne auto_number.
+test_that("oq_apply_captions() falls back to the static text rewrite when field conversion fails (no bookmark), instead of leaving the caption untouched (review finding)", {
+  ## Fallback to text rewrite: auto_number=TRUE, the caption IS bookmarked
+  ## (anchor_name resolves, so it does participate in counting/parsing -
+  ## see above), but oq_find_caption_bookmark() finds no matching
+  ## w:bookmarkEnd for the @id (e.g. because it's missing) -
+  ## oq_convert_caption_to_field() returns NA_character_. oq_apply_captions()
+  ## must then NOT leave the caption untouched, but must fall back to the
+  ## same static text rewrite as without auto_number.
   doc_fallback <- read_xml(paste0(
     '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:tbl><w:tr><w:tc>',
     '<w:bookmarkStart w:id="7" w:name="tbl-x"/>',
     '<w:p><w:pPr><w:pStyle w:val="ImageCaption"/></w:pPr><w:r><w:t xml:space="preserve">Table 1: Ohne Bookmark</w:t></w:r></w:p>',
     '<w:tbl><w:tr><w:tc><w:p/></w:tc></w:tr></w:tbl>',
-    ## Kein w:bookmarkEnd mit @id="7" - oq_find_caption_bookmark() findet
-    ## also kein passendes Ende und liefert NULL.
+    ## No w:bookmarkEnd with @id="7" - so oq_find_caption_bookmark() finds no
+    ## matching end and returns NULL.
     '</w:tc></w:tr></w:tbl></w:body></w:document>'
   ))
   ns_fallback <- xml_ns(doc_fallback)
@@ -232,7 +230,7 @@ test_that("oq_apply_captions() faellt bei fehlgeschlagener Feld-Umwandlung (kein
   expect_identical(fallback_text, "Tab. 1: Ohne Bookmark")
 })
 
-test_that("oq_apply_crossref_fields() baut ein REF-Feld mit erhaltenem Hyperlink-rStyle auf allen 3 Laeufen auf", {
+test_that("oq_apply_crossref_fields() builds a REF field with the hyperlink rStyle preserved on all 3 runs", {
   ref_doc <- read_xml('<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:hyperlink w:anchor="tbl-x"><w:r><w:rPr><w:rStyle w:val="Hyperlink"/></w:rPr><w:t>Table 1</w:t></w:r></w:hyperlink></w:p></w:body></w:document>')
   ref_ns <- xml_ns(ref_doc)
   n_ref <- oq_apply_crossref_fields(ref_doc, c("tbl-x"))
@@ -249,14 +247,14 @@ test_that("oq_apply_crossref_fields() baut ein REF-Feld mit erhaltenem Hyperlink
   expect_true(all(xml_attr(ref_flds, "dirty") == "true"))
 })
 
-test_that("oq_apply_crossref_fields() laesst einen Hyperlink mit unbekanntem Anker unangetastet", {
+test_that("oq_apply_crossref_fields() leaves a hyperlink with an unknown anchor untouched", {
   ref_doc2 <- read_xml('<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:hyperlink w:anchor="tbl-unbekannt"><w:r><w:t>Table 2</w:t></w:r></w:hyperlink></w:p></w:body></w:document>')
   n_ref2 <- oq_apply_crossref_fields(ref_doc2, c("tbl-x"))
   expect_equal(n_ref2, 0)
   expect_identical(xml_text(xml_find_first(ref_doc2, "//w:hyperlink", xml_ns(ref_doc2))), "Table 2")
 })
 
-test_that("oq_apply_crossref_fields() mit leeren converted_anchors ist ein No-op", {
+test_that("oq_apply_crossref_fields() with an empty converted_anchors is a no-op", {
   ref_doc3 <- read_xml('<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:hyperlink w:anchor="tbl-x"><w:r><w:t>Table 1</w:t></w:r></w:hyperlink></w:p></w:body></w:document>')
   n_ref3 <- oq_apply_crossref_fields(ref_doc3, character(0))
   expect_equal(n_ref3, 0)

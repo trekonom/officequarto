@@ -1,32 +1,30 @@
-## Kernlogik fuer Gruppe 5 (Abbildungs-Beschriftungen) des officedown-
-## Options-Ports: officequarto.plots.caption.style/prefix/separator/
-## number-bold. Die eigentliche Text-Umformatierungslogik ist identisch zu
-## Gruppe 3 (Tabellen-Beschriftungen) und lebt deshalb gemeinsam in
-## table-caption-mapping.R (oq_apply_captions()/oq_split_caption_text()/
-## oq_write_caption_run()) - diese Datei traegt nur die
-## Abbildungs-spezifische Erkennung bei. Teil des officequarto R-Pakets -
-## von oq_writeback() (R/writeback.R) verwendet, keine eigenstaendige
-## Ausfuehrung. Benoetigt: xml2 sowie oq_apply_captions() aus
-## table-caption-mapping.R (im selben Package-Namespace, keine explizite
-## Ladereihenfolge noetig).
+## Core logic for Gruppe 5 (figure captions) of the officedown option port:
+## officequarto.plots.caption.style/prefix/separator/number-bold. The actual
+## text-reformatting logic is identical to Gruppe 3 (table captions) and
+## therefore lives jointly in table-caption-mapping.R
+## (oq_apply_captions()/oq_split_caption_text()/oq_write_caption_run()) -
+## this file only contributes the figure-specific detection. Part of the
+## officequarto R package - used by oq_writeback() (R/writeback.R), not run
+## standalone. Requires: xml2 and oq_apply_captions() from
+## table-caption-mapping.R (in the same package namespace, no explicit load
+## order needed).
 ##
-## `tnd`/`tns` wurden aus identischem Grund wie bei Gruppe 3 NICHT portiert
-## (siehe table-caption-mapping.R/README): Quarto/Pandoc nummeriert
-## Abbildungen ausschliesslich global/fortlaufend.
+## `tnd`/`tns` were NOT ported, for the identical reason as in Gruppe 3
+## (see table-caption-mapping.R/README): Quarto/Pandoc numbers figures
+## exclusively globally/sequentially.
 
-## Findet alle Abbildungs-Beschriftungsabsaetze in Dokumentreihenfolge.
-## Erkannt als Absatz mit pStyle "ImageCaption" (Pandocs Style fuer
-## Abbildungs-Beschriftungen - im Gegensatz zu Tabellen nutzt Pandoc hierfuer
-## immer "ImageCaption", ob mit oder ohne Quarto-Crossref-ID, siehe
-## oq_find_table_caption_paragraphs()), dessen UNMITTELBAR VORANGEHENDES
-## Geschwisterelement einen Bild-Absatz (w:drawing) enthaelt - Pandocs
-## Standardposition ist in beiden Faellen (Wrapper-Zelle bei Crossref-IDs,
-## schlichte Geschwister im Dokumentkoerper sonst) "Beschriftung nach der
-## Abbildung". Positionsnaehe statt der frueheren "Elternelement hat kein
-## w:tbl-Kind"-Pruefung (siehe oq_find_table_caption_paragraphs() fuer den
-## dadurch entstandenen realen Bug, wenn Abbildungs- und Tabellen-
-## Beschriftungen im selben Dokumentkoerper als Geschwister neben
-## unabhaengigen Tabellen liegen).
+## Finds all figure caption paragraphs in document order. Recognized as a
+## paragraph with pStyle "ImageCaption" (Pandoc's style for figure
+## captions - unlike tables, Pandoc always uses "ImageCaption" for this,
+## with or without a Quarto crossref ID, see
+## oq_find_table_caption_paragraphs()) whose IMMEDIATELY PRECEDING sibling
+## element contains an image paragraph (w:drawing) - Pandoc's default
+## position in both cases (wrapper cell for crossref IDs, plain siblings in
+## the document body otherwise) is "caption after the figure". Positional
+## adjacency instead of the earlier "parent element has no w:tbl child"
+## check (see oq_find_table_caption_paragraphs() for the real bug this
+## caused when figure and table captions sit as siblings in the same
+## document body next to unrelated tables).
 #' @noRd
 oq_find_plot_caption_paragraphs <- function(document_doc, ns) {
   xml2::xml_find_all(
@@ -36,11 +34,10 @@ oq_find_plot_caption_paragraphs <- function(document_doc, ns) {
   )
 }
 
-## Findet den zu einer Abbildungs-Beschriftung gehoerenden Inhaltsknoten (den
-## unmittelbar vorangehenden Bild-Absatz, siehe
-## oq_find_plot_caption_paragraphs()) - fuer oq_apply_captions()s
-## $above-Handling (siehe table-caption-mapping.R). NA, falls kein
-## unmittelbar vorangehender Bild-Absatz existiert.
+## Finds the content node belonging to a figure caption (the immediately
+## preceding image paragraph, see oq_find_plot_caption_paragraphs()) - for
+## oq_apply_captions()'s $above handling (see table-caption-mapping.R). NA
+## if no immediately preceding image paragraph exists.
 #' @noRd
 oq_plot_caption_content <- function(caption_p, ns) {
   xml2::xml_find_first(caption_p, "./preceding-sibling::*[1][.//w:drawing]", ns)

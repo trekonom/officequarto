@@ -1,47 +1,46 @@
-## Entfernt aus dem gerenderten word/styles.xml alle Style-Definitionen, die
-## nicht im reference-doc selbst vorhanden sind. Teil des officequarto
-## R-Pakets - von oq_writeback() (R/writeback.R) verwendet, keine
-## eigenstaendige Ausfuehrung. Benoetigt: xml2.
+## Removes all style definitions from the rendered word/styles.xml that
+## aren't present in the reference-doc itself. Part of the officequarto
+## R package - used by oq_writeback() (R/writeback.R), not run
+## standalone. Requires: xml2.
 ##
-## Hintergrund: Pandocs docx-Writer fuegt beim Rendern immer eigene
-## Style-Definitionen hinzu, die im reference-doc nicht existieren - z.B.
-## Syntax-Highlighting-Styles (SourceCode, KeywordTok, StringTok, ...) fuer
-## Codebloecke, unabhaengig davon, ob das Dokument ueberhaupt Codebloecke
-## enthaelt. Das reference-doc verliert dabei nichts (Pandoc kopiert dessen
-## Styles unveraendert), es kommt nur Fremdes hinzu. officequarto entfernt das
-## wieder, unbedingt (keine Konfigurationsoption) - das Ergebnis-docx soll
-## ausschliesslich Styles aus dem reference-doc enthalten.
+## Background: Pandoc's docx writer always adds its own style definitions
+## when rendering, ones that don't exist in the reference-doc - e.g.
+## syntax-highlighting styles (SourceCode, KeywordTok, StringTok, ...) for
+## code blocks, regardless of whether the document contains any code blocks
+## at all. The reference-doc loses nothing in the process (Pandoc copies its
+## styles unchanged), only foreign styles are added on top. officequarto
+## removes those again, unconditionally (no configuration option) - the
+## resulting docx is meant to contain only styles from the reference-doc.
 ##
-## Wird ein zu entfernender Style noch im gerenderten Inhalt referenziert
-## (z.B. ein echter Codeblock, der Pandocs SourceCode-Style nutzt, oder -
-## ohne officequarto.styles/.lists-Konfiguration - Pandocs eigene Body-/
-## Listen-Rollennamen wie FirstParagraph/Compact, falls das reference-doc
-## diese nicht kennt), wird die Definition trotzdem entfernt; die betroffenen
-## Absaetze/Runs fallen dann auf Words Default-Formatierung zurueck. Das wird
-## nicht verhindert, aber in writeback.R geloggt.
+## If a to-be-removed style is still referenced in the rendered content
+## (e.g. a real code block using Pandoc's SourceCode style, or - without
+## officequarto.styles/.lists configuration - one of Pandoc's own body/
+## list role names like FirstParagraph/Compact, if the reference-doc doesn't
+## know them), the definition is still removed; the affected paragraphs/runs
+## then fall back to Word's default formatting. This isn't prevented, but it
+## is logged in writeback.R.
 ##
-## Ausnahme (optional, per `officequarto.pandoc-styles.code-block: true`
-## konfigurierbar): Pandocs Codeblock-Styles koennen gezielt von der
-## Entfernung ausgenommen werden - siehe oq_is_pandoc_code_style_id() und
-## deren Verwendung in writeback.R.
+## Exception (optional, configurable via `officequarto.pandoc-styles.code-block:
+## true`): Pandoc's code-block styles can be deliberately exempted from
+## removal - see oq_is_pandoc_code_style_id() and its use in writeback.R.
 
-## TRUE fuer Pandocs eigene Syntax-Highlighting-Style-IDs (SourceCode + alle
-## *Tok-Zeichenstile) - eine stabile, feste Namenskonvention von Pandocs
-## docx-Writer (siehe dev/spike-notes.md, Spike E).
+## TRUE for Pandoc's own syntax-highlighting style IDs (SourceCode + all
+## *Tok character styles) - a stable, fixed naming convention of Pandoc's
+## docx writer (see dev/spike-notes.md, Spike E).
 #' @noRd
 oq_is_pandoc_code_style_id <- function(id) id == "SourceCode" | grepl("Tok$", id)
 
-## styles.xml (xml2-Dokument) -> character vector aller styleIds (alle Typen:
-## paragraph/character/table/numbering).
+## styles.xml (xml2 document) -> character vector of all styleIds (all
+## types: paragraph/character/table/numbering).
 #' @noRd
 oq_all_style_ids <- function(styles_doc) {
   ns <- xml2::xml_ns(styles_doc)
   xml2::xml_attr(xml2::xml_find_all(styles_doc, "//w:style", ns), "styleId")
 }
 
-## Ein oder mehrere geparste content-xml2-Dokumente (document.xml,
-## footnotes.xml, ...) -> character vector aller tatsaechlich referenzierten
-## Style-IDs (w:pStyle/w:rStyle/w:tblStyle).
+## One or more parsed content xml2 documents (document.xml,
+## footnotes.xml, ...) -> character vector of all style IDs actually
+## referenced (w:pStyle/w:rStyle/w:tblStyle).
 #' @noRd
 oq_referenced_style_ids <- function(docs) {
   ids <- character(0)
@@ -55,10 +54,10 @@ oq_referenced_style_ids <- function(docs) {
   unique(ids)
 }
 
-## Entfernt aus styles_doc (in-place via xml2-Referenzsemantik) jeden
-## <w:style>, dessen styleId nicht in ref_style_ids enthalten ist. Gibt eine
-## Liste mit $removed (alle entfernten IDs) und $removed_but_referenced
-## (davon die, die noch in referenced_ids vorkommen) zurueck, fuer Logging in
+## Removes every <w:style> from styles_doc (in-place via xml2 reference
+## semantics) whose styleId isn't contained in ref_style_ids. Returns a
+## list with $removed (all removed IDs) and $removed_but_referenced (the
+## subset of those still occurring in referenced_ids), for logging in
 ## writeback.R.
 #' @noRd
 oq_prune_foreign_styles <- function(styles_doc, ref_style_ids, referenced_ids) {

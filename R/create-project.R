@@ -1,10 +1,10 @@
-## Scaffolding-Helfer fuer neue officequarto-Projekte, im Geiste von
-## usethis::create_project() - siehe CLAUDE.md/README.md. Trotz dieses
-## oq_-Praefix-losen Vorbilds bewusst als oq_create_project() benannt (nicht
-## create_officequarto_project(), die urspruengliche Wahl) - Konsistenz mit
-## der internen oq_-Namenskonvention wiegt hier hoeher als das Argument, dies
-## sei die einzige tatsaechlich fuer direkte Anwender:innen-Nutzung gedachte
-## Funktion des Pakets.
+## Scaffolding helper for new officequarto projects, in the spirit of
+## usethis::create_project() - see CLAUDE.md/README.md. Despite this
+## oq_-prefix-less role model, deliberately named oq_create_project() (not
+## create_officequarto_project(), the original choice) - consistency with
+## the internal oq_ naming convention weighs more heavily here than the
+## argument that this is the package's only function actually intended for
+## direct end-user use.
 
 #' Create a new officequarto project
 #'
@@ -45,34 +45,33 @@
 #' }
 oq_create_project <- function(path, reference_doc = NULL, open = interactive()) {
   if (missing(path) || !is.character(path) || length(path) != 1 || !nzchar(path)) {
-    fail("path muss ein einzelner, nicht-leerer Pfad sein.")
+    fail("path must be a single, non-empty path.")
   }
   if (!is.null(reference_doc)) {
     if (!is.character(reference_doc) || length(reference_doc) != 1 || !nzchar(reference_doc)) {
-      fail("reference_doc muss ein einzelner Pfad (String) oder NULL sein.")
+      fail("reference_doc must be a single path (string) or NULL.")
     }
     if (!file.exists(reference_doc)) {
-      fail("reference_doc '%s' wurde nicht gefunden.", reference_doc)
+      fail("reference_doc '%s' was not found.", reference_doc)
     }
   }
 
   if (file.exists(file.path(path, "_quarto.yml"))) {
-    fail("'%s' enthaelt bereits eine _quarto.yml - kein Ueberschreiben eines vorhandenen Projekts.", path)
+    fail("'%s' already contains a _quarto.yml - not overwriting an existing project.", path)
   }
 
   dir.create(path, recursive = TRUE, showWarnings = FALSE)
   if (!dir.exists(path)) {
-    fail("Projektverzeichnis '%s' konnte nicht angelegt werden.", path)
+    fail("Project directory '%s' could not be created.", path)
   }
 
-  ## Echte, eigenstaendige Kopie (keine Symlinks) - das neue Projekt ist
-  ## danach unabhaengig vom Installationsort dieses Pakets, genau wie ein per
-  ## `quarto add` abgelegtes Extension-Verzeichnis es waere. Nur zur Render-
-  ## Zeit (Post-Render-Hook-Shim) wird das installierte Paket wieder
-  ## gebraucht.
+  ## A real, standalone copy (no symlinks) - the new project is afterwards
+  ## independent of this package's installation location, exactly like an
+  ## extension directory placed via `quarto add` would be. Only at render
+  ## time (post-render-hook shim) is the installed package needed again.
   extension_src <- system.file("_extensions", package = "officequarto")
   if (!nzchar(extension_src)) {
-    fail("Die officequarto-Extension wurde im installierten Paket nicht gefunden (system.file('_extensions', package = 'officequarto')) - ist das Paket korrekt installiert?")
+    fail("The officequarto extension was not found in the installed package (system.file('_extensions', package = 'officequarto')) - is the package installed correctly?")
   }
   file.copy(extension_src, path, recursive = TRUE)
 
@@ -95,29 +94,31 @@ oq_create_project <- function(path, reference_doc = NULL, open = interactive()) 
   invisible(normalizePath(path))
 }
 
-## Baut den Inhalt der generierten _quarto.yml als Character-Vektor (eine
-## Zeile pro Element, per writeLines() geschrieben) - bewusst als simples
-## String-Template statt ueber das yaml-Paket erzeugt, um keine zusaetzliche
-## Abhaengigkeit nur fuer diese eine, immer gleich geformte Datei einzufuehren.
+## Builds the content of the generated _quarto.yml as a character vector
+## (one line per element, written via writeLines()) - deliberately a simple
+## string template rather than generated via the yaml package, to avoid
+## introducing an extra dependency just for this one, always identically
+## shaped file.
 ##
-## Listet ABSICHTLICH jede officequarto-Option auf, auf ihren Default-Wert
-## gesetzt, statt nur ein Minimalgeruest - dient als selbst-dokumentierender
-## Startpunkt (siehe README/CLAUDE.md fuer die volle Options-Referenz). Zwei
-## Kategorien:
-## - Boolean/Enum/Numerisch mit echtem Verhaltens-Default (was passiert, wenn
-##   der Schluessel fehlt) -> genau dieser Wert (z.B. keep-rendered: false,
-##   jedes tables.conditional.*: false, crossref.numbered: true).
-## - String-/Style-Namen-Optionen ohne universellen Default (body,
+## DELIBERATELY lists every officequarto option, set to its default value,
+## instead of just a minimal skeleton - serves as a self-documenting
+## starting point (see README/CLAUDE.md for the full option reference). Two
+## categories:
+## - Boolean/enum/numeric options with a real behavioral default (what
+##   happens when the key is missing) -> exactly that value (e.g.
+##   keep-rendered: false, every tables.conditional.*: false,
+##   crossref.numbered: true).
+## - String/style-name options with no universal default (body,
 ##   list-bullet/-number/-letter, tables.style/layout/width,
 ##   tables.caption.style/prefix/separator, plots.*, page.size.*/margins.*) ->
-##   YAML null, da nur das jeweilige reference-doc einen sinnvollen Wert kennt;
-##   in R/writeback.R sind alle diese Felder ausschliesslich hinter
-##   !is.null(...)-Gates aktiv, ein explizites null verhaelt sich also exakt
-##   wie ein fehlender Schluessel.
-## officequarto.style-map ist strukturell anders (freies, nutzerdefiniertes
-## Mapping ohne feste Schluessel) und hat deshalb keine sinnvollen
-## Default-Eintraege - bleibt auskommentiert als Formbeispiel, statt aktiv
-## mit erfundenem Inhalt aufzutauchen.
+##   YAML null, since only the respective reference-doc knows a meaningful
+##   value; in R/writeback.R all of these fields are only ever active behind
+##   !is.null(...) gates, so an explicit null behaves exactly like a missing
+##   key.
+## officequarto.style-map is structurally different (a free-form,
+## user-defined mapping with no fixed keys) and therefore has no meaningful
+## default entries - stays commented out as a shape example, rather than
+## actively showing up with made-up content.
 #' @noRd
 oq_quarto_yml_template <- function(reference_doc_basename) {
   lines <- c(
@@ -190,8 +191,8 @@ oq_quarto_yml_template <- function(reference_doc_basename) {
   )
 }
 
-## Minimaler Start-Report, damit ein frisch erzeugtes Projekt sofort
-## renderbar ist statt einer leeren Huelle.
+## Minimal starter report, so a freshly created project is immediately
+## renderable instead of an empty shell.
 #' @noRd
 oq_starter_qmd_template <- function(title) {
   c(
