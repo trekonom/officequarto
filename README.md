@@ -1,5 +1,10 @@
 # officequarto
 
+<!-- badges: start -->
+[![R-CMD-check](https://github.com/trekonom/officequarto/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/trekonom/officequarto/actions/workflows/R-CMD-check.yaml)
+[![CRAN status](https://www.r-pkg.org/badges/version/officequarto)](https://CRAN.R-project.org/package=officequarto)
+<!-- badges: end -->
+
 Prototype R package + Quarto extension that lets any existing Word document be used as the
 target/template format for Quarto (styles, layout, headers/footers are carried over) and, after
 `quarto render`, overwrites the generated `.docx` in place with the document metadata carried over
