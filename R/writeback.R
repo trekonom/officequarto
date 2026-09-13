@@ -377,8 +377,37 @@ oq_writeback <- function() {
 
     system2("unzip", c("-oq", shQuote(rendered_path), "-d", shQuote(work_dir)))
 
-    orig_dir <- file.path(work_dir, "__original__")
+    ## Always (unconditionally, no config): fix up any misplaced w:pPr left
+    ## behind by officer inline syntax's fp_par() (see
+    ## R/officer-par-merge.R) - a structural defect, not a configurable
+    ## feature, so this must run regardless of whether any officequarto.*
+    ## option is set. Runs first, before anything else reads document.xml/
+    ## footnotes.xml/endnotes.xml, so every later step sees a schema-valid
+    ## paragraph structure.
+    n_ppr_fixed <- 0
+    for (part in c("document.xml", "footnotes.xml", "endnotes.xml")) {
+      part_path <- file.path(work_dir, "word", part)
+      if (!file.exists(part_path)) next
+      part_doc <- xml2::read_xml(part_path)
+      n_fixed <- oq_merge_misplaced_ppr(part_doc)
+      if (n_fixed > 0) {
+        xml2::write_xml(part_doc, part_path)
+        n_ppr_fixed <- n_ppr_fixed + n_fixed
+      }
+    }
+    if (n_ppr_fixed > 0) {
+      log_msg("fixed up %d misplaced w:pPr element(s) from officer inline syntax (fp_par()).", n_ppr_fixed)
+    }
+
+    ## Kept outside work_dir (its own tempfile(), not a nested subdirectory)
+    ## so it can never end up inside the final zip further below, which
+    ## recursively zips everything under work_dir - this is scratch
+    ## comparison data only (never meant to be part of the rendered docx),
+    ## but a docx with this leaked in as an extra "__original__" folder
+    ## still failed to open in Word despite passing every XML-level check.
+    orig_dir <- tempfile("officequarto_original_")
     dir.create(orig_dir)
+    on.exit(unlink(orig_dir, recursive = TRUE), add = TRUE)
     system2("unzip", c("-oq", shQuote(reference_doc_path), "docProps/core.xml", "docProps/custom.xml",
                         "word/styles.xml", "-d", shQuote(orig_dir)))
 

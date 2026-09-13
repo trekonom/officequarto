@@ -335,6 +335,47 @@ if (!identical(fig_crossref_text, "Umsatzentwicklung")) {
 }
 ok("figure crossref shows the caption text 'Umsatzentwicklung' instead of the number (officequarto.crossref.numbered: false)")
 
+## officer inline syntax (`r ftext(...)`, see report.qmd "Officer-Inline-
+## Syntax" and README "Using officer syntax inline"): officequarto's own
+## knit_print.run()/knit_print.fp_par() (R/knit-print.R, registered in
+## R/zzz.R) wrap officer::to_wml() output as raw inline openxml for Pandoc,
+## which is spliced directly into word/document.xml - no involvement from
+## writeback.R for the run() case, so this only proves the run fragment
+## survived Pandoc's render and writeback.R's style-mapping/pruning pass
+## untouched. fp_par() is different: it splices a whole misplaced w:pPr
+## into the paragraph's run flow (not a run/rPr fragment), which is
+## schema-invalid on its own (CT_P allows only one w:pPr, and only as the
+## first child) and made the rendered docx fail to open in real Word -
+## confirmed directly against Word, not just XML well-formedness/
+## python-docx, which stayed silent about it. oq_merge_misplaced_ppr()
+## (R/officer-par-merge.R), run unconditionally in writeback.R, fixes this
+## up before anything else touches document.xml.
+ftext_run <- xml_find_first(document_doc, "//w:r[w:t='officequarto' and ./w:rPr/w:b/@w:val='true']", ns)
+if (is.na(ftext_run)) fail("no run with text 'officequarto' and bold rPr found (expected: officer::ftext() inline)")
+ftext_color <- xml_attr(xml_find_first(ftext_run, "./w:rPr/w:color", ns), "val")
+if (!identical(ftext_color, "C32900")) {
+  fail("officer::ftext() run should carry color 'C32900' (fp_text(color = \"#C32900\")), found: '%s'", ftext_color)
+}
+ok("officer::ftext() inline run carries the configured bold/color formatting (fp_text(bold = TRUE, color = \"#C32900\"))")
+
+## No paragraph anywhere in the document should carry more than one w:pPr
+## (oq_merge_misplaced_ppr() must have cleaned up both officer::fp_par()'s
+## own misplaced pPr AND left Pandoc's own, unrelated caption-wrapper-cell
+## double-pPr quirk correctly merged down to one - see
+## R/officer-par-merge.R and table-caption-mapping.R).
+ppr_per_paragraph <- xml_find_all(document_doc, "//w:p", ns)
+multi_ppr_count <- sum(vapply(ppr_per_paragraph, function(p) length(xml_find_all(p, "./w:pPr", ns)) > 1, logical(1)))
+if (multi_ppr_count > 0) fail("%d paragraph(s) still carry more than one w:pPr (oq_merge_misplaced_ppr() should have merged these down to one)", multi_ppr_count)
+ok("no paragraph carries more than one w:pPr")
+
+## ftext() and fp_par() are inline in the same sentence/paragraph in
+## report.qmd, so the merged pPr is the ftext() run's own paragraph's pPr.
+ftext_par <- xml_find_first(ftext_run, "./ancestor::w:p", ns)
+fp_par_ppr <- xml_find_first(ftext_par, "./w:pPr[w:jc/@w:val='center']", ns)
+if (is.na(fp_par_ppr)) fail("no w:pPr with jc/@val='center' merged into the paragraph's own pPr (expected: officer::fp_par(text.align = \"center\") inline)")
+if (is.na(xml_find_first(fp_par_ppr, "./w:pStyle", ns))) fail("the paragraph carrying the merged fp_par() properties lost its own w:pStyle (oq_merge_misplaced_ppr() must not drop a well-formed pStyle it didn't itself add)")
+ok("officer::fp_par() inline paragraph-properties fragment (w:jc val='center') was correctly merged into the paragraph's own pPr, its pre-existing pStyle preserved")
+
 rendered_styles_doc <- read_xml(file.path(tmp, "word", "styles.xml"))
 rendered_style_ids <- xml_attr(xml_find_all(rendered_styles_doc, "//w:style", ns), "styleId")
 

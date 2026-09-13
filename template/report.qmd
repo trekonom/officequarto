@@ -2,6 +2,12 @@
 title: "Quartalsbericht"
 ---
 
+```{r}
+#| include: false
+library(officequarto)
+library(officer)
+```
+
 ## Zusammenfassung
 
 Dieser Absatz wurde von Quarto gerendert und soll nach dem Post-Render-Schritt von
@@ -84,6 +90,19 @@ c. Pessimistisches Szenario
 End-to-End-Test zu bestehen.
 
 Siehe @tbl-kennzahlen und @fig-umsatz.
+
+## Officer-Inline-Syntax
+
+Testfall für inline `officer`-Syntax — `officequarto` registriert eigene `knit_print`-Methoden für
+`officer`s `run`/`fp_par`/`block`-Klassen (siehe README „Using officer syntax inline"), sodass
+Konstruktoren wie `ftext()`/`fp_par()` direkt als Inline-R-Code verwendet werden können, ohne
+`officedown` zu laden.
+
+Das Paket `r ftext("officequarto", fp_text(bold = TRUE, color = "#C32900"))` kann über CRAN oder
+GitHub installiert werden. Dieser Absatz ist zentriert `r fp_par(text.align = "center")` — Testfall
+für das Zusammenführen eines per `fp_par()` inline eingefügten, fehlplatzierten `w:pPr` mit dem
+echten `w:pPr` des Absatzes (siehe `oq_merge_misplaced_ppr()`, ohne diesen Schritt lässt sich das
+gerenderte Dokument nicht mehr in Word öffnen).
 
 ## Anhang: Beispielcode
 
