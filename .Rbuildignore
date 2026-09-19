@@ -3,6 +3,7 @@
 ^README\.html$
 ^README_files$
 ^CLAUDE\.md$
+^CONTRIBUTING\.md$
 ^\.claude$
 ^\.github$
 ^_pkgdown\.yml$

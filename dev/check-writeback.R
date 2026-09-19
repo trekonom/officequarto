@@ -336,7 +336,7 @@ if (!identical(fig_crossref_text, "Umsatzentwicklung")) {
 ok("figure crossref shows the caption text 'Umsatzentwicklung' instead of the number (officequarto.crossref.numbered: false)")
 
 ## officer inline syntax (`r ftext(...)`, see report.qmd "Officer-Inline-
-## Syntax" and README "Using officer syntax inline"): officequarto's own
+## Syntax" and vignette("officer-syntax")): officequarto's own
 ## knit_print.run()/knit_print.fp_par() (R/knit-print.R, registered in
 ## R/zzz.R) wrap officer::to_wml() output as raw inline openxml for Pandoc,
 ## which is spliced directly into word/document.xml - no involvement from

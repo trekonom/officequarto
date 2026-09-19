@@ -30,7 +30,7 @@ Initial development version. Not yet on CRAN.
 * Added support for using {officer}'s run/paragraph/block constructors (`ftext()`, `fp_par()`,
   `block_pour_docx()`, ...) directly as inline R expressions in a `.qmd`, the same way {officedown}
   supports in an `.Rmd` — registers `knit_print` methods for {officer}'s S3 classes so this works
-  without needing {officedown} itself. See `vignette("options")`, "Using officer syntax inline".
+  without needing {officedown} itself. See `vignette("officer-syntax")`.
   `fp_par()`'s misplaced `w:pPr` fragment (a structural necessity of the inline mechanism, shared
   with {officedown}) is automatically merged back into the paragraph's real `w:pPr` after render.
 * Fixed: the rendered `.docx` could fail to open in Word entirely, from two independent causes,
