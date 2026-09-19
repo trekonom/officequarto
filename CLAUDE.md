@@ -10,7 +10,10 @@ Word document act as the `reference-doc` for a Quarto/Pandoc docx render (styles
 headers/footers, section properties carry over natively via Pandoc), and adds a post-render hook
 that writes document metadata and remapped paragraph styles back into a copy of that original
 document. It mirrors the idea behind the R package {officedown}, but also ships as an installable
-Quarto extension (bundled inside the same R package, see below).
+Quarto extension (bundled inside the same R package, see below). It also registers `knit_print`
+methods so {officer}'s run/paragraph/block constructors (`ftext()`, `fp_par()`,
+`block_pour_docx()`, ...) can be used directly inline in a `.qmd`, mirroring {officedown}'s
+equivalent feature for `.Rmd` — see "officer inline syntax" below.
 
 The R package is a **required runtime dependency** of the extension, not just a dev-time
 convenience — the extension's post-render hook (`inst/_extensions/officequarto/scripts/
@@ -21,7 +24,7 @@ in via `system.file("_extensions", package = "officequarto")` — directly from 
 `usethis::create_project()`. Named `oq_create_project()`, not `create_officequarto_project()` (an
 earlier choice, briefly used) — consistency with the package's internal `oq_` prefix convention won
 out over the argument that this is the one function meant for direct end-user typing. See README's
-"Usage in 2 steps".
+Usage section.
 
 `oq_quarto_yml_template()` (private helper inside `create-project.R`) deliberately writes **every**
 `officequarto` option into the scaffolded `_quarto.yml`, not just a minimal skeleton — a
@@ -36,11 +39,18 @@ the key. `officequarto.style-map` is excluded from the active YAML entirely (sho
 commented-out shape example) — it's a free-form, user-defined map with no fixed keys, unlike every
 other group, so it has no meaningful default entries to show.
 
-Testing goes through testthat/`R CMD check` like any other package; a small amount of ad-hoc
-`dev/` tooling remains for the two checks that need a live `quarto render` (see Commands below).
-Not currently version-controlled with any CI.
+Testing goes through testthat/`R CMD check` like any other package, run in CI via GitHub Actions
+(`.github/workflows/R-CMD-check.yaml`, matrix of macOS/Windows/Ubuntu × release/devel/oldrel) on
+every push/PR to `main`; the pkgdown site (`.github/workflows/pkgdown.yaml`) also rebuilds and
+redeploys automatically on push to `main`. A small amount of ad-hoc `dev/` tooling remains for the
+two checks that need a live `quarto render` against the external `quarto` CLI (see Commands
+below) — neither is part of that automatic CI run.
 
 ## Commands
+
+A human-facing subset of this section (the commands relevant to a contributor, not the
+architecture rationale) is mirrored in `CONTRIBUTING.md` — keep both in sync when these commands
+change.
 
 Package-level checks (pure R logic, no `quarto render` needed):
 
@@ -102,7 +112,8 @@ Rscript dev/make-sample-docx.R   # needs R packages: officer, xml2
 To verify `oq_create_project()` produces a genuinely working project end-to-end (not
 just the dev-symlink path above): `devtools::install()`, then call it against a temp directory
 with `reference_doc` pointing at a real `.docx`, then `quarto render` inside the scaffolded
-project — see README's Verification-equivalent walkthrough for the exact commands.
+project — the same steps as README's Usage section, just pointed at a temp directory instead of
+`my-report/`.
 
 There is no linter/formatter configured for the R scripts in this repo; version bumps are manual
 and must touch both `DESCRIPTION`'s `Version:` and `inst/_extensions/officequarto/_extension.yml`'s
@@ -123,44 +134,54 @@ feature/spike is complete and reviewed.
 ## Architecture
 
 ```
-_extensions/officequarto/
-├── _extension.yml            contributes: project: { project: { type: default,
-│                                                       post-render: [scripts/writeback.R] } }
-└── scripts/
-    ├── writeback.R           post-render hook: orchestration (env vars, quarto inspect,
-    │                         metadata merge, zip/unzip), sources style-mapping.R + style-pruning.R
-    ├── style-mapping.R       style-mapping core logic (pure functions, no side effects of
-    │                          its own — called from writeback.R)
-    ├── style-pruning.R       style-pruning core logic (pure functions, no side effects of
-    │                          its own — called from writeback.R)
-    ├── option-aliases.R      canonical-name/officedown-alias resolution (pure functions, no
-    │                          side effects of its own — called from writeback.R)
-    ├── table-mapping.R       table style/layout/width/conditional-formatting core logic
-    │                          (pure functions, no side effects of its own — called from
-    │                          writeback.R)
-    ├── table-caption-mapping.R  table caption style/prefix/separator/bold core logic
-    │                          (pure functions, no side effects of its own — called from
-    │                          writeback.R)
-    ├── plot-mapping.R        figure style/align core logic (pure functions, no side
-    │                          effects of its own — called from writeback.R)
-    ├── plot-caption-mapping.R  figure caption paragraph detection (pure functions, no
-    │                          side effects of its own — called from writeback.R; the
-    │                          actual text-rewriting logic lives in table-caption-mapping.R
-    │                          and is shared, not duplicated)
-    ├── style-map.R           free-form style-map (officedown: mapstyles) core logic
-    │                          (pure functions, no side effects of its own — called from
-    │                          writeback.R)
-    ├── page-mapping.R        page size/margins core logic (pure functions, no side
-    │                          effects of its own — called from writeback.R)
-    └── crossref-mapping.R    cross-reference text rewriting core logic (pure functions,
-                               no side effects of its own — called from writeback.R)
+R/                             package logic - oq_writeback()/oq_create_project() exported,
+│                               everything else internal; a package loads all of R/*.R into one
+│                               namespace at once, so file boundaries below are purely
+│                               organizational
+├── writeback.R                 oq_writeback() - post-render hook orchestration (exported)
+├── create-project.R            oq_create_project() - project scaffolding (exported)
+├── style-mapping.R              style-mapping core logic (pure functions, no side effects of
+│                                its own — called from writeback.R)
+├── style-pruning.R              style-pruning core logic (pure functions, no side effects of
+│                                its own — called from writeback.R)
+├── option-aliases.R             canonical-name/officedown-alias resolution (pure functions, no
+│                                side effects of its own — called from writeback.R)
+├── table-mapping.R              table style/layout/width/conditional-formatting core logic
+│                                (pure functions, no side effects of its own — called from
+│                                writeback.R)
+├── table-caption-mapping.R      table caption style/prefix/separator/bold core logic (also the
+│                                shared, generic caption-rewriting logic reused by
+│                                plot-caption-mapping.R — called from writeback.R)
+├── plot-mapping.R                figure style/align core logic (pure functions, no side
+│                                effects of its own — called from writeback.R)
+├── plot-caption-mapping.R        figure caption paragraph detection (pure functions, no side
+│                                effects of its own — called from writeback.R)
+├── style-map.R                   free-form style-map (officedown: mapstyles) core logic (pure
+│                                functions, no side effects of its own — called from writeback.R)
+├── page-mapping.R                page size/margins core logic (pure functions, no side effects
+│                                of its own — called from writeback.R)
+├── crossref-mapping.R            cross-reference text rewriting core logic (pure functions, no
+│                                side effects of its own — called from writeback.R)
+├── knit-print.R                  knit_print.run()/knit_print.fp_par()/knit_print.block() -
+│                                officer inline syntax support (not exported, S3-registered -
+│                                see "officer inline syntax" below)
+├── officer-par-merge.R           oq_merge_misplaced_ppr() - fixes up fp_par()'s inline-spliced
+│                                w:pPr (see "officer inline syntax" below)
+└── zzz.R                         .onLoad(): conditional knit_print S3 registration
 
-template/                     example/dev project
-├── _quarto.yml                project: type: officequarto; format.docx.reference-doc +
-│                               format.docx.officequarto (styles/lists/pandoc-styles/
-│                               keep-rendered/...)
-├── original.docx              sample reference-doc (custom header/footer/properties/styles)
-└── report.qmd                 the .qmd rendered against original.docx
+inst/_extensions/officequarto/  the Quarto extension itself - installed alongside the package,
+├── _extension.yml               reachable via system.file("_extensions", package = "officequarto");
+│                                contributes: project: { project: { type: default,
+│                                post-render: [scripts/writeback.R] } }
+└── scripts/
+    └── writeback.R              thin shim: requireNamespace("officequarto") + officequarto::oq_writeback()
+
+template/                       example/dev project
+├── _quarto.yml                  project: type: officequarto; format.docx.reference-doc +
+│                                format.docx.officequarto (styles/lists/pandoc-styles/
+│                                keep-rendered/...)
+├── original.docx                sample reference-doc (custom header/footer/properties/styles)
+└── report.qmd                   the .qmd rendered against original.docx
 ```
 
 ### Render/write-back flow
@@ -301,7 +322,7 @@ canonical option that has an {officedown} equivalent should resolve through
 
 ### Table options (`officequarto.tables`, `table-mapping.R`)
 
-Gruppe 1 of the ongoing {officedown}-option port (see `README.md`'s Option reference table for the
+Gruppe 1 of the ongoing {officedown}-option port (see `vignette("options")`'s Option reference table for the
 full canonical-name/alias list, filled in incrementally as further groups land). Configured under
 `format: docx: officequarto: tables: { style, layout, width }`, each field independently optional
 (per-field opt-in, same philosophy as `officequarto.styles`/`officequarto.lists` — an unset field is left exactly as
@@ -553,12 +574,13 @@ whatever style ID `reference-doc` already defines for that built-in role, which 
 underlying phenomenon as the caption-style localization in Spike L, just via a different Pandoc
 code path (built-in-role reuse rather than caption-structure generation). `officequarto`'s own
 `original.docx` test template happens to define no blockquote-equivalent style at all, so Pandoc
-falls back to its generic `BlockQuote` ID there — which is why the README/here-documented
-`"Zitat ACME": [BlockQuote]` example "worked" without ever having been exercised end-to-end against
-real blockquote content in `template/report.qmd` (`check-style-map.R` only uses synthetic XML with
-made-up IDs; `check-writeback.R` only exercises the `Title` case). No code fix — `style-map`'s
-equality-match mechanism works exactly as designed; this is a documentation gap about Pandoc's own
-behavior, now called out in README with a pointer to verify actual `pStyle`s via
+falls back to its generic `BlockQuote` ID there — which is why the `vignette("options")`/
+here-documented `"Zitat ACME": [BlockQuote]` example "worked" without ever having been exercised
+end-to-end against real blockquote content in `template/report.qmd` (`check-style-map.R` only uses
+synthetic XML with made-up IDs; `check-writeback.R` only exercises the `Title` case). No code fix —
+`style-map`'s equality-match mechanism works exactly as designed; this is a documentation gap about
+Pandoc's own behavior, now called out in `vignette("options")` with a pointer to verify actual
+`pStyle`s via
 `officequarto.keep-rendered: true` rather than assuming a fixed name.
 
 Runs **last** in `writeback.R`'s style-mapping pipeline, deliberately after `officequarto.styles`/
@@ -612,7 +634,7 @@ its own (verified empirically — the pre-patch `report.quarto-rendered.docx` st
 `FootnoteText` to it. Also verified against `../hello-wordto` (which *does* define its own,
 already-correctly-reused localized footnote style, `Voetnoottekst`) that this change is fully
 inert there with no `style-map` rule configured for it — confirms the two empirically-distinct
-cases documented in README's "Footnotes and endnotes" don't interfere with each other.
+cases documented in `vignette("options")`'s "Footnotes and endnotes" don't interfere with each other.
 
 ### Page layout (`officequarto.page`, `page-mapping.R`, Gruppe 8)
 
@@ -827,6 +849,82 @@ alone, so `code-block` works standalone):
 - Anything else (e.g. a number) fails loudly at the top of `writeback.R`, before the per-output-file
   loop, consistent with this project's fail-loud philosophy elsewhere.
 
+### officer inline syntax (`R/knit-print.R`, `R/officer-par-merge.R`, `R/zzz.R`)
+
+Not an `officequarto.*` config option — a separate, R-session-level feature, documented in its own
+`vignette("officer-syntax")` rather than `vignette("options")`, since it works identically
+regardless of any `_quarto.yml` configuration. Lets {officer}'s run/paragraph/block constructors
+(`ftext()`, `fp_par()`, `block_pour_docx()`, ...) be used directly as inline R expressions in a
+`.qmd`, the same way {officedown} supports in an `.Rmd`. Ported from {officedown}'s own
+`R/rdocx_knit_print.R` (`knit_print.run`/`knit_print.fp_par`/`knit_print.block`), checked against
+{officer}'s actual source (`R/ooxml_run_objects.R`/`R/ooxml_block_objects.R`) for the exact
+dispatch classes: `ftext()` and most other run-level constructors carry class `"run"`; `fp_par()`
+carries `"fp_par"` only; block-level constructors (`block_pour_docx()`, `fpar()`, ...) share a
+`"block"` superclass.
+
+**`officer` stays `Suggests`, not `Imports`** — consistent with this project's existing decision
+not to depend on `officer` at runtime (see "All docx manipulation..." below). `R/knit-print.R`
+only ever calls `officer::to_wml()`, reachable via a guarded
+`requireNamespace("officer", quietly = TRUE)` at call time, fail-loud if missing. Because the S3
+generic (`knitr::knit_print`) also lives in a Suggested package, these three methods are **not**
+`@export`ed; `R/zzz.R`'s `.onLoad()` registers them conditionally via a small vendored
+`oq_s3_register()` helper (the standard CRAN-safe pattern for a Suggests-only generic) instead.
+
+**Inline vs. fenced-block split is load-bearing, not cosmetic** — the fix for a real Pandoc bug
+(jgm/pandoc#5094): raw inline `` `...`{=openxml} `` content containing a full `<w:p>` gets nested
+inside Pandoc's own auto-generated `<w:p>`, corrupting the docx. `run`/`fp_par` render to a
+`<w:r>`/`<w:pPr>` fragment — safe as inline raw XML, spliced mid-paragraph. `block` objects render
+to one or more complete `<w:p>` elements — emitted as a fenced ` ```{=openxml} ``` ` block instead,
+so Pandoc treats it as block-level content. {officedown}'s split exists for the same reason and is
+preserved as-is.
+
+**No changes needed to `writeback.R`/post-render at all** — a pure pre-render, R-session feature:
+knitr's `knit_print` dispatch happens during `quarto render`'s R execution step, before Pandoc
+runs, before `writeback.R` ever sees the file. The resulting `<w:r>` lands in `word/document.xml`
+like any other run; existing style-mapping/pruning code treats it generically (no `w:rStyle` means
+invisible to style pruning; a styled run/paragraph is pruned/kept the same as everything else).
+
+**Real bug found and fixed via this feature: misplaced `w:pPr` corrupts the docx.**
+`knit_print.fp_par()`'s inline-spliced `<w:pPr>` fragment lands as a *second*, non-first-child
+`w:pPr` on its paragraph — schema-invalid (`CT_P` allows exactly one `w:pPr`, only as the first
+child) — and made the rendered `.docx` **fail to open in real Word**, confirmed directly against
+Word via AppleScript automation, not just XML well-formedness/`python-docx` (both stayed silent).
+`R/officer-par-merge.R`'s `oq_merge_misplaced_ppr(document_doc)` fixes this up: merges the
+misplaced `w:pPr`'s children into the paragraph's real first `w:pPr` (or promotes it to be the
+first child, if none exists yet), ported from {officedown}'s identical fix
+(`process_par_settings()`, `R/rdocx_post_proc.R`) for the identical underlying mechanism. Run
+**unconditionally** in `writeback.R` (not gated behind any `officequarto.*` option — a correctness
+fix, not a configurable feature), against `document.xml`/`footnotes.xml`/`endnotes.xml`.
+
+Two things this fix deliberately gets *more* careful about than {officedown}'s own version (both
+found via this project's own verification, not carried over from officedown):
+- Uses `preceding-sibling::*` rather than {officedown}'s `position() > 1` to find misplaced
+  `w:pPr`s — `position()` among `w:pPr`-only siblings misses a paragraph with exactly one
+  misplaced `w:pPr` and no sibling `w:pPr` to compare position against (a real gap, covered by a
+  dedicated unit test, not just theoretical).
+- Deliberately does **not** merge a `w:pStyle` that lacks a `w:val` attribute — officer's own
+  `to_wml.fp_par()` has an upstream bug, writing `<w:pStyle w:pstlname="...">` instead of the
+  OOXML-required `w:val`. The exclusion is scoped to "missing `w:val`", not "is named `pStyle`",
+  because Pandoc's own caption-wrapper-cell paragraphs (see "Table captions" above) independently
+  produce the identical two-`w:pPr` shape with a well-formed, `w:val`-bearing `pStyle` — a blanket
+  exclusion by name broke table/figure caption detection (regressed `dev/check-writeback.R`'s
+  table-option/caption counts) before being narrowed to this precise condition.
+
+A second, unrelated bug was found and fixed during the same verification pass (real Word, via
+AppleScript, across `template/`, `dev/fixtures/auto-number/`, and an external consumer project): a
+scratch `__original__/` comparison directory in `writeback.R` was nested inside `work_dir` and
+leaking into the final docx's zip archive via the closing `zip -rq tmp_zip .` — fixed by giving it
+its own separate `tempfile()` outside `work_dir`, with its own `on.exit()` cleanup. Both bugs were
+invisible to `xmllint`/`python-docx`; real end-to-end verification against actual Microsoft Word
+(not just XML tooling) is what caught them.
+
+Real end-to-end coverage: `template/report.qmd`'s "Officer-Inline-Syntax" section exercises both
+`ftext()` (run) and `fp_par()` (paragraph properties, including the misplaced-`w:pPr` merge);
+`dev/check-writeback.R` asserts the rendered run's `w:rPr` formatting and that no paragraph in the
+final document carries more than one `w:pPr`. `tests/testthat/test-knit-print.R` and
+`tests/testthat/test-officer-par-merge.R` cover the pure-R logic independent of a live
+`quarto render`.
+
 ### Key constraints/gotchas
 
 - **Project-only feature**: post-render hooks are a Quarto *project* feature; they do not fire for
@@ -843,10 +941,12 @@ alone, so `code-block` works standalone):
 - xml2 attribute writes on OOXML nodes must use the namespaced attribute name, i.e.
   `xml_attr(node, "w:val") <- x`, not `xml_attr(node, "val") <- x` (the latter creates an
   unnamespaced attribute and silently produces invalid/ignored XML).
-- All docx manipulation goes through `zip`/`unzip` (CLI, via `system2()`) + `xml2`, not `officer`
-  — `officer` is only used in `dev/make-sample-docx.R` to build the base sample document (plus
-  direct `xml2` XML injection there too, since `officer` has no high-level API to define new
-  paragraph styles).
+- All docx manipulation in `writeback.R` goes through `zip`/`unzip` (CLI, via `system2()`) +
+  `xml2`, not `officer` — `officer` is only used in `dev/make-sample-docx.R` to build the base
+  sample document (plus direct `xml2` XML injection there too, since `officer` has no high-level
+  API to define new paragraph styles), and in `R/knit-print.R` to call `officer::to_wml()` for
+  inline officer syntax (`officer` stays `Suggests`, guarded by `requireNamespace()` — see
+  "officer inline syntax" above).
 - The final write step zips into a `tempfile()` first, then `file.copy()`s that over the rendered
   path — never zips directly onto the file being overwritten, so a failed/partial zip can't corrupt
   the only output file that exists.
