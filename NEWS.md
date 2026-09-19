@@ -27,3 +27,15 @@ Initial development version. Not yet on CRAN.
   (`officequarto.pandoc-styles.code-block`).
 * Added `vignette("architecture")` and `vignette("options")`, and a pkgdown site published from
   `main`.
+* Added support for using {officer}'s run/paragraph/block constructors (`ftext()`, `fp_par()`,
+  `block_pour_docx()`, ...) directly as inline R expressions in a `.qmd`, the same way {officedown}
+  supports in an `.Rmd` — registers `knit_print` methods for {officer}'s S3 classes so this works
+  without needing {officedown} itself. See `vignette("options")`, "Using officer syntax inline".
+  `fp_par()`'s misplaced `w:pPr` fragment (a structural necessity of the inline mechanism, shared
+  with {officedown}) is automatically merged back into the paragraph's real `w:pPr` after render.
+* Fixed: the rendered `.docx` could fail to open in Word entirely, from two independent causes,
+  both only visible against real Word (not `python-docx`/XML well-formedness checks, which stayed
+  silent): a scratch comparison directory (`__original__/`) was leaking into the final `.docx`'s
+  zip archive, and any paragraph ending up with more than one `w:pPr` (from `fp_par()` inline
+  syntax, or independently from Pandoc's own caption-wrapper-cell paragraphs) is now detected and
+  merged down to one, unconditionally, regardless of `officequarto.*` configuration.

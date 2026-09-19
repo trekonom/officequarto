@@ -25,6 +25,7 @@ Suggests:
     rstudioapi,
     knitr,
     rmarkdown,
+    officer (>= 0.7.3),
     pkgdown
 VignetteBuilder: knitr
 Config/testthat/edition: 3
