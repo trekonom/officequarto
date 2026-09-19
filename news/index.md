@@ -50,8 +50,7 @@ Initial development version. Not yet on CRAN.
   {officedown} supports in an `.Rmd` — registers `knit_print` methods
   for {officer}’s S3 classes so this works without needing {officedown}
   itself. See
-  [`vignette("options")`](https://trekonom.github.io/officequarto/articles/options.md),
-  “Using officer syntax inline”.
+  [`vignette("officer-syntax")`](https://trekonom.github.io/officequarto/articles/officer-syntax.md).
   [`fp_par()`](https://davidgohel.github.io/officer/reference/fp_par.html)’s
   misplaced `w:pPr` fragment (a structural necessity of the inline
   mechanism, shared with {officedown}) is automatically merged back into

@@ -1,7 +1,5 @@
 # Configuring officequarto
 
-## Configuration: one `officequarto:` key
-
 Every option below lives nested under a single
 `format.docx.officequarto` key — no `officequarto-`-prefixed sibling
 keys. Each group (`styles`, `lists`, `tables`, `plots`, …) is a
@@ -26,7 +24,7 @@ officedown aliases (`ul_style`, `tables_width`, `plots_topcaption`, …)
 are unaffected by this — see [officedown aliases](#officedown-aliases)
 below.
 
-## Style-mapping: map body text onto your own Word style
+## Style-mapping
 
 Pandoc renders body paragraphs using the styles defined in
 `reference-doc`, but does so under **its own, fixed style names**
@@ -57,7 +55,7 @@ never matches footnote/endnote text, even though those are otherwise
 reachable by other style-mapping mechanisms — see [Footnotes and
 endnotes](#footnotes-and-endnotes) below.
 
-## Lists: bullet, number, letter styles
+## Lists
 
 `officequarto.lists` mirrors `officequarto.styles.body` for list
 paragraphs — analogous to {officedown}’s `ol.style`/`ul.style`:
@@ -123,7 +121,7 @@ alias value. See [Option reference](#option-reference) for the full
 canonical-name/alias table (filled in incrementally as more {officedown}
 option groups are ported).
 
-## Table options: style, layout, width
+## Table options
 
 `officequarto.tables` lets you control how every table in the rendered
 document is formatted — analogous to {officedown}’s `tables` option,
@@ -190,7 +188,7 @@ thing as `band-rows: true`); the hook resolves and negates them
 correctly, including the conflict warning if both are set to
 contradictory values.
 
-### Table captions: style, prefix, separator, bold
+### Table captions
 
 `officequarto.tables.caption` controls how table captions are formatted
 — analogous to {officedown}’s `tables.caption`:
@@ -252,10 +250,9 @@ with no direct precedent elsewhere in this project.
 ### All table options together
 
 Every `officequarto.tables` field shown in one place, including
-`caption.above` (explained in [Caption
-position](#caption-position-captionabove) below — easy to miss if you
-only skim the sections above, since it’s documented together with
-figures rather than repeated per group):
+`caption.above` (explained in [Caption position](#caption-position)
+below — easy to miss if you only skim the sections above, since it’s
+documented together with figures rather than repeated per group):
 
 ``` yaml
 format:
@@ -285,7 +282,7 @@ reference; normally you’d set just the ones you need. See the sections
 above for what each one does, its default, and its officedown alias
 (also summarized in [Option reference](#option-reference)).
 
-## Figure options: style, align
+## Figure options
 
 `officequarto.plots` controls the paragraph holding each figure —
 analogous to {officedown}’s `plots` option:
@@ -310,16 +307,15 @@ paragraph).
 officedown’s `fig.lp` is dropped for the same reason as `tab.lp` (see
 above) — no Quarto/post-render equivalent. `topcaption` (caption
 position) was implemented together for both tables and figures — see
-[Caption position](#caption-position-captionabove) below.
+[Caption position](#caption-position) below.
 
-### Figure captions: style, prefix, separator, bold
+### Figure captions
 
-`officequarto.plots.caption` mirrors [table
-captions](#table-captions-style-prefix-separator-bold) exactly — same
-fields, same text-parsing approach and its caveats, same `tnd`/`tns`
-exclusion rationale, just for figures. Unlike tables, Pandoc always uses
-the `ImageCaption` role for figure captions, with or without a crossref
-ID:
+`officequarto.plots.caption` mirrors [table captions](#table-captions)
+exactly — same fields, same text-parsing approach and its caveats, same
+`tnd`/`tns` exclusion rationale, just for figures. Unlike tables, Pandoc
+always uses the `ImageCaption` role for figure captions, with or without
+a crossref ID:
 
 ``` yaml
 format:
@@ -336,11 +332,11 @@ format:
 Table and figure captions are structurally distinguished by direct
 positional adjacency (a table caption is immediately followed by the
 table; a figure caption is immediately preceded by the image paragraph)
-— see [Table captions](#table-captions-style-prefix-separator-bold)
-above for the full mechanism; the actual text-rewriting logic is shared
-code, only the paragraph-finding differs.
+— see [Table captions](#table-captions) above for the full mechanism;
+the actual text-rewriting logic is shared code, only the
+paragraph-finding differs.
 
-### Caption position: `caption.above`
+### Caption position
 
 Both `officequarto.tables.caption` and `officequarto.plots.caption`
 accept an `above` field (officedown: `topcaption`) that moves the
@@ -387,7 +383,7 @@ format:
 Every field here is independently optional — shown together only for
 reference; normally you’d set just the ones you need.
 
-## Free-form style mapping: `officequarto.style-map`
+## Free-form style mapping
 
 The curated options above (`officequarto.styles`, `officequarto.lists`,
 `officequarto.tables`, `officequarto.plots`) cover the common cases with
@@ -456,8 +452,7 @@ things happens, verified against real rendered output:
 - If `reference-doc` defines its own built-in footnote-text style,
   Pandoc already reuses that style’s own (possibly localized) ID
   directly — the same mechanism documented for blockquotes under
-  [Free-form style
-  mapping](#free-form-style-mapping-officequartostyle-map) above. No
+  [Free-form style mapping](#free-form-style-mapping) above. No
   `officequarto` configuration is needed or possible here; it’s already
   correct.
 - If `reference-doc` defines no footnote-text style at all (like this
@@ -485,7 +480,7 @@ isn’t remapped by `officequarto` — out of scope for now.
 `word/comments.xml` is still not touched by any style-mapping mechanism
 (only read, for style-pruning reference counting).
 
-## Page layout: `officequarto.page`
+## Page layout
 
 Page size and margins already carry over from `reference-doc` natively
 via Pandoc — like everything else, no configuration needed for that.
@@ -532,7 +527,7 @@ top-level sections. officedown’s `orient` is spelled out as
 actual literal option name, needed verbatim regardless of the new
 spelling).
 
-## Cross-reference text: `officequarto.crossref`
+## Cross-reference text
 
 By default, a cross-reference like `@tbl-kennzahlen` renders as just the
 number (“Table 1”) — both Quarto’s own default and {officedown}’s.
@@ -563,7 +558,7 @@ still requires officequarto to walk every caption to build the anchor →
 text lookup, so expect the same log lines about captions being processed
 even if you haven’t configured any caption styling yourself.
 
-## Live numbering: `officequarto.crossref.auto-number`
+## Live numbering
 
 Everything above
 (`officequarto.tables.caption`/`officequarto.plots.caption`’s `prefix`/
@@ -612,7 +607,7 @@ format:
   numbering only for now, matching Quarto’s own current numbering
   scheme.
 
-## Style pruning: keeping only reference-doc styles
+## Style pruning
 
 Pandoc’s docx writer unconditionally adds its own style definitions on
 top of whatever `reference-doc` already defines — most notably a full
@@ -644,7 +639,7 @@ styles got stripped, so you know to either add that style to
 `reference-doc` or map the paragraphs to an existing style via
 `officequarto.styles`/`officequarto.lists`.
 
-### Opting back in for code blocks: `officequarto.pandoc-styles.code-block`
+### Opting back in for code blocks
 
 Since code-block styling is the most common reason to hit the warning
 above, there’s a dedicated, optional escape hatch. It lives in its own
@@ -678,76 +673,7 @@ format:
   deliberately independent concerns; there’s no option to combine a
   custom block style with kept highlighting colors.
 
-## Using officer syntax inline
-
-Everything above is configured via `_quarto.yml`. This one is different:
-it’s an R-session feature, not an `officequarto.*` YAML option, that
-lets you use {officer}’s run/paragraph/block constructors
-([`ftext()`](https://davidgohel.github.io/officer/reference/ftext.html),
-[`fp_par()`](https://davidgohel.github.io/officer/reference/fp_par.html),
-[`run_word_field()`](https://davidgohel.github.io/officer/reference/run_word_field.html),
-[`block_pour_docx()`](https://davidgohel.github.io/officer/reference/block_pour_docx.html),
-…) directly as inline R expressions in a `.qmd`, the same way
-{officedown} lets you in an `.Rmd`. For example (shown here without
-backticks to avoid this vignette itself trying to evaluate it):
-
-> The \`r ftext(“officequarto”, fp_text(bold = TRUE, color =
-> “#C32900”))\` package can be installed from CRAN or GitHub.
-
-Without this, returning an {officer} object from an inline R expression
-errors — there’s no `knit_print` method registered for {officer}’s S3
-classes anywhere (not in {officer} itself, and {officedown}’s own
-`knit_print.run`/`knit_print.fp_par`/`knit_print.block` methods are only
-registered when {officedown} itself is loaded). `officequarto` registers
-the equivalent three methods itself, so you get this without needing
-{officedown} at all.
-
-To use it, add both packages to your `.qmd`’s setup chunk — loading
-`officequarto` is what registers the methods for the current R session,
-so it must happen before any inline expression that returns an {officer}
-object:
-
-``` r
-
-library(officequarto)
-library(officer)
-```
-
-- [`ftext()`](https://davidgohel.github.io/officer/reference/ftext.html),
-  [`run_word_field()`](https://davidgohel.github.io/officer/reference/run_word_field.html),
-  [`run_reference()`](https://davidgohel.github.io/officer/reference/run_reference.html),
-  [`run_autonum()`](https://davidgohel.github.io/officer/reference/run_autonum.html),
-  [`run_bookmark()`](https://davidgohel.github.io/officer/reference/run_bookmark.html),
-  and other {officer} **run**-level constructors, and
-  [`fp_par()`](https://davidgohel.github.io/officer/reference/fp_par.html)
-  (paragraph properties): use directly inline (`ftext(...)`,
-  `fp_par(text.align = "center")`, wrapped the same way as the example
-  above). These render to a `<w:r>`/`<w:pPr>` XML fragment spliced into
-  the surrounding paragraph.
-- {officer} **block**-level constructors
-  ([`block_pour_docx()`](https://davidgohel.github.io/officer/reference/block_pour_docx.html),
-  [`block_section()`](https://davidgohel.github.io/officer/reference/block_section.html),
-  [`fpar()`](https://davidgohel.github.io/officer/reference/fpar.html),
-  [`block_list()`](https://davidgohel.github.io/officer/reference/block_list.html),
-  [`block_toc()`](https://davidgohel.github.io/officer/reference/block_toc.html),
-  [`block_caption()`](https://davidgohel.github.io/officer/reference/block_caption.html),
-  …), which render to one or more complete `<w:p>` elements, work the
-  same way, returned directly from a chunk. As in {officedown}, this
-  relies on `knit_print` dispatch, which isn’t triggered by a call
-  inside a `for` loop — that case isn’t covered here.
-
-This works because officequarto’s `knit_print` methods use the exact
-same mechanism as {officedown}’s: wrapping `officer::to_wml(x)` as
-Pandoc raw OOXML (`` `...`{=openxml} `` for runs/paragraph-properties, a
-fenced ```` ```{=openxml} ```` block for full blocks — the split
-matters, since a raw inline block-level fragment gets nested inside
-Pandoc’s own paragraph and corrupts the docx). The resulting XML is
-spliced directly into `word/document.xml` by Pandoc itself during
-rendering, before this hook ever runs — `officequarto`’s own post-render
-style-mapping/ pruning logic treats it like any other run or paragraph,
-with no special-casing needed.
-
-## Keeping a debug artifact: `officequarto.keep-rendered`
+## Keeping a debug artifact
 
 By default, the hook overwrites the `.docx` produced by Quarto directly
 — no second file is created. To compare/debug (e.g. “what did Pandoc
@@ -769,15 +695,14 @@ merge, no style-mapping).
 
 Canonical option names use kebab-case and are the primary, documented
 way to configure `officequarto`. Every option lives nested under
-`format.docx.officequarto` (see
-[Configuration](#configuration-one-officequarto-key) above) — the “New
-name” column below omits that common `officequarto.` prefix’s parent
-path for brevity, but always starts with the subsection name (`styles.`,
-`lists.`, `tables.`, …). Where an option corresponds to one from
-{officedown}, its original name (with `.` replaced by `_`) remains
-usable as an alias — see [officedown aliases](#officedown-aliases). This
-table is filled in as each {officedown} option group is ported; groups
-not yet listed here aren’t implemented yet.
+`format.docx.officequarto` — the “New name” column below omits that
+common `officequarto.` prefix’s parent path for brevity, but always
+starts with the subsection name (`styles.`, `lists.`, `tables.`, …).
+Where an option corresponds to one from {officedown}, its original name
+(with `.` replaced by `_`) remains usable as an alias — see [officedown
+aliases](#officedown-aliases). This table is filled in as each
+{officedown} option group is ported; groups not yet listed here aren’t
+implemented yet.
 
 | New name (under `officequarto.`) | officedown alias | Meaning | Default |
 |----|----|----|----|
