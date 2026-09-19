@@ -748,6 +748,69 @@ colors.</li>
 </div>
 </div>
 <div class="section level2">
+<h2 id="using-officer-syntax-inline">Using officer syntax inline<a class="anchor" aria-label="anchor" href="#using-officer-syntax-inline"></a>
+</h2>
+<p>Everything above is configured via <code>_quarto.yml</code>. This one
+is different: it’s an R-session feature, not an
+<code>officequarto.*</code> YAML option, that lets you use {officer}’s
+run/paragraph/block constructors (<code><a href="https://davidgohel.github.io/officer/reference/ftext.html" class="external-link">ftext()</a></code>,
+<code><a href="https://davidgohel.github.io/officer/reference/fp_par.html" class="external-link">fp_par()</a></code>, <code><a href="https://davidgohel.github.io/officer/reference/run_word_field.html" class="external-link">run_word_field()</a></code>,
+<code><a href="https://davidgohel.github.io/officer/reference/block_pour_docx.html" class="external-link">block_pour_docx()</a></code>, …) directly as inline R expressions in a
+<code>.qmd</code>, the same way {officedown} lets you in an
+<code>.Rmd</code>. For example (shown here without backticks to avoid
+this vignette itself trying to evaluate it):</p>
+<blockquote>
+<p>The `r ftext(“officequarto”, fp_text(bold = TRUE, color =
+“#C32900”))` package can be installed from CRAN or GitHub.</p>
+</blockquote>
+<p>Without this, returning an {officer} object from an inline R
+expression errors — there’s no <code>knit_print</code> method registered
+for {officer}’s S3 classes anywhere (not in {officer} itself, and
+{officedown}’s own
+<code>knit_print.run</code>/<code>knit_print.fp_par</code>/<code>knit_print.block</code>
+methods are only registered when {officedown} itself is loaded).
+<code>officequarto</code> registers the equivalent three methods itself,
+so you get this without needing {officedown} at all.</p>
+<p>To use it, add both packages to your <code>.qmd</code>’s setup chunk
+— loading <code>officequarto</code> is what registers the methods for
+the current R session, so it must happen before any inline expression
+that returns an {officer} object:</p>
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://trekonom.github.io/officequarto/">officequarto</a></span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ardata-fr.github.io/officeverse/" class="external-link">officer</a></span><span class="op">)</span></span></code></pre></div>
+<ul>
+<li>
+<code><a href="https://davidgohel.github.io/officer/reference/ftext.html" class="external-link">ftext()</a></code>, <code><a href="https://davidgohel.github.io/officer/reference/run_word_field.html" class="external-link">run_word_field()</a></code>,
+<code><a href="https://davidgohel.github.io/officer/reference/run_reference.html" class="external-link">run_reference()</a></code>, <code><a href="https://davidgohel.github.io/officer/reference/run_autonum.html" class="external-link">run_autonum()</a></code>,
+<code><a href="https://davidgohel.github.io/officer/reference/run_bookmark.html" class="external-link">run_bookmark()</a></code>, and other {officer}
+<strong>run</strong>-level constructors, and <code><a href="https://davidgohel.github.io/officer/reference/fp_par.html" class="external-link">fp_par()</a></code>
+(paragraph properties): use directly inline (<code>ftext(...)</code>,
+<code>fp_par(text.align = "center")</code>, wrapped the same way as the
+example above). These render to a
+<code>&lt;w:r&gt;</code>/<code>&lt;w:pPr&gt;</code> XML fragment spliced
+into the surrounding paragraph.</li>
+<li>{officer} <strong>block</strong>-level constructors
+(<code><a href="https://davidgohel.github.io/officer/reference/block_pour_docx.html" class="external-link">block_pour_docx()</a></code>, <code><a href="https://davidgohel.github.io/officer/reference/block_section.html" class="external-link">block_section()</a></code>,
+<code><a href="https://davidgohel.github.io/officer/reference/fpar.html" class="external-link">fpar()</a></code>, <code><a href="https://davidgohel.github.io/officer/reference/block_list.html" class="external-link">block_list()</a></code>,
+<code><a href="https://davidgohel.github.io/officer/reference/block_toc.html" class="external-link">block_toc()</a></code>, <code><a href="https://davidgohel.github.io/officer/reference/block_caption.html" class="external-link">block_caption()</a></code>, …), which render
+to one or more complete <code>&lt;w:p&gt;</code> elements, work the same
+way, returned directly from a chunk. As in {officedown}, this relies on
+<code>knit_print</code> dispatch, which isn’t triggered by a call inside
+a <code>for</code> loop — that case isn’t covered here.</li>
+</ul>
+<p>This works because officequarto’s <code>knit_print</code> methods use
+the exact same mechanism as {officedown}’s: wrapping
+<code>officer::to_wml(x)</code> as Pandoc raw OOXML
+(<code>`...`{=openxml}</code> for runs/paragraph-properties, a fenced
+<code>```{=openxml}</code> block for full blocks — the split matters,
+since a raw inline block-level fragment gets nested inside Pandoc’s own
+paragraph and corrupts the docx). The resulting XML is spliced directly
+into <code>word/document.xml</code> by Pandoc itself during rendering,
+before this hook ever runs — <code>officequarto</code>’s own post-render
+style-mapping/ pruning logic treats it like any other run or paragraph,
+with no special-casing needed.</p>
+</div>
+<div class="section level2">
 <h2 id="keeping-a-debug-artifact-officequarto-keep-rendered">Keeping a debug artifact:
 <code>officequarto.keep-rendered</code><a class="anchor" aria-label="anchor" href="#keeping-a-debug-artifact-officequarto-keep-rendered"></a>
 </h2>
@@ -756,10 +819,10 @@ Quarto directly — no second file is created. To compare/debug
 (e.g. “what did Pandoc produce without officequarto?”), you can keep the
 plain, unpatched Pandoc output as well, analogous to Quarto’s own
 <code>keep-md</code>:</p>
-<div class="sourceCode" id="cb20"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb20-1"><a href="#cb20-1" tabindex="-1"></a><span class="fu">format</span><span class="kw">:</span></span>
-<span id="cb20-2"><a href="#cb20-2" tabindex="-1"></a><span class="at">  </span><span class="fu">docx</span><span class="kw">:</span></span>
-<span id="cb20-3"><a href="#cb20-3" tabindex="-1"></a><span class="at">    </span><span class="fu">officequarto</span><span class="kw">:</span></span>
-<span id="cb20-4"><a href="#cb20-4" tabindex="-1"></a><span class="at">      </span><span class="fu">keep-rendered</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span><span class="co">   # optional, default: false</span></span></code></pre></div>
+<div class="sourceCode" id="cb21"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb21-1"><a href="#cb21-1" tabindex="-1"></a><span class="fu">format</span><span class="kw">:</span></span>
+<span id="cb21-2"><a href="#cb21-2" tabindex="-1"></a><span class="at">  </span><span class="fu">docx</span><span class="kw">:</span></span>
+<span id="cb21-3"><a href="#cb21-3" tabindex="-1"></a><span class="at">    </span><span class="fu">officequarto</span><span class="kw">:</span></span>
+<span id="cb21-4"><a href="#cb21-4" tabindex="-1"></a><span class="at">      </span><span class="fu">keep-rendered</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span><span class="co">   # optional, default: false</span></span></code></pre></div>
 <p>This additionally produces
 <code>&lt;name&gt;.quarto-rendered.docx</code> next to the final
 <code>&lt;name&gt;.docx</code>, holding the unmodified Pandoc output (no
