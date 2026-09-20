@@ -1,8 +1,8 @@
 # Changelog
 
-## officequarto 0.1.0
+## officequarto 0.2.0
 
-Initial development version. Not yet on CRAN.
+Initial public release. Not yet on CRAN.
 
 - Converted the project into a proper R package (`officequarto`), with
   the Quarto extension it powers bundled inside it under
