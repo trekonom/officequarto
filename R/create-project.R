@@ -102,15 +102,13 @@ oq_create_project <- function(path, reference_doc = NULL, quarto_yml = NULL, ope
     ## @param docs: reference_doc is not automatically injected into it).
     file.copy(quarto_yml, file.path(path, "_quarto.yml"))
   } else {
-    ## Reuses the exported oq_create_quarto_yml() rather than duplicating its
-    ## write logic. Passing the already-copied reference_doc path (not the
-    ## original) means oq_create_quarto_yml()'s own file.exists() check
-    ## passes naturally (it now exists inside path) and basename() still
-    ## matches ref_doc_basename exactly.
-    oq_create_quarto_yml(
-      file.path(path, "_quarto.yml"),
-      reference_doc = if (!is.null(ref_doc_basename)) file.path(path, ref_doc_basename) else NULL
-    )
+    ## oq_write_quarto_yml() (shared with oq_create_quarto_yml()) rather than
+    ## duplicating the writeLines()/oq_quarto_yml_template() call directly.
+    ## Unlike the exported oq_create_quarto_yml(), this path may bake in
+    ## ref_doc_basename - it's writing a _quarto.yml for this one concrete
+    ## project, not a reusable template (see oq_create_quarto_yml()'s own
+    ## docs for why it never accepts a reference doc).
+    oq_write_quarto_yml(file.path(path, "_quarto.yml"), reference_doc_basename = ref_doc_basename)
   }
 
   project_name <- basename(normalizePath(path, mustWork = FALSE))
@@ -122,155 +120,6 @@ oq_create_project <- function(path, reference_doc = NULL, quarto_yml = NULL, ope
   }
 
   invisible(normalizePath(path))
-}
-
-#' Create a standalone officequarto-ready `_quarto.yml`
-#'
-#' @description Writes a `_quarto.yml` listing every `officequarto` option at
-#'   its default value (`project: type: officequarto` plus the
-#'   `format.docx.officequarto` block) - the same content
-#'   [oq_create_project()] generates internally for a brand new project, but
-#'   usable standalone: as a starting point to drop into an already-existing
-#'   Quarto project you want to convert to officequarto, or as a file to
-#'   hand-edit before scaffolding a project with
-#'   `oq_create_project(path, quarto_yml = ...)`.
-#'
-#' @param path Character. Destination file path, default `"_quarto.yml"`
-#'   (the current working directory). Fails loudly if a file already exists
-#'   at `path`, unless `overwrite = TRUE` (no silent clobbering).
-#' @param reference_doc Character or `NULL` (default). Path to an existing
-#'   `.docx` file; only its basename (not the full path) is written to
-#'   `format.docx.reference-doc`. This function does not copy the file
-#'   itself, only writes the reference - make sure the `.docx` actually ends
-#'   up alongside the generated `_quarto.yml` before rendering (see
-#'   [oq_create_project()] if you want the copy to happen automatically).
-#' @param overwrite Logical, default `FALSE`. Set `TRUE` to overwrite an
-#'   existing file at `path`.
-#'
-#' @return Invisibly, the normalized path to the written file.
-#' @export
-#'
-#' @examples
-#' \dontrun{
-#' oq_create_quarto_yml("_quarto.yml", reference_doc = "original.docx")
-#' }
-oq_create_quarto_yml <- function(path = "_quarto.yml", reference_doc = NULL, overwrite = FALSE) {
-  if (!is.character(path) || length(path) != 1 || !nzchar(path)) {
-    fail("path must be a single, non-empty path.")
-  }
-  if (!is.null(reference_doc)) {
-    if (!is.character(reference_doc) || length(reference_doc) != 1 || !nzchar(reference_doc)) {
-      fail("reference_doc must be a single path (string) or NULL.")
-    }
-    if (!file.exists(reference_doc)) {
-      fail("reference_doc '%s' was not found.", reference_doc)
-    }
-  }
-  if (file.exists(path) && !isTRUE(overwrite)) {
-    fail("'%s' already exists - not overwriting an existing file (set overwrite = TRUE to replace it).", path)
-  }
-
-  ref_doc_basename <- if (!is.null(reference_doc)) basename(reference_doc) else NULL
-  writeLines(oq_quarto_yml_template(ref_doc_basename), path)
-
-  invisible(normalizePath(path))
-}
-
-## Builds the content of the generated _quarto.yml as a character vector
-## (one line per element, written via writeLines()) - deliberately a simple
-## string template rather than generated via the yaml package, to avoid
-## introducing an extra dependency just for this one, always identically
-## shaped file.
-##
-## DELIBERATELY lists every officequarto option, set to its default value,
-## instead of just a minimal skeleton - serves as a self-documenting
-## starting point (see README/CLAUDE.md for the full option reference). Two
-## categories:
-## - Boolean/enum/numeric options with a real behavioral default (what
-##   happens when the key is missing) -> exactly that value (e.g.
-##   keep-rendered: false, every tables.conditional.*: false,
-##   crossref.numbered: true).
-## - String/style-name options with no universal default (body,
-##   list-bullet/-number/-letter, tables.style/layout/width,
-##   tables.caption.style/prefix/separator, plots.*, page.size.*/margins.*) ->
-##   YAML null, since only the respective reference-doc knows a meaningful
-##   value; in R/writeback.R all of these fields are only ever active behind
-##   !is.null(...) gates, so an explicit null behaves exactly like a missing
-##   key.
-## officequarto.style-map is structurally different (a free-form,
-## user-defined mapping with no fixed keys) and therefore has no meaningful
-## default entries - stays commented out as a shape example, rather than
-## actively showing up with made-up content.
-#' @noRd
-oq_quarto_yml_template <- function(reference_doc_basename) {
-  lines <- c(
-    "project:",
-    "  type: officequarto",
-    "",
-    "format:",
-    "  docx:"
-  )
-  if (!is.null(reference_doc_basename)) {
-    lines <- c(lines, sprintf("    reference-doc: %s", reference_doc_basename))
-  }
-  c(lines,
-    "    officequarto:",
-    "      keep-rendered: false",
-    "      styles:",
-    "        body: null",
-    "      lists:",
-    "        list-bullet: null",
-    "        list-number: null",
-    "        list-letter: null",
-    "      tables:",
-    "        style: null",
-    "        layout: null",
-    "        width: null",
-    "        conditional:",
-    "          first-row: false",
-    "          first-column: false",
-    "          last-row: false",
-    "          last-column: false",
-    "          band-rows: false",
-    "          band-columns: false",
-    "        caption:",
-    "          style: null",
-    "          prefix: null",
-    "          separator: null",
-    "          number-bold: false",
-    "          above: false",
-    "      plots:",
-    "        style: null",
-    "        align: null",
-    "        caption:",
-    "          style: null",
-    "          prefix: null",
-    "          separator: null",
-    "          number-bold: false",
-    "          above: false",
-    "      # style-map: free-form target-style -> [source pStyle IDs] mapping,",
-    "      # no fixed defaults to show - add entries as needed, e.g.:",
-    "      # style-map:",
-    "      #   \"My Custom Style\": [Normal]",
-    "      page:",
-    "        size:",
-    "          width: null",
-    "          height: null",
-    "          orientation: null",
-    "        margins:",
-    "          top: null",
-    "          bottom: null",
-    "          left: null",
-    "          right: null",
-    "          header: null",
-    "          footer: null",
-    "          gutter: null",
-    "      crossref:",
-    "        numbered: true",
-    "        auto-number: false",
-    "      pandoc-styles:",
-    "        code-block: false"
-  )
 }
 
 ## Minimal starter report, so a freshly created project is immediately

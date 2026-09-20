@@ -10,10 +10,10 @@ Initial development version. Not yet on CRAN.
   `usethis::create_project()`), copying in the bundled extension, an optional reference document,
   and a `_quarto.yml` listing every `officequarto` option at its default value. It also accepts a
   `quarto_yml` argument to copy in your own `_quarto.yml` instead of generating one.
-* Added `oq_create_quarto_yml()`, a standalone helper that writes an officequarto-ready
+* Added `oq_create_quarto_yml()`, a standalone helper that writes a reusable, officequarto-ready
   `_quarto.yml` (the same content `oq_create_project()` generates internally) to a given path -
   useful for converting an existing Quarto project to officequarto, or as an editable starting
-  point.
+  point for future projects.
 * Ported a growing set of {officedown}-analogous configuration options, all nested under a single
   `format.docx.officequarto` key:
   - Paragraph style-mapping for body text and lists (`officequarto.styles`, `officequarto.lists`),

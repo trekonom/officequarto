@@ -26,7 +26,7 @@ earlier choice, briefly used) — consistency with the package's internal `oq_` 
 out over the argument that this is the one function meant for direct end-user typing. See README's
 Usage section.
 
-`oq_quarto_yml_template()` (private helper inside `create-project.R`) deliberately writes **every**
+`oq_quarto_yml_template()` (private helper, `R/create-quarto-yml.R`) deliberately writes **every**
 `officequarto` option into the scaffolded `_quarto.yml`, not just a minimal skeleton — a
 self-documenting starting point. Two rules decide each option's written value: boolean/enum/
 numeric options with a real behavioral default (what happens when the key is absent, e.g.
@@ -49,17 +49,27 @@ user. Consequence: `quarto_yml`'s content is never inspected, so if `reference_d
 supplied, its `.docx` is still copied into the project as usual, but nothing injects a matching
 `reference-doc:` line into the custom file — the user owns that key themselves.
 
-`oq_create_quarto_yml(path, reference_doc, overwrite)` (`R/create-project.R`, exported) is the
-standalone counterpart: writes exactly the content `oq_quarto_yml_template()` produces to an
-arbitrary `path` (default `"_quarto.yml"`), for use outside of scaffolding a whole new project —
-e.g. converting an existing Quarto project to officequarto, or as an editable starting point (also
+`oq_create_quarto_yml(path, overwrite)` (`R/create-quarto-yml.R`, exported) is the standalone
+counterpart: writes exactly the content `oq_quarto_yml_template()` produces (with `reference-doc`
+always omitted) to an arbitrary `path` (default `"_quarto.yml"`), for use outside of scaffolding a
+whole new project — e.g. converting an existing Quarto project to officequarto, or building a
+**reusable** starting point meant to be hand-edited once and reused across future projects (also
 what a user would naturally reach for to build the file later passed to `oq_create_project()`'s own
-`quarto_yml`). `oq_create_project()` calls it internally for its own default-generation path
-(passing the *already-copied* `reference_doc` path, not the original, so the existence check and
-`basename()` line up without duplicating that logic) rather than calling
-`oq_quarto_yml_template()`/`writeLines()` directly — the only two fully `@param`/`@return`-documented
-exported functions besides `oq_writeback()`, matching the "roxygen is minimal except for exported
-functions" convention below.
+`quarto_yml`). Deliberately has **no** `reference_doc` argument — an earlier version did, but a
+reference doc's filename is project-specific, so baking one into what's meant to be a reusable
+template worked against its whole purpose, and risked the same kind of silent mismatch already
+called out above for `quarto_yml` + `reference_doc` together (confirmed with the user, fixed
+immediately after the initial PR merged). `oq_create_project()`'s own default-generation path (no
+`quarto_yml` supplied) still needs to bake in a `reference_doc` for that one concrete project, so
+the shared file-writing logic lives in a private `oq_write_quarto_yml(path,
+reference_doc_basename, overwrite)` (`#' @noRd`, also `R/create-quarto-yml.R`) that both
+`oq_create_project()` (`R/create-project.R`; may pass a basename) and `oq_create_quarto_yml()`
+(never does) call — keeping `oq_quarto_yml_template()`'s pure content generation, the
+file-write/overwrite-guard logic, and the public no-reference_doc surface all cleanly separated in
+their own file, distinct from `oq_create_project()`'s own project-scaffolding concerns (extension
+copy, starter `.qmd`, RStudio open). `oq_create_quarto_yml()` is one of only three fully
+`@param`/`@return`-documented exported functions, alongside `oq_writeback()`/`oq_create_project()`,
+matching the "roxygen is minimal except for exported functions" convention below.
 
 Testing goes through testthat/`R CMD check` like any other package, run in CI via GitHub Actions
 (`.github/workflows/R-CMD-check.yaml`, matrix of macOS/Windows/Ubuntu × release/devel/oldrel) on
@@ -161,8 +171,10 @@ R/                             package logic - oq_writeback()/oq_create_project(
 │                               package loads all of R/*.R into one namespace at once, so file
 │                               boundaries below are purely organizational
 ├── writeback.R                 oq_writeback() - post-render hook orchestration (exported)
-├── create-project.R            oq_create_project()/oq_create_quarto_yml() - project/_quarto.yml
-│                                scaffolding (both exported)
+├── create-project.R            oq_create_project() - project scaffolding (exported)
+├── create-quarto-yml.R          oq_create_quarto_yml() - standalone, reusable _quarto.yml
+│                                generation (exported); also oq_quarto_yml_template()/
+│                                oq_write_quarto_yml(), shared with create-project.R
 ├── style-mapping.R              style-mapping core logic (pure functions, no side effects of
 │                                its own — called from writeback.R)
 ├── style-pruning.R              style-pruning core logic (pure functions, no side effects of
