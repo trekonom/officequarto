@@ -51,7 +51,23 @@ Prefer to wire up an existing project by hand instead of scaffolding a new one? 
 `project: type: officequarto` and `format.docx.reference-doc: <your .docx>` to its
 `_quarto.yml`, then copy `system.file("_extensions", package = "officequarto")` into the
 project root as `_extensions/officequarto/` — that's exactly what `oq_create_project()`
-automates.
+automates. `oq_create_quarto_yml()` writes just the `_quarto.yml` part of that (every
+`officequarto` option at its default value) as a standalone file — a starting point to
+hand-edit, or to drop into an existing project you're converting to officequarto.
+
+Already have a `_quarto.yml` you want `oq_create_project()` to use as-is, instead of
+generating one? Pass it as `quarto_yml`:
+
+```r
+officequarto::oq_create_project(
+  "my-report",
+  reference_doc = "original.docx",
+  quarto_yml = "my-quarto.yml"
+)
+```
+
+It's copied in verbatim — make sure it already sets `format.docx.reference-doc` to match
+`original.docx`'s basename if you supply both.
 
 A complete example lives in [`template/`](template/): `original.docx` (sample template
 with its own header/footer/custom properties/custom styles) + `report.qmd` +

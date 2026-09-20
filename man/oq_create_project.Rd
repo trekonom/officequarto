@@ -4,7 +4,12 @@
 \alias{oq_create_project}
 \title{Create a new officequarto project}
 \usage{
-oq_create_project(path, reference_doc = NULL, open = interactive())
+oq_create_project(
+  path,
+  reference_doc = NULL,
+  quarto_yml = NULL,
+  open = interactive()
+)
 }
 \arguments{
 \item{path}{Character. Name or path of the new project directory, same
@@ -15,11 +20,20 @@ contains a \verb{_quarto.yml} (no silent clobbering of an existing project).}
 
 \item{reference_doc}{Character or \code{NULL} (default). Path to an existing
 \code{.docx} to use as the project's \code{reference-doc}. When supplied, it is
-copied into \code{path} under its own basename, and that basename is written
-into the generated \verb{_quarto.yml}. When \code{NULL}, \code{reference-doc} is simply
-omitted from the generated YAML (every officequarto option is already
-per-field optional, so an unset reference-doc is consistent, not a
-special case) - add a reference document and the key later.}
+copied into \code{path} under its own basename. When \code{quarto_yml} is not
+supplied, that basename is also written into the generated
+\verb{_quarto.yml}. When \code{NULL}, \code{reference-doc} is simply omitted from the
+generated YAML (every officequarto option is already per-field optional,
+so an unset reference-doc is consistent, not a special case) - add a
+reference document and the key later.}
+
+\item{quarto_yml}{Character or \code{NULL} (default). Path to an existing
+\verb{_quarto.yml}-style file to use instead of the generated one. Copied
+verbatim to \verb{path/_quarto.yml} - its content is not inspected or merged
+with \code{reference_doc}, so if you also supply \code{reference_doc}, make sure
+this file's own \code{format.docx.reference-doc} already matches (or edit it
+afterwards). See \code{\link[=oq_create_quarto_yml]{oq_create_quarto_yml()}} if you want a fresh,
+officequarto-ready \verb{_quarto.yml} to start from.}
 
 \item{open}{Logical, default \code{interactive()}. If \code{TRUE} and the
 \code{rstudioapi} package is installed and there is an active RStudio
