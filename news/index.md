@@ -20,12 +20,12 @@ Initial development version. Not yet on CRAN.
   generating one.
 - Added
   [`oq_create_quarto_yml()`](https://trekonom.github.io/officequarto/reference/oq_create_quarto_yml.md),
-  a standalone helper that writes an officequarto-ready `_quarto.yml`
-  (the same content
+  a standalone helper that writes a reusable, officequarto-ready
+  `_quarto.yml` (the same content
   [`oq_create_project()`](https://trekonom.github.io/officequarto/reference/oq_create_project.md)
   generates internally) to a given path - useful for converting an
   existing Quarto project to officequarto, or as an editable starting
-  point.
+  point for future projects.
 - Ported a growing set of {officedown}-analogous configuration options,
   all nested under a single `format.docx.officequarto` key:
   - Paragraph style-mapping for body text and lists

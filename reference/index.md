@@ -19,4 +19,4 @@ usethis::create_project().
 - [`oq_create_quarto_yml()`](https://trekonom.github.io/officequarto/reference/oq_create_quarto_yml.md)
   :
 
-  Create a standalone officequarto-ready `_quarto.yml`
+  Create a standalone, reusable officequarto-ready `_quarto.yml`
