@@ -12,6 +12,7 @@ reference:
   desc: Scaffold a new officequarto project, modeled on usethis::create_project().
   contents:
   - oq_create_project
+  - oq_create_quarto_yml
 
 articles:
 - title: Articles

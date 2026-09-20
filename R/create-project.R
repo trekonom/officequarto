@@ -25,11 +25,19 @@
 #'   contains a `_quarto.yml` (no silent clobbering of an existing project).
 #' @param reference_doc Character or `NULL` (default). Path to an existing
 #'   `.docx` to use as the project's `reference-doc`. When supplied, it is
-#'   copied into `path` under its own basename, and that basename is written
-#'   into the generated `_quarto.yml`. When `NULL`, `reference-doc` is simply
-#'   omitted from the generated YAML (every officequarto option is already
-#'   per-field optional, so an unset reference-doc is consistent, not a
-#'   special case) - add a reference document and the key later.
+#'   copied into `path` under its own basename. When `quarto_yml` is not
+#'   supplied, that basename is also written into the generated
+#'   `_quarto.yml`. When `NULL`, `reference-doc` is simply omitted from the
+#'   generated YAML (every officequarto option is already per-field optional,
+#'   so an unset reference-doc is consistent, not a special case) - add a
+#'   reference document and the key later.
+#' @param quarto_yml Character or `NULL` (default). Path to an existing
+#'   `_quarto.yml`-style file to use instead of the generated one. Copied
+#'   verbatim to `path/_quarto.yml` - its content is not inspected or merged
+#'   with `reference_doc`, so if you also supply `reference_doc`, make sure
+#'   this file's own `format.docx.reference-doc` already matches (or edit it
+#'   afterwards). See [oq_create_quarto_yml()] if you want a fresh,
+#'   officequarto-ready `_quarto.yml` to start from.
 #' @param open Logical, default `interactive()`. If `TRUE` and the
 #'   `rstudioapi` package is installed and there is an active RStudio
 #'   session, opens the new project via `rstudioapi::openProject()`
@@ -43,7 +51,7 @@
 #' \dontrun{
 #' oq_create_project("my-report", reference_doc = "original.docx")
 #' }
-oq_create_project <- function(path, reference_doc = NULL, open = interactive()) {
+oq_create_project <- function(path, reference_doc = NULL, quarto_yml = NULL, open = interactive()) {
   if (missing(path) || !is.character(path) || length(path) != 1 || !nzchar(path)) {
     fail("path must be a single, non-empty path.")
   }
@@ -53,6 +61,14 @@ oq_create_project <- function(path, reference_doc = NULL, open = interactive()) 
     }
     if (!file.exists(reference_doc)) {
       fail("reference_doc '%s' was not found.", reference_doc)
+    }
+  }
+  if (!is.null(quarto_yml)) {
+    if (!is.character(quarto_yml) || length(quarto_yml) != 1 || !nzchar(quarto_yml)) {
+      fail("quarto_yml must be a single path (string) or NULL.")
+    }
+    if (!file.exists(quarto_yml)) {
+      fail("quarto_yml '%s' was not found.", quarto_yml)
     }
   }
 
@@ -81,7 +97,21 @@ oq_create_project <- function(path, reference_doc = NULL, open = interactive()) 
     file.copy(reference_doc, file.path(path, ref_doc_basename), overwrite = TRUE)
   }
 
-  writeLines(oq_quarto_yml_template(ref_doc_basename), file.path(path, "_quarto.yml"))
+  if (!is.null(quarto_yml)) {
+    ## Verbatim copy - no inspection/merging of its content (see quarto_yml's
+    ## @param docs: reference_doc is not automatically injected into it).
+    file.copy(quarto_yml, file.path(path, "_quarto.yml"))
+  } else {
+    ## Reuses the exported oq_create_quarto_yml() rather than duplicating its
+    ## write logic. Passing the already-copied reference_doc path (not the
+    ## original) means oq_create_quarto_yml()'s own file.exists() check
+    ## passes naturally (it now exists inside path) and basename() still
+    ## matches ref_doc_basename exactly.
+    oq_create_quarto_yml(
+      file.path(path, "_quarto.yml"),
+      reference_doc = if (!is.null(ref_doc_basename)) file.path(path, ref_doc_basename) else NULL
+    )
+  }
 
   project_name <- basename(normalizePath(path, mustWork = FALSE))
   writeLines(oq_starter_qmd_template(project_name), file.path(path, paste0(project_name, ".qmd")))
@@ -90,6 +120,58 @@ oq_create_project <- function(path, reference_doc = NULL, open = interactive()) 
         rstudioapi::isAvailable()) {
     rstudioapi::openProject(path)
   }
+
+  invisible(normalizePath(path))
+}
+
+#' Create a standalone officequarto-ready `_quarto.yml`
+#'
+#' @description Writes a `_quarto.yml` listing every `officequarto` option at
+#'   its default value (`project: type: officequarto` plus the
+#'   `format.docx.officequarto` block) - the same content
+#'   [oq_create_project()] generates internally for a brand new project, but
+#'   usable standalone: as a starting point to drop into an already-existing
+#'   Quarto project you want to convert to officequarto, or as a file to
+#'   hand-edit before scaffolding a project with
+#'   `oq_create_project(path, quarto_yml = ...)`.
+#'
+#' @param path Character. Destination file path, default `"_quarto.yml"`
+#'   (the current working directory). Fails loudly if a file already exists
+#'   at `path`, unless `overwrite = TRUE` (no silent clobbering).
+#' @param reference_doc Character or `NULL` (default). Path to an existing
+#'   `.docx` file; only its basename (not the full path) is written to
+#'   `format.docx.reference-doc`. This function does not copy the file
+#'   itself, only writes the reference - make sure the `.docx` actually ends
+#'   up alongside the generated `_quarto.yml` before rendering (see
+#'   [oq_create_project()] if you want the copy to happen automatically).
+#' @param overwrite Logical, default `FALSE`. Set `TRUE` to overwrite an
+#'   existing file at `path`.
+#'
+#' @return Invisibly, the normalized path to the written file.
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' oq_create_quarto_yml("_quarto.yml", reference_doc = "original.docx")
+#' }
+oq_create_quarto_yml <- function(path = "_quarto.yml", reference_doc = NULL, overwrite = FALSE) {
+  if (!is.character(path) || length(path) != 1 || !nzchar(path)) {
+    fail("path must be a single, non-empty path.")
+  }
+  if (!is.null(reference_doc)) {
+    if (!is.character(reference_doc) || length(reference_doc) != 1 || !nzchar(reference_doc)) {
+      fail("reference_doc must be a single path (string) or NULL.")
+    }
+    if (!file.exists(reference_doc)) {
+      fail("reference_doc '%s' was not found.", reference_doc)
+    }
+  }
+  if (file.exists(path) && !isTRUE(overwrite)) {
+    fail("'%s' already exists - not overwriting an existing file (set overwrite = TRUE to replace it).", path)
+  }
+
+  ref_doc_basename <- if (!is.null(reference_doc)) basename(reference_doc) else NULL
+  writeLines(oq_quarto_yml_template(ref_doc_basename), path)
 
   invisible(normalizePath(path))
 }
