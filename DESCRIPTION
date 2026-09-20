@@ -1,6 +1,6 @@
 Package: officequarto
 Title: Word Style, Table, Figure, and Metadata Write-Back for Quarto DOCX Output
-Version: 0.1.0
+Version: 0.2.0
 Authors@R: person("trekonom", role = c("aut", "cre"), email = "moogs@gmx.de")
 Description: Provides the officequarto Quarto extension (bundled under
     inst/_extensions) and its post-render write-back hook: applies
