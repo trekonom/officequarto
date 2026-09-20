@@ -56,6 +56,28 @@ copy `system.file("_extensions", package = "officequarto")` into the
 project root as `_extensions/officequarto/` — that’s exactly what
 [`oq_create_project()`](https://trekonom.github.io/officequarto/reference/oq_create_project.md)
 automates.
+[`oq_create_quarto_yml()`](https://trekonom.github.io/officequarto/reference/oq_create_quarto_yml.md)
+writes just the `_quarto.yml` part of that (every `officequarto` option
+at its default value) as a standalone file — a starting point to
+hand-edit, or to drop into an existing project you’re converting to
+officequarto.
+
+Already have a `_quarto.yml` you want
+[`oq_create_project()`](https://trekonom.github.io/officequarto/reference/oq_create_project.md)
+to use as-is, instead of generating one? Pass it as `quarto_yml`:
+
+``` r
+
+officequarto::oq_create_project(
+  "my-report",
+  reference_doc = "original.docx",
+  quarto_yml = "my-quarto.yml"
+)
+```
+
+It’s copied in verbatim — make sure it already sets
+`format.docx.reference-doc` to match `original.docx`’s basename if you
+supply both.
 
 A complete example lives in
 [`template/`](https://trekonom.github.io/officequarto/template/):
@@ -119,6 +141,11 @@ usethis::create_project().
 
 - [`oq_create_project()`](https://trekonom.github.io/officequarto/reference/oq_create_project.md)
   : Create a new officequarto project
+
+- [`oq_create_quarto_yml()`](https://trekonom.github.io/officequarto/reference/oq_create_quarto_yml.md)
+  :
+
+  Create a standalone officequarto-ready `_quarto.yml`
 
 # Articles
 

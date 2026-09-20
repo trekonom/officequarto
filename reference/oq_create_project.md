@@ -13,7 +13,12 @@ immediately.
 ## Usage
 
 ``` r
-oq_create_project(path, reference_doc = NULL, open = interactive())
+oq_create_project(
+  path,
+  reference_doc = NULL,
+  quarto_yml = NULL,
+  open = interactive()
+)
 ```
 
 ## Arguments
@@ -30,11 +35,23 @@ oq_create_project(path, reference_doc = NULL, open = interactive())
 
   Character or `NULL` (default). Path to an existing `.docx` to use as
   the project's `reference-doc`. When supplied, it is copied into `path`
-  under its own basename, and that basename is written into the
-  generated `_quarto.yml`. When `NULL`, `reference-doc` is simply
-  omitted from the generated YAML (every officequarto option is already
-  per-field optional, so an unset reference-doc is consistent, not a
-  special case) - add a reference document and the key later.
+  under its own basename. When `quarto_yml` is not supplied, that
+  basename is also written into the generated `_quarto.yml`. When
+  `NULL`, `reference-doc` is simply omitted from the generated YAML
+  (every officequarto option is already per-field optional, so an unset
+  reference-doc is consistent, not a special case) - add a reference
+  document and the key later.
+
+- quarto_yml:
+
+  Character or `NULL` (default). Path to an existing `_quarto.yml`-style
+  file to use instead of the generated one. Copied verbatim to
+  `path/_quarto.yml` - its content is not inspected or merged with
+  `reference_doc`, so if you also supply `reference_doc`, make sure this
+  file's own `format.docx.reference-doc` already matches (or edit it
+  afterwards). See
+  [`oq_create_quarto_yml()`](https://trekonom.github.io/officequarto/reference/oq_create_quarto_yml.md)
+  if you want a fresh, officequarto-ready `_quarto.yml` to start from.
 
 - open:
 

@@ -77,7 +77,15 @@
 <div class="sourceCode" id="cb3"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="bu">cd</span> my-report</span>
 <span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="ex">quarto</span> render</span></code></pre></div>
 <p>The resulting <code>.docx</code> picks up <code>original.docx</code>’s styles, headers, and footers automatically, and its document properties (subject, keywords, description, category) are filled in from the original too — no second output file is created. Want to keep the raw, unpatched Pandoc output alongside it for comparison? Set <code>officequarto.keep-rendered: true</code> in <code>_quarto.yml</code>.</p>
-<p>Prefer to wire up an existing project by hand instead of scaffolding a new one? Add <code>project: type: officequarto</code> and <code>format.docx.reference-doc: &lt;your .docx&gt;</code> to its <code>_quarto.yml</code>, then copy <code>system.file("_extensions", package = "officequarto")</code> into the project root as <code>_extensions/officequarto/</code> — that’s exactly what <code><a href="reference/oq_create_project.html">oq_create_project()</a></code> automates.</p>
+<p>Prefer to wire up an existing project by hand instead of scaffolding a new one? Add <code>project: type: officequarto</code> and <code>format.docx.reference-doc: &lt;your .docx&gt;</code> to its <code>_quarto.yml</code>, then copy <code>system.file("_extensions", package = "officequarto")</code> into the project root as <code>_extensions/officequarto/</code> — that’s exactly what <code><a href="reference/oq_create_project.html">oq_create_project()</a></code> automates. <code><a href="reference/oq_create_quarto_yml.html">oq_create_quarto_yml()</a></code> writes just the <code>_quarto.yml</code> part of that (every <code>officequarto</code> option at its default value) as a standalone file — a starting point to hand-edit, or to drop into an existing project you’re converting to officequarto.</p>
+<p>Already have a <code>_quarto.yml</code> you want <code><a href="reference/oq_create_project.html">oq_create_project()</a></code> to use as-is, instead of generating one? Pass it as <code>quarto_yml</code>:</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">officequarto</span><span class="fu">::</span><span class="fu"><a href="reference/oq_create_project.html">oq_create_project</a></span><span class="op">(</span></span>
+<span>  <span class="st">"my-report"</span>,</span>
+<span>  reference_doc <span class="op">=</span> <span class="st">"original.docx"</span>,</span>
+<span>  quarto_yml <span class="op">=</span> <span class="st">"my-quarto.yml"</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>It’s copied in verbatim — make sure it already sets <code>format.docx.reference-doc</code> to match <code>original.docx</code>’s basename if you supply both.</p>
 <p>A complete example lives in <a href="template/"><code>template/</code></a>: <code>original.docx</code> (sample template with its own header/footer/custom properties/custom styles) + <code>report.qmd</code> + <code>_quarto.yml</code>.</p>
 </div>
 <div class="section level2">

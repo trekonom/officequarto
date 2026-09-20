@@ -69,7 +69,12 @@ minimal starter <code>.qmd</code> so the project renders immediately.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">oq_create_project</span><span class="op">(</span><span class="va">path</span>, reference_doc <span class="op">=</span> <span class="cn">NULL</span>, open <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/interactive.html" class="external-link">interactive</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">oq_create_project</span><span class="op">(</span></span>
+<span>  <span class="va">path</span>,</span>
+<span>  reference_doc <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  quarto_yml <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  open <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/interactive.html" class="external-link">interactive</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -87,11 +92,22 @@ contains a <code>_quarto.yml</code> (no silent clobbering of an existing project
 <dt id="arg-reference-doc">reference_doc<a class="anchor" aria-label="anchor" href="#arg-reference-doc"></a></dt>
 <dd><p>Character or <code>NULL</code> (default). Path to an existing
 <code>.docx</code> to use as the project's <code>reference-doc</code>. When supplied, it is
-copied into <code>path</code> under its own basename, and that basename is written
-into the generated <code>_quarto.yml</code>. When <code>NULL</code>, <code>reference-doc</code> is simply
-omitted from the generated YAML (every officequarto option is already
-per-field optional, so an unset reference-doc is consistent, not a
-special case) - add a reference document and the key later.</p></dd>
+copied into <code>path</code> under its own basename. When <code>quarto_yml</code> is not
+supplied, that basename is also written into the generated
+<code>_quarto.yml</code>. When <code>NULL</code>, <code>reference-doc</code> is simply omitted from the
+generated YAML (every officequarto option is already per-field optional,
+so an unset reference-doc is consistent, not a special case) - add a
+reference document and the key later.</p></dd>
+
+
+<dt id="arg-quarto-yml">quarto_yml<a class="anchor" aria-label="anchor" href="#arg-quarto-yml"></a></dt>
+<dd><p>Character or <code>NULL</code> (default). Path to an existing
+<code>_quarto.yml</code>-style file to use instead of the generated one. Copied
+verbatim to <code>path/_quarto.yml</code> - its content is not inspected or merged
+with <code>reference_doc</code>, so if you also supply <code>reference_doc</code>, make sure
+this file's own <code>format.docx.reference-doc</code> already matches (or edit it
+afterwards). See <code><a href="oq_create_quarto_yml.html">oq_create_quarto_yml()</a></code> if you want a fresh,
+officequarto-ready <code>_quarto.yml</code> to start from.</p></dd>
 
 
 <dt id="arg-open">open<a class="anchor" aria-label="anchor" href="#arg-open"></a></dt>
