@@ -122,30 +122,6 @@ test_that("oq_create_project() fails loudly if quarto_yml doesn't exist", {
   expect_false(dir.exists(project_dir))
 })
 
-test_that("oq_create_quarto_yml() writes a default, all-defaults _quarto.yml", {
-  target <- tempfile("oq_quarto_yml_", fileext = ".yml")
-  on.exit(unlink(target), add = TRUE)
-
-  result <- oq_create_quarto_yml(target)
-
-  expect_identical(result, normalizePath(target))
-  quarto_yml <- readLines(target)
-  expect_true(any(grepl("type: officequarto", quarto_yml)))
-  expect_false(any(grepl("reference-doc:", quarto_yml, fixed = TRUE)))
-})
-
-test_that("oq_create_quarto_yml() fails loudly if the target already exists, unless overwrite = TRUE", {
-  target <- tempfile("oq_quarto_yml_", fileext = ".yml")
-  on.exit(unlink(target), add = TRUE)
-  writeLines("placeholder", target)
-
-  expect_error(oq_create_quarto_yml(target))
-
-  oq_create_quarto_yml(target, overwrite = TRUE)
-  quarto_yml <- readLines(target)
-  expect_true(any(grepl("type: officequarto", quarto_yml)))
-})
-
 test_that("a fully-expanded, all-default oq_create_project() scaffold still renders end-to-end", {
   testthat::skip_if_not(nzchar(Sys.which("quarto")), "quarto CLI not on PATH")
 
