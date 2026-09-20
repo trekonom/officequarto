@@ -134,23 +134,6 @@ test_that("oq_create_quarto_yml() writes a default, all-defaults _quarto.yml", {
   expect_false(any(grepl("reference-doc:", quarto_yml, fixed = TRUE)))
 })
 
-test_that("oq_create_quarto_yml() writes reference_doc's basename without copying the file", {
-  target_dir <- tempfile("oq_quarto_yml_dir_")
-  dir.create(target_dir)
-  on.exit(unlink(target_dir, recursive = TRUE), add = TRUE)
-  target <- file.path(target_dir, "_quarto.yml")
-
-  ref_doc <- tempfile("my-reference-", fileext = ".docx")
-  writeLines("placeholder", ref_doc)
-  on.exit(unlink(ref_doc), add = TRUE)
-
-  oq_create_quarto_yml(target, reference_doc = ref_doc)
-
-  quarto_yml <- readLines(target)
-  expect_true(any(grepl(sprintf("reference-doc: %s", basename(ref_doc)), quarto_yml, fixed = TRUE)))
-  expect_false(file.exists(file.path(target_dir, basename(ref_doc))))
-})
-
 test_that("oq_create_quarto_yml() fails loudly if the target already exists, unless overwrite = TRUE", {
   target <- tempfile("oq_quarto_yml_", fileext = ".yml")
   on.exit(unlink(target), add = TRUE)
@@ -161,14 +144,6 @@ test_that("oq_create_quarto_yml() fails loudly if the target already exists, unl
   oq_create_quarto_yml(target, overwrite = TRUE)
   quarto_yml <- readLines(target)
   expect_true(any(grepl("type: officequarto", quarto_yml)))
-})
-
-test_that("oq_create_quarto_yml() fails loudly if reference_doc doesn't exist", {
-  target <- tempfile("oq_quarto_yml_", fileext = ".yml")
-  on.exit(unlink(target), add = TRUE)
-
-  expect_error(oq_create_quarto_yml(target, reference_doc = "does/not/exist.docx"))
-  expect_false(file.exists(target))
 })
 
 test_that("a fully-expanded, all-default oq_create_project() scaffold still renders end-to-end", {

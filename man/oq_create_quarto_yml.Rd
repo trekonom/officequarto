@@ -2,25 +2,14 @@
 % Please edit documentation in R/create-project.R
 \name{oq_create_quarto_yml}
 \alias{oq_create_quarto_yml}
-\title{Create a standalone officequarto-ready \verb{_quarto.yml}}
+\title{Create a standalone, reusable officequarto-ready \verb{_quarto.yml}}
 \usage{
-oq_create_quarto_yml(
-  path = "_quarto.yml",
-  reference_doc = NULL,
-  overwrite = FALSE
-)
+oq_create_quarto_yml(path = "_quarto.yml", overwrite = FALSE)
 }
 \arguments{
 \item{path}{Character. Destination file path, default \code{"_quarto.yml"}
 (the current working directory). Fails loudly if a file already exists
 at \code{path}, unless \code{overwrite = TRUE} (no silent clobbering).}
-
-\item{reference_doc}{Character or \code{NULL} (default). Path to an existing
-\code{.docx} file; only its basename (not the full path) is written to
-\code{format.docx.reference-doc}. This function does not copy the file
-itself, only writes the reference - make sure the \code{.docx} actually ends
-up alongside the generated \verb{_quarto.yml} before rendering (see
-\code{\link[=oq_create_project]{oq_create_project()}} if you want the copy to happen automatically).}
 
 \item{overwrite}{Logical, default \code{FALSE}. Set \code{TRUE} to overwrite an
 existing file at \code{path}.}
@@ -33,13 +22,15 @@ Writes a \verb{_quarto.yml} listing every \code{officequarto} option at
 its default value (\code{project: type: officequarto} plus the
 \code{format.docx.officequarto} block) - the same content
 \code{\link[=oq_create_project]{oq_create_project()}} generates internally for a brand new project, but
-usable standalone: as a starting point to drop into an already-existing
-Quarto project you want to convert to officequarto, or as a file to
-hand-edit before scaffolding a project with
-\code{oq_create_project(path, quarto_yml = ...)}.
+usable standalone: as a reusable starting point for future projects (to
+hand-edit once and drop into any project you want to convert to
+officequarto, or to later pass as \code{oq_create_project(path, quarto_yml = ...)}). Deliberately has no \code{reference_doc} argument: a reference
+document is project-specific, so baking one in here would work against
+reuse - use \code{\link[=oq_create_project]{oq_create_project()}}'s own \code{reference_doc} argument to wire
+one up for one concrete project.
 }
 \examples{
 \dontrun{
-oq_create_quarto_yml("_quarto.yml", reference_doc = "original.docx")
+oq_create_quarto_yml("_quarto.yml")
 }
 }
