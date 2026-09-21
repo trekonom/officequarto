@@ -17,7 +17,8 @@ Initial public release. Not yet on CRAN.
   optional reference document, and a `_quarto.yml` listing every
   `officequarto` option at its default value. It also accepts a
   `quarto_yml` argument to copy in your own `_quarto.yml` instead of
-  generating one.
+  generating one, and a `starter_qmd` argument to do the same for the
+  starter `.qmd`.
 - Added
   [`oq_create_quarto_yml()`](https://trekonom.github.io/officequarto/reference/oq_create_quarto_yml.md),
   a standalone helper that writes a reusable, officequarto-ready

@@ -35,14 +35,14 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/trekonom/officequarto/blob/v0.2.0/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/trekonom/officequarto/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.2.0" id="officequarto-020">officequarto 0.2.0<a class="anchor" aria-label="anchor" href="#officequarto-020"></a></h2>
 <p>Initial public release. Not yet on CRAN.</p>
 <ul><li>Converted the project into a proper R package (<code>officequarto</code>), with the Quarto extension it powers bundled inside it under <code>inst/_extensions/</code>. The R package is now a required runtime dependency: the extension’s post-render hook is a thin shim that calls the package’s exported <code><a href="../reference/oq_writeback.html">oq_writeback()</a></code>.</li>
-<li>Added <code><a href="../reference/oq_create_project.html">oq_create_project()</a></code> to scaffold a new officequarto project from R (modeled on <code>usethis::create_project()</code>), copying in the bundled extension, an optional reference document, and a <code>_quarto.yml</code> listing every <code>officequarto</code> option at its default value. It also accepts a <code>quarto_yml</code> argument to copy in your own <code>_quarto.yml</code> instead of generating one.</li>
+<li>Added <code><a href="../reference/oq_create_project.html">oq_create_project()</a></code> to scaffold a new officequarto project from R (modeled on <code>usethis::create_project()</code>), copying in the bundled extension, an optional reference document, and a <code>_quarto.yml</code> listing every <code>officequarto</code> option at its default value. It also accepts a <code>quarto_yml</code> argument to copy in your own <code>_quarto.yml</code> instead of generating one, and a <code>starter_qmd</code> argument to do the same for the starter <code>.qmd</code>.</li>
 <li>Added <code><a href="../reference/oq_create_quarto_yml.html">oq_create_quarto_yml()</a></code>, a standalone helper that writes a reusable, officequarto-ready <code>_quarto.yml</code> (the same content <code><a href="../reference/oq_create_project.html">oq_create_project()</a></code> generates internally) to a given path - useful for converting an existing Quarto project to officequarto, or as an editable starting point for future projects.</li>
 <li>Ported a growing set of {officedown}-analogous configuration options, all nested under a single <code>format.docx.officequarto</code> key:
 <ul><li>Paragraph style-mapping for body text and lists (<code>officequarto.styles</code>, <code>officequarto.lists</code>), including per-nesting-level list styles and officedown-compatible option aliases.</li>

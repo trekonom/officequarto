@@ -51,7 +51,7 @@ minimal starter .qmd so the project renders immediately."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Create a new officequarto project</h1>
-      <small class="dont-index">Source: <a href="https://github.com/trekonom/officequarto/blob/v0.2.0/R/create-project.R" class="external-link"><code>R/create-project.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/trekonom/officequarto/blob/main/R/create-project.R" class="external-link"><code>R/create-project.R</code></a></small>
       <div class="d-none name"><code>oq_create_project.Rd</code></div>
     </div>
 
@@ -73,6 +73,7 @@ minimal starter <code>.qmd</code> so the project renders immediately.</p>
 <span>  <span class="va">path</span>,</span>
 <span>  reference_doc <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  quarto_yml <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  starter_qmd <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  open <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/interactive.html" class="external-link">interactive</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -108,6 +109,14 @@ with <code>reference_doc</code>, so if you also supply <code>reference_doc</code
 this file's own <code>format.docx.reference-doc</code> already matches (or edit it
 afterwards). See <code><a href="oq_create_quarto_yml.html">oq_create_quarto_yml()</a></code> if you want a fresh,
 officequarto-ready <code>_quarto.yml</code> to start from.</p></dd>
+
+
+<dt id="arg-starter-qmd">starter_qmd<a class="anchor" aria-label="anchor" href="#arg-starter-qmd"></a></dt>
+<dd><p>Character or <code>NULL</code> (default). Path to an existing
+<code>.qmd</code> file to use as the project's starter document instead of the
+generated one. When supplied, it is copied into <code>path</code> as
+<code>&lt;project_name&gt;.qmd</code>. When <code>NULL</code>, a minimal generated starter <code>.qmd</code>
+(see <code>oq_starter_qmd_template()</code>) is written instead.</p></dd>
 
 
 <dt id="arg-open">open<a class="anchor" aria-label="anchor" href="#arg-open"></a></dt>

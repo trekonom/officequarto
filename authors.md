@@ -7,7 +7,7 @@
 ## Citation
 
 Source:
-[`DESCRIPTION`](https://github.com/trekonom/officequarto/blob/v0.2.0/DESCRIPTION)
+[`DESCRIPTION`](https://github.com/trekonom/officequarto/blob/main/DESCRIPTION)
 
 trekonom (2026). *officequarto: Word Style, Table, Figure, and Metadata
 Write-Back for Quarto DOCX Output*. R package version 0.2.0,

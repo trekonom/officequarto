@@ -17,6 +17,7 @@ oq_create_project(
   path,
   reference_doc = NULL,
   quarto_yml = NULL,
+  starter_qmd = NULL,
   open = interactive()
 )
 ```
@@ -52,6 +53,14 @@ oq_create_project(
   afterwards). See
   [`oq_create_quarto_yml()`](https://trekonom.github.io/officequarto/reference/oq_create_quarto_yml.md)
   if you want a fresh, officequarto-ready `_quarto.yml` to start from.
+
+- starter_qmd:
+
+  Character or `NULL` (default). Path to an existing `.qmd` file to use
+  as the project's starter document instead of the generated one. When
+  supplied, it is copied into `path` as `<project_name>.qmd`. When
+  `NULL`, a minimal generated starter `.qmd` (see
+  `oq_starter_qmd_template()`) is written instead.
 
 - open:
 
