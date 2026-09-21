@@ -38,6 +38,11 @@
 #'   this file's own `format.docx.reference-doc` already matches (or edit it
 #'   afterwards). See [oq_create_quarto_yml()] if you want a fresh,
 #'   officequarto-ready `_quarto.yml` to start from.
+#' @param starter_qmd Character or `NULL` (default). Path to an existing
+#'   `.qmd` file to use as the project's starter document instead of the
+#'   generated one. When supplied, it is copied into `path` as
+#'   `<project_name>.qmd`. When `NULL`, a minimal generated starter `.qmd`
+#'   (see `oq_starter_qmd_template()`) is written instead.
 #' @param open Logical, default `interactive()`. If `TRUE` and the
 #'   `rstudioapi` package is installed and there is an active RStudio
 #'   session, opens the new project via `rstudioapi::openProject()`
@@ -51,7 +56,8 @@
 #' \dontrun{
 #' oq_create_project("my-report", reference_doc = "original.docx")
 #' }
-oq_create_project <- function(path, reference_doc = NULL, quarto_yml = NULL, open = interactive()) {
+oq_create_project <- function(path, reference_doc = NULL, quarto_yml = NULL,
+                               starter_qmd = NULL, open = interactive()) {
   if (missing(path) || !is.character(path) || length(path) != 1 || !nzchar(path)) {
     fail("path must be a single, non-empty path.")
   }
@@ -69,6 +75,14 @@ oq_create_project <- function(path, reference_doc = NULL, quarto_yml = NULL, ope
     }
     if (!file.exists(quarto_yml)) {
       fail("quarto_yml '%s' was not found.", quarto_yml)
+    }
+  }
+  if (!is.null(starter_qmd)) {
+    if (!is.character(starter_qmd) || length(starter_qmd) != 1 || !nzchar(starter_qmd)) {
+      fail("starter_qmd must be a single path (string) or NULL.")
+    }
+    if (!file.exists(starter_qmd)) {
+      fail("starter_qmd '%s' was not found.", starter_qmd)
     }
   }
 
@@ -112,7 +126,14 @@ oq_create_project <- function(path, reference_doc = NULL, quarto_yml = NULL, ope
   }
 
   project_name <- basename(normalizePath(path, mustWork = FALSE))
-  writeLines(oq_starter_qmd_template(project_name), file.path(path, paste0(project_name, ".qmd")))
+  qmd_path <- file.path(path, paste0(project_name, ".qmd"))
+  if (!is.null(starter_qmd)) {
+    ## Verbatim copy, renamed to <project_name>.qmd - same "opaque single
+    ## file, no inspection" treatment as quarto_yml.
+    file.copy(starter_qmd, qmd_path)
+  } else {
+    writeLines(oq_starter_qmd_template(project_name), qmd_path)
+  }
 
   if (isTRUE(open) && requireNamespace("rstudioapi", quietly = TRUE) &&
         rstudioapi::isAvailable()) {

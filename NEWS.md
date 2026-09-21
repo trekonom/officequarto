@@ -9,7 +9,8 @@ Initial public release. Not yet on CRAN.
 * Added `oq_create_project()` to scaffold a new officequarto project from R (modeled on
   `usethis::create_project()`), copying in the bundled extension, an optional reference document,
   and a `_quarto.yml` listing every `officequarto` option at its default value. It also accepts a
-  `quarto_yml` argument to copy in your own `_quarto.yml` instead of generating one.
+  `quarto_yml` argument to copy in your own `_quarto.yml` instead of generating one, and a
+  `starter_qmd` argument to do the same for the starter `.qmd`.
 * Added `oq_create_quarto_yml()`, a standalone helper that writes a reusable, officequarto-ready
   `_quarto.yml` (the same content `oq_create_project()` generates internally) to a given path -
   useful for converting an existing Quarto project to officequarto, or as an editable starting

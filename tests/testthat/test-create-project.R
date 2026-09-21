@@ -96,6 +96,30 @@ test_that("oq_create_project() copies quarto_yml verbatim instead of generating 
   expect_identical(readLines(file.path(project_dir, "_quarto.yml")), readLines(custom_yml))
 })
 
+test_that("oq_create_project() copies starter_qmd verbatim as <project_name>.qmd instead of generating one", {
+  project_dir <- tempfile("oq_project_")
+  on.exit(unlink(project_dir, recursive = TRUE), add = TRUE)
+
+  custom_qmd <- tempfile("custom-", fileext = ".qmd")
+  writeLines(c("---", 'title: "Custom"', "---", "", "My own starter content."), custom_qmd)
+  on.exit(unlink(custom_qmd), add = TRUE)
+
+  oq_create_project(project_dir, starter_qmd = custom_qmd, open = FALSE)
+
+  project_name <- basename(normalizePath(project_dir))
+  qmd_path <- file.path(project_dir, paste0(project_name, ".qmd"))
+  expect_true(file.exists(qmd_path))
+  expect_identical(readLines(qmd_path), readLines(custom_qmd))
+})
+
+test_that("oq_create_project() fails loudly if starter_qmd doesn't exist", {
+  project_dir <- tempfile("oq_project_")
+  on.exit(unlink(project_dir, recursive = TRUE), add = TRUE)
+
+  expect_error(oq_create_project(project_dir, starter_qmd = "does/not/exist.qmd", open = FALSE))
+  expect_false(dir.exists(project_dir))
+})
+
 test_that("oq_create_project() with both quarto_yml and reference_doc copies the docx but leaves the yaml untouched", {
   project_dir <- tempfile("oq_project_")
   on.exit(unlink(project_dir, recursive = TRUE), add = TRUE)
