@@ -8,6 +8,7 @@ oq_create_project(
   path,
   reference_doc = NULL,
   quarto_yml = NULL,
+  starter_qmd = NULL,
   open = interactive()
 )
 }
@@ -34,6 +35,12 @@ with \code{reference_doc}, so if you also supply \code{reference_doc}, make sure
 this file's own \code{format.docx.reference-doc} already matches (or edit it
 afterwards). See \code{\link[=oq_create_quarto_yml]{oq_create_quarto_yml()}} if you want a fresh,
 officequarto-ready \verb{_quarto.yml} to start from.}
+
+\item{starter_qmd}{Character or \code{NULL} (default). Path to an existing
+\code{.qmd} file to use as the project's starter document instead of the
+generated one. When supplied, it is copied into \code{path} as
+\verb{<project_name>.qmd}. When \code{NULL}, a minimal generated starter \code{.qmd}
+(see \code{oq_starter_qmd_template()}) is written instead.}
 
 \item{open}{Logical, default \code{interactive()}. If \code{TRUE} and the
 \code{rstudioapi} package is installed and there is an active RStudio
