@@ -20,6 +20,7 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/options.html">Configuring officequarto</a></li>
     <li><a class="dropdown-item" href="../articles/officer-syntax.html">Using officer syntax inline</a></li>
+    <li><a class="dropdown-item" href="../articles/block-markers.html">Block markers: TOC, page breaks and landscape sections</a></li>
     <li><a class="dropdown-item" href="../articles/architecture.html">Package architecture</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -40,7 +41,8 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="officequarto-development-version">officequarto (development version)<a class="anchor" aria-label="anchor" href="#officequarto-development-version"></a></h2>
-<ul><li>Fixed officer style-name markers (<code>w:pstlname</code> / <code>w:tstlname</code>) reaching the final docx unresolved, which made Word ignore styles set through officer or officedown in Quarto (e.g. officedown’s <code>tab.style</code> chunk option and <code>fp_par(word_style = )</code>). They are now resolved to real style IDs during write-back; a style name that doesn’t exist in the document is reported as a warning.</li>
+<ul><li>The extension now ships a Pandoc Lua filter, <code>scripts/markers.lua</code>, that revives {officedown}’s HTML-comment markers for docx output: <code>&lt;!---BLOCK_TOC---&gt;</code>, <code>&lt;!---BLOCK_PAGEBREAK---&gt;</code> and <code>&lt;!---BLOCK_LANDSCAPE_START---&gt;</code> / <code>&lt;!---BLOCK_LANDSCAPE_STOP---&gt;</code> (optional custom size). See <code><a href="../articles/block-markers.html">vignette("block-markers")</a></code>.</li>
+<li>Fixed officer style-name markers (<code>w:pstlname</code> / <code>w:tstlname</code>) reaching the final docx unresolved, which made Word ignore styles set through officer or officedown in Quarto (e.g. officedown’s <code>tab.style</code> chunk option and <code>fp_par(word_style = )</code>). They are now resolved to real style IDs during write-back; a style name that doesn’t exist in the document is reported as a warning.</li>
 </ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.2.0" id="officequarto-020">officequarto 0.2.0<a class="anchor" aria-label="anchor" href="#officequarto-020"></a></h2>

@@ -20,6 +20,7 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="articles/options.html">Configuring officequarto</a></li>
     <li><a class="dropdown-item" href="articles/officer-syntax.html">Using officer syntax inline</a></li>
+    <li><a class="dropdown-item" href="articles/block-markers.html">Block markers: TOC, page breaks and landscape sections</a></li>
     <li><a class="dropdown-item" href="articles/architecture.html">Package architecture</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="news/index.html">Changelog</a></li>
@@ -58,10 +59,14 @@
 <div class="sourceCode" id="cb3"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="bu">cd</span> dev/fixtures/auto-number</span>
 <span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="ex">quarto</span> render report.qmd</span>
 <span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="ex">Rscript</span> ../../check-auto-number-e2e.R</span></code></pre></div>
+<p>The <code>&lt;!---BLOCK_*---&gt;</code> markers (the extension’s <code>markers.lua</code> filter) have a fixture too:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="bu">cd</span> dev/fixtures/block-markers</span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a><span class="ex">quarto</span> render report.qmd</span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a><span class="ex">Rscript</span> ../../check-block-markers-e2e.R</span></code></pre></div>
 <p>Editing any file under <code>R/</code> requires reinstalling the package (<code>devtools::install()</code>, see above) before the next <code>quarto render</code> picks up the change — unlike <code>template/report.qmd</code>, which is a plain Quarto document rendered fresh every time.</p>
 <p><code>dev/make-sample-docx.R</code> regenerates the sample template <code>template/original.docx</code>, including the ACME custom styles used for style-mapping (requires the R packages <code>officer</code> and <code>xml2</code>, only for generating the sample template, not for the hook itself).</p>
 <p>Building the pkgdown site locally (e.g. to preview vignette changes):</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">pkgdown</span><span class="fu">::</span><span class="fu"><a href="https://pkgdown.r-lib.org/reference/build_site.html" class="external-link">build_site</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 </div>
 </div>

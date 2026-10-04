@@ -94,6 +94,9 @@ properties/custom styles) + `report.qmd` + `_quarto.yml`.
 - [`vignette("officer-syntax", package = "officequarto")`](https://trekonom.github.io/officequarto/articles/officer-syntax.md)
   — using {officer}’s run/paragraph/block constructors directly inline
   in a `.qmd`.
+- [`vignette("block-markers", package = "officequarto")`](https://trekonom.github.io/officequarto/articles/block-markers.md)
+  — officedown-style `<!---BLOCK_TOC--->` / page-break / landscape
+  markers for docx output.
 
 ## Known limitations
 
