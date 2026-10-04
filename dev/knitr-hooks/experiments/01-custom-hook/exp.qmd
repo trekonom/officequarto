@@ -1,0 +1,15 @@
+---
+format: docx
+---
+
+```{r setup}
+#| include: false
+knitr::knit_hooks$set(myhook = function(before, options) {
+  if (before) "\n\nMYHOOK-BEFORE-MARKER\n\n" else "\n\nMYHOOK-AFTER-MARKER\n\n"
+})
+```
+
+```{r}
+#| myhook: true
+1 + 1
+```

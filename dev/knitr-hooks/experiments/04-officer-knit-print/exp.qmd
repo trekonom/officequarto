@@ -1,0 +1,28 @@
+---
+format: docx
+---
+
+```{r setup}
+#| include: false
+library(officer)
+library(officedown)
+```
+
+Text before.
+
+```{r}
+#| echo: false
+run_pagebreak()
+```
+
+```{r}
+#| echo: false
+block_toc(level = 2)
+```
+
+```{r}
+#| echo: false
+block_section(prop_section(page_size = page_size(orient = "landscape"), type = "continuous"))
+```
+
+Caption with autonum: `r run_autonum(seq_id = "tab", pre_label = "Tabelle ", bkm = "bkm_exp")` text.

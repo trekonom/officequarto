@@ -1,0 +1,51 @@
+---
+format: docx
+knitr:
+  opts_chunk:
+    tab.cap.style: "Table Caption"
+    tab.cap.pre: "Tabelle "
+    tab.cap.sep: ": "
+---
+
+```{r setup}
+#| include: false
+library(officer)
+library(officedown)
+library(flextable)
+library(ggplot2)
+```
+
+```{r}
+#| echo: false
+#| tab.cap: "DATAFRAME-CAPTION"
+#| tab.id: "dftab"
+head(mtcars[, 1:3])
+```
+
+```{r}
+#| echo: false
+#| tab.cap: "FLEXTABLE-CAPTION"
+#| tab.id: "fttab"
+flextable(head(mtcars[, 1:3]))
+```
+
+```{r}
+#| echo: false
+#| label: tbl-ft
+#| tbl-cap: "QUARTO-TBLCAP-FT"
+flextable(head(mtcars[, 1:3]))
+```
+
+```{r}
+#| echo: false
+set_caption(flextable(head(mtcars[, 1:3])),
+            caption = as_paragraph("SETCAPTION-FT"),
+            autonum = run_autonum(seq_id = "tab", bkm = "ftset"))
+```
+
+```{r}
+#| echo: false
+#| label: fig-gg
+#| fig-cap: "GGPLOT-CAPTION"
+ggplot(mtcars, aes(wt, mpg)) + geom_point()
+```

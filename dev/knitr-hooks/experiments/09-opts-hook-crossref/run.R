@@ -1,0 +1,7 @@
+d <- dirname(sub("--file=", "", grep("--file=", commandArgs(), value = TRUE)))
+source(file.path(d, "..", "lib.R"))
+r <- render_docx(d, "exp.qmd")
+report("render ok", r$status == 0)
+report("caption text", has(r$xml, "HOOKED-CAP"))
+report("'Figure 1' prefix (Quarto numbering)", has(r$xml, "Figure 1") || has(r$xml, "Figure 1") || has(r$xml, "Figure&#160;1"))
+report("crossref hyperlink fig-hooked", has(r$xml, "w:anchor=\"fig-hooked\""))

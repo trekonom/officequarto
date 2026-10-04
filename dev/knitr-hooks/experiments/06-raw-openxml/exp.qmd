@@ -1,0 +1,21 @@
+---
+format: docx
+---
+
+```{r setup}
+#| include: false
+raw_run <- knitr::asis_output(paste0("`", "<w:r><w:t>INLINE-RUN-MARKER</w:t></w:r>", "`{=openxml}"))
+```
+
+```{r}
+#| echo: false
+knitr::asis_output('```{=openxml}\n<w:p><w:r><w:t>ASIS-BLOCK-MARKER</w:t></w:r></w:p>\n```\n')
+```
+
+```{r}
+#| echo: false
+#| results: asis
+cat('\n\n```{=openxml}\n<w:p><w:r><w:t>CAT-BLOCK-MARKER</w:t></w:r></w:p>\n```\n\n')
+```
+
+Inline raw: `r raw_run` end.

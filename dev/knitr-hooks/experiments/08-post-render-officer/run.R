@@ -1,0 +1,7 @@
+d <- dirname(sub("--file=", "", grep("--file=", commandArgs(), value = TRUE)))
+source(file.path(d, "..", "lib.R"))
+r <- render_docx(file.path(d, "proj"), "exp.qmd")
+report("render ok", r$status == 0)
+report("officer-appended paragraph present after post-render", has(r$xml, "OFFICER-POSTRENDER-MARKER"))
+report("original body preserved", has(r$xml, "Body paragraph."))
+if (r$status != 0) cat(tail(r$log, 10), sep = "\n")

@@ -1,0 +1,15 @@
+---
+format: docx
+filters:
+  - markers.lua
+---
+
+A
+
+<!---BLOCK_LANDSCAPE_START--->
+
+B
+
+<!---BLOCK_LANDSCAPE_STOP {"w":15840,"h":12240}--->
+
+C

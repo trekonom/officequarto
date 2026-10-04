@@ -1,0 +1,18 @@
+---
+format: docx
+---
+
+```{r setup}
+#| include: false
+# officedown-style option (tab.cap) translated into a Quarto/knitr one (fig.cap) by an opts_hook
+knitr::opts_hooks$set(tab.cap = function(options) {
+  options$fig.cap <- paste("FROM-OPTS-HOOK:", options$tab.cap)
+  options
+})
+```
+
+```{r}
+#| label: fig-hooked
+#| tab.cap: "my table caption"
+plot(1:3)
+```

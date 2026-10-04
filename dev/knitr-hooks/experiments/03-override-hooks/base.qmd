@@ -1,0 +1,11 @@
+---
+format: docx
+---
+
+```{r}
+#| label: fig-a
+#| fig-cap: "BASE-CAPTION"
+plot(1:3)
+```
+
+See @fig-a.
