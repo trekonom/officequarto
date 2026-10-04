@@ -6,4 +6,4 @@ Test: `b-pandoc-args.qmd` setzt `opts_knit$rmarkdown.pandoc.args = c("--referenc
 **Randbefunde:**
 - `tab.style` erwartet den **Anzeigenamen** (`table_template`), nicht die Style-ID (`tabletemplate`); mit der ID bricht der Round-Trip mit „Some styles can not be found in the document" ab. (Exp. 10 hatte zunächst die ID benutzt; das Ergebnis dort – Marker bleiben stehen – gilt unabhängig davon.)
 - Dieselbe Ursache erklärt die in `CLAUDE.md` dokumentierten `w:pstlname`-Reste bei `fp_par()`.
-**Konsequenz für officequarto:** Mögliche Härtung (nicht umgesetzt): im `oq_writeback()` verbliebene `w:pstlname`/`w:tstlname` anhand von `styles.xml` (Name→ID) nach `w:val` umschreiben – ohne officer-Abhängigkeit, analog zu `oq_style_name_to_id()`.
+**Konsequenz für officequarto:** Umgesetzt in PR #21 (`oq_resolve_style_name_markers()`): im `oq_writeback()` verbliebene `w:pstlname`/`w:tstlname` anhand von `styles.xml` (Name→ID) nach `w:val` umschreiben – ohne officer-Abhängigkeit, analog zu `oq_style_name_to_id()`.

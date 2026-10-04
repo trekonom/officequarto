@@ -22,5 +22,5 @@ inline; Marker nur bei Bedarf per Lua-Filter. officedown's Plot-Hook nicht über
 - Größen-Override der Landscape-Section funktioniert (Exp. 11).
 
 ## Offen
-- Optional: officequarto könnte verbliebene `pstlname`/`tstlname` selbst nach `w:val` umschreiben (ohne officer).
+- Umgesetzt in PR #21: `oq_writeback()` schreibt verbliebene `pstlname`/`tstlname` selbst nach `w:val` um (`R/style-name-markers.R`, ohne officer). `tab.style` und `fp_par(word_style=)` wirken damit in officequarto-Projekten ohne eigenen Round-Trip.
 - Landscape mit Kopf-/Fußzeilen und freien Rändern; Spalten-Sections (`BLOCK_MULTICOL_*`) nicht umgesetzt.
