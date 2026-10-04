@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">officequarto</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -40,7 +40,7 @@
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="development version" id="officequarto-development-version">officequarto (development version)<a class="anchor" aria-label="anchor" href="#officequarto-development-version"></a></h2>
+<h2 class="pkg-version" data-toc-text="0.3.0" id="officequarto-030">officequarto 0.3.0<a class="anchor" aria-label="anchor" href="#officequarto-030"></a></h2>
 <ul><li>The extension now ships a Pandoc Lua filter, <code>scripts/markers.lua</code>, that revives {officedown}’s HTML-comment markers for docx output: <code>&lt;!---BLOCK_TOC---&gt;</code>, <code>&lt;!---BLOCK_PAGEBREAK---&gt;</code> and <code>&lt;!---BLOCK_LANDSCAPE_START---&gt;</code> / <code>&lt;!---BLOCK_LANDSCAPE_STOP---&gt;</code> (optional custom size). See <code><a href="../articles/block-markers.html">vignette("block-markers")</a></code>.</li>
 <li>Fixed officer style-name markers (<code>w:pstlname</code> / <code>w:tstlname</code>) reaching the final docx unresolved, which made Word ignore styles set through officer or officedown in Quarto (e.g. officedown’s <code>tab.style</code> chunk option and <code>fp_par(word_style = )</code>). They are now resolved to real style IDs during write-back; a style name that doesn’t exist in the document is reported as a warning.</li>
 </ul></div>
