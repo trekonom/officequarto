@@ -7,12 +7,13 @@ format:
 ```{r setup}
 #| include: false
 library(officedown)
+knitr::opts_knit$set(rmarkdown.pandoc.args = c("--reference-doc", "ref.docx"))
+cat("PANDOC.ARGS:", format(knitr::opts_knit$get("rmarkdown.pandoc.args")), "\n", file = stderr())
 ```
 
 ```{r}
 #| echo: false
 #| tab.cap: "STYLED-TABLE"
-#| tab.id: "styled"
 #| tab.style: "table_template"
 head(mtcars[, 1:3])
 ```

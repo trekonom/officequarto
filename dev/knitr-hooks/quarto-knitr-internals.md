@@ -45,7 +45,7 @@ also dessen `opts_chunk`-Defaults, `knit_hooks$plot`, `post_knit` und `post_proc
 `rmarkdown.version = 3`, `rmarkdown.runtime = "static"`, `quarto.version = 1`. Für `format: docx` ist der
 Wert `docx` → alle officedown/officer-`knit_print`-Methoden (`grepl("docx", …)`) greifen **[Exp. 4/5]**.
 Nicht gesetzt: `rmarkdown.pandoc.args` → `officer::get_reference_docx`-Logik (`officer/R/knitr_utils.R:84`)
-findet kein `--reference-doc` und fällt auf das Pandoc-Default-Template zurück (Tabellenstil-Auflösung
+findet kein `--reference-doc` (für die Stilauflösung in Exp. 12 aber *nicht* ausschlaggebend; entscheidend ist das fehlende Schreiben durch officer) (Tabellenstil-Auflösung
 gegen *falsches* Dokument möglich) **[Exp. 5]**.
 
 ### Werden ```` ```{=openxml} ````-Blöcke durchgereicht?
