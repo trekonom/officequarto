@@ -1,5 +1,9 @@
 # officequarto (development version)
 
+* The extension now ships a Pandoc Lua filter, `scripts/markers.lua`, that revives {officedown}'s
+  HTML-comment markers for docx output: `<!---BLOCK_TOC--->`, `<!---BLOCK_PAGEBREAK--->` and
+  `<!---BLOCK_LANDSCAPE_START--->` / `<!---BLOCK_LANDSCAPE_STOP--->` (optional custom size). See
+  `vignette("block-markers")`.
 * Fixed officer style-name markers (`w:pstlname` / `w:tstlname`) reaching the final docx unresolved,
   which made Word ignore styles set through officer or officedown in Quarto (e.g. officedown's
   `tab.style` chunk option and `fp_par(word_style = )`). They are now resolved to real style IDs

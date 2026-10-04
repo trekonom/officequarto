@@ -39,6 +39,14 @@ quarto render report.qmd
 Rscript ../../check-auto-number-e2e.R
 ```
 
+The `<!---BLOCK_*--->` markers (the extension's `markers.lua` filter) have a fixture too:
+
+```bash
+cd dev/fixtures/block-markers
+quarto render report.qmd
+Rscript ../../check-block-markers-e2e.R
+```
+
 Editing any file under `R/` requires reinstalling the package (`devtools::install()`,
 see above) before the next `quarto render` picks up the change — unlike
 `template/report.qmd`, which is a plain Quarto document rendered fresh every time.

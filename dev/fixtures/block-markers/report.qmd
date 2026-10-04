@@ -1,0 +1,35 @@
+---
+title: "Block markers"
+---
+
+# Inhalt
+
+<!---BLOCK_TOC--->
+
+<!---BLOCK_PAGEBREAK--->
+
+# Hochformat
+
+Text im Hochformat.
+
+<!---BLOCK_LANDSCAPE_START--->
+
+# Querformat
+
+Text im Querformat.
+
+<!---BLOCK_LANDSCAPE_STOP--->
+
+# Wieder Hochformat
+
+Text.
+
+<!---BLOCK_LANDSCAPE_START--->
+
+Zweiter Abschnitt mit eigener Größe (Letter quer).
+
+<!---BLOCK_LANDSCAPE_STOP {"w":15840,"h":12240}--->
+
+<!---BLOCK_UNKNOWN--->
+
+Ende.

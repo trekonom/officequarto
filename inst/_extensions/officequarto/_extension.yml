@@ -8,3 +8,7 @@ contributes:
       type: default
       post-render:
         - scripts/writeback.R
+    format:
+      docx:
+        filters:
+          - scripts/markers.lua
