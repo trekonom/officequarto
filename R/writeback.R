@@ -384,16 +384,36 @@ oq_writeback <- function() {
     ## option is set. Runs first, before anything else reads document.xml/
     ## footnotes.xml/endnotes.xml, so every later step sees a schema-valid
     ## paragraph structure.
+    ## Also unconditional, and first: resolve officer's style-name markers
+    ## (w:pstlname/w:tstlname) into real w:val styleIds (see
+    ## R/style-name-markers.R) so the merge below sees well-formed pStyles.
     n_ppr_fixed <- 0
+    n_markers <- 0L
+    unresolved_markers <- character()
+    rendered_styles_for_markers <- file.path(work_dir, "word", "styles.xml")
     for (part in c("document.xml", "footnotes.xml", "endnotes.xml")) {
       part_path <- file.path(work_dir, "word", part)
       if (!file.exists(part_path)) next
       part_doc <- xml2::read_xml(part_path)
-      n_fixed <- oq_merge_misplaced_ppr(part_doc)
-      if (n_fixed > 0) {
-        xml2::write_xml(part_doc, part_path)
-        n_ppr_fixed <- n_ppr_fixed + n_fixed
+      changed <- FALSE
+      if (file.exists(rendered_styles_for_markers) &&
+          length(xml2::xml_find_first(part_doc, "//w:pStyle[@w:pstlname] | //w:tblStyle[@w:tstlname]")) > 0 &&
+          !is.na(xml2::xml_find_first(part_doc, "//w:pStyle[@w:pstlname] | //w:tblStyle[@w:tstlname]"))) {
+        marker_result <- oq_resolve_style_name_markers(part_doc, xml2::read_xml(rendered_styles_for_markers))
+        n_markers <- n_markers + marker_result$resolved
+        unresolved_markers <- union(unresolved_markers, marker_result$unresolved)
+        changed <- TRUE
       }
+      n_fixed <- oq_merge_misplaced_ppr(part_doc)
+      if (n_fixed > 0) n_ppr_fixed <- n_ppr_fixed + n_fixed
+      if (changed || n_fixed > 0) xml2::write_xml(part_doc, part_path)
+    }
+    if (n_markers > 0) {
+      log_msg("resolved %d officer style-name marker(s) to style IDs.", n_markers)
+    }
+    if (length(unresolved_markers) > 0) {
+      log_msg("Warning: officer style(s) not found in the document, default style used instead: %s",
+              paste(unresolved_markers, collapse = ", "))
     }
     if (n_ppr_fixed > 0) {
       log_msg("fixed up %d misplaced w:pPr element(s) from officer inline syntax (fp_par()).", n_ppr_fixed)

@@ -202,6 +202,9 @@ R/                             package logic - oq_writeback()/oq_create_project(
 │                                see "officer inline syntax" below)
 ├── officer-par-merge.R           oq_merge_misplaced_ppr() - fixes up fp_par()'s inline-spliced
 │                                w:pPr (see "officer inline syntax" below)
+├── style-name-markers.R          oq_resolve_style_name_markers() - turns officer's w:pstlname/
+│                                w:tstlname style-name markers into real w:val styleIds (see
+│                                "officer inline syntax" below)
 └── zzz.R                         .onLoad(): conditional knit_print S3 registration
 
 inst/_extensions/officequarto/  the Quarto extension itself - installed alongside the package,
@@ -944,6 +947,27 @@ found via this project's own verification, not carried over from officedown):
   produce the identical two-`w:pPr` shape with a well-formed, `w:val`-bearing `pStyle` — a blanket
   exclusion by name broke table/figure caption detection (regressed `dev/check-writeback.R`'s
   table-option/caption counts) before being narrowed to this precise condition.
+
+**Style-name markers (`R/style-name-markers.R`).** The `w:pstlname` bug above is a symptom of a
+broader mechanism: officer writes *every* style it is given (`fp_par(word_style=)`,
+`prop_table(style=)` via officedown's `tab.style`, `block_caption(style=)`, ...) as a marker
+attribute holding the style's **display name** (`w:pstlname` on `w:pStyle`, `w:tstlname` on
+`w:tblStyle`) and only swaps it for a real `w:val` styleId when it *writes* a docx
+(`print.rdocx()` -> `convert_custom_styles_in_wml()`, officer's `R/utils-xml.R`) — which
+{officedown}'s `post_processor` triggers under R Markdown. Quarto has no such step, so the markers
+reached the final docx unresolved and Word ignored them (isolated in
+`dev/knitr-hooks/experiments/12-table-style-cause`; a missing `--reference-doc` in
+`rmarkdown.pandoc.args` was tested and ruled out). `oq_resolve_style_name_markers(part_doc,
+styles_doc)` does the same name -> id swap against the rendered `styles.xml`, with no {officer}
+dependency (reuses `oq_style_name_to_id()`; exact match, then case-insensitive). Run
+unconditionally in `writeback.R`, **before** `oq_merge_misplaced_ppr()`, so a resolved `fp_par()`
+`pStyle` now has a `w:val` and is merged like any other well-formed one (`fp_par(word_style=)`
+works now, contrary to the paragraph above, which describes the pre-fix behavior). An unknown
+name has nothing to resolve to: the invalid element is removed (default style applies) and
+`writeback.R` logs a warning naming it — warn rather than abort, unlike officequarto's own
+`officequarto.*` style options, since the name comes from user R code, not config. xml2 cannot
+remove a namespaced attribute (`xml_attr<- NULL` is a silent no-op), hence the node is replaced,
+not edited. Tests: `tests/testthat/test-style-name-markers.R`.
 
 A second, unrelated bug was found and fixed during the same verification pass (real Word, via
 AppleScript, across `template/`, `dev/fixtures/auto-number/`, and an external consumer project): a
