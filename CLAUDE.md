@@ -133,6 +133,15 @@ quarto render report.qmd
 Rscript ../../check-auto-number-e2e.R
 ```
 
+`BLOCK_*` comment markers (the extension's `markers.lua` filter) have their own fixture too,
+`dev/fixtures/block-markers/`:
+
+```bash
+cd dev/fixtures/block-markers
+quarto render report.qmd
+Rscript ../../check-block-markers-e2e.R
+```
+
 Regenerate the sample template (`template/original.docx`), including the sixteen ACME custom
 paragraph styles used to test style-mapping (body/bullet/number/letter/code-block/table-caption/
 plot/plot-caption/title/footnote-text):
@@ -983,6 +992,32 @@ Real end-to-end coverage: `template/report.qmd`'s "Officer-Inline-Syntax" sectio
 final document carries more than one `w:pPr`. `tests/testthat/test-knit-print.R` and
 `tests/testthat/test-officer-par-merge.R` cover the pure-R logic independent of a live
 `quarto render`.
+
+### Block markers (`inst/_extensions/officequarto/scripts/markers.lua`, no R code)
+
+Revives {officedown}'s `<!---BLOCK_TOC--->` / `BLOCK_LANDSCAPE_START/STOP` comment markers (plus a
+new `BLOCK_PAGEBREAK`), which Quarto silently drops: officedown evaluates them in its
+`rdocx_document()` `post_knit` step (`R/rdocx_pre_proc.R :: block_macro`), and Quarto offers no such
+hook. Pure Lua, not R — a Pandoc filter turning the HTML-comment `RawBlock` into `openxml`, because
+that is the one place left where the raw markdown is still addressable. Investigation trail:
+`dev/knitr-hooks/` (experiments 7 and 11, `prototype/markers.lua`).
+
+- **Wired in via `_extension.yml`**: `contributes.project.format.docx.filters` — a *project*
+  extension can contribute format config (verified empirically; filter paths resolve relative to
+  the extension directory), so the markers work with just `project: type: officequarto`, no
+  per-document `filters:` entry.
+- Landscape semantics mirror Quarto's own `landscape.lua`: a section break is a paragraph whose
+  `w:pPr/w:sectPr` describes the section that **ends** there (START ends the portrait section, STOP
+  the landscape one). Only `w:pgSz` is written, so margins/headers/footers of those sections are
+  Word defaults; documented as a limitation in `vignette("block-markers")`.
+- **Interaction with `officequarto.page`**: that option patches every `w:sectPr` in the document, so
+  it would overwrite the landscape sizes — documented as "don't combine", deliberately not guarded
+  in code.
+- Not ported: `BLOCK_POUR_DOCX`, `BLOCK_MULTICOL_*`, officedown's full YAML marker arguments.
+- Coverage: `dev/fixtures/block-markers/` + `dev/check-block-markers-e2e.R` (TOC field, page break,
+  section order/orientations, default and custom size). Verified in real Word (via AppleScript): 5
+  sections in the expected portrait/landscape order. Fixture outputs are gitignored
+  (`dev/fixtures/*/report.docx`).
 
 ### Key constraints/gotchas
 

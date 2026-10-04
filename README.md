@@ -82,6 +82,8 @@ with its own header/footer/custom properties/custom styles) + `report.qmd` +
   more.
 - `vignette("officer-syntax", package = "officequarto")` — using {officer}'s
   run/paragraph/block constructors directly inline in a `.qmd`.
+- `vignette("block-markers", package = "officequarto")` — officedown-style
+  `<!---BLOCK_TOC--->` / page-break / landscape markers for docx output.
 
 ## Known limitations
 

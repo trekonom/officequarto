@@ -20,4 +20,5 @@ articles:
   contents:
   - options
   - officer-syntax
+  - block-markers
   - architecture
