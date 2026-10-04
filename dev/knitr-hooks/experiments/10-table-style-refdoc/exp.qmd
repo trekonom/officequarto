@@ -1,0 +1,18 @@
+---
+format:
+  docx:
+    reference-doc: ref.docx
+---
+
+```{r setup}
+#| include: false
+library(officedown)
+```
+
+```{r}
+#| echo: false
+#| tab.cap: "STYLED-TABLE"
+#| tab.id: "styled"
+#| tab.style: "tabletemplate"
+head(mtcars[, 1:3])
+```

@@ -1,0 +1,15 @@
+---
+format: docx
+---
+
+Before.
+
+<!---BLOCK_TOC--->
+
+<!---BLOCK_LANDSCAPE_START--->
+
+Landscape part.
+
+<!---BLOCK_LANDSCAPE_STOP{"width": 11, "height": 8}--->
+
+After.

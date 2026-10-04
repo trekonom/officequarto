@@ -1,0 +1,5 @@
+source(file.path(dirname(sub("--file=", "", grep("--file=", commandArgs(), value = TRUE))), "..", "lib.R"))
+r <- render_docx(dirname(sub("--file=", "", grep("--file=", commandArgs(), value = TRUE))), "exp.qmd")
+report("render ok", r$status == 0)
+report("custom hook 'before' output in document.xml", has(r$xml, "MYHOOK-BEFORE-MARKER"))
+report("custom hook 'after' output in document.xml", has(r$xml, "MYHOOK-AFTER-MARKER"))

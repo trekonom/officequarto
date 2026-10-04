@@ -1,0 +1,40 @@
+---
+title: "Prototype demo"
+format: docx
+filters:
+  - markers.lua
+---
+
+```{r setup}
+#| include: false
+source("oq-hooks.R")
+```
+
+# Intro
+
+<!---BLOCK_TOC--->
+
+<!---BLOCK_PAGEBREAK--->
+
+# Portrait part
+
+Text before the wide section.
+
+<!---BLOCK_LANDSCAPE_START--->
+
+# Landscape part
+
+```{r}
+#| label: fig-wide
+#| fig-cap: "WIDE-FIGURE"
+#| fig.note: "chained"
+plot(1:10)
+```
+
+See @fig-wide.
+
+<!---BLOCK_LANDSCAPE_STOP--->
+
+# Back to portrait
+
+End.

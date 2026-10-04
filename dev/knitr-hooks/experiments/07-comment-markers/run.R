@@ -1,0 +1,8 @@
+d <- dirname(sub("--file=", "", grep("--file=", commandArgs(), value = TRUE)))
+source(file.path(d, "..", "lib.R"))
+r <- render_docx(d, "exp.qmd")
+report("render ok", r$status == 0)
+report("TOC field generated from <!---BLOCK_TOC--->", has(r$xml, "TOC \\"))
+report("landscape section generated", has(r$xml, "w:orient=\"landscape\""))
+report("markers silently dropped as HTML comments", !has(r$xml, "BLOCK_"))
+if (r$status != 0) cat(tail(r$log, 10), sep = "\n")

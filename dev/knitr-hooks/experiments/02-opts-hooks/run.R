@@ -1,0 +1,5 @@
+d <- dirname(sub("--file=", "", grep("--file=", commandArgs(), value = TRUE)))
+source(file.path(d, "..", "lib.R"))
+r <- render_docx(d, "exp.qmd")
+report("render ok", r$status == 0)
+report("caption set by opts_hook appears in docx", has(r$xml, "FROM-OPTS-HOOK: my table caption"))

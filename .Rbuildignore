@@ -11,3 +11,5 @@
 ^docs$
 ^doc$
 ^Meta$
+^plans$
+^vendor$
