@@ -1,5 +1,14 @@
 # Changelog
 
+## officequarto (development version)
+
+- Fixed officer style-name markers (`w:pstlname` / `w:tstlname`)
+  reaching the final docx unresolved, which made Word ignore styles set
+  through officer or officedown in Quarto (e.g. officedown’s `tab.style`
+  chunk option and `fp_par(word_style = )`). They are now resolved to
+  real style IDs during write-back; a style name that doesn’t exist in
+  the document is reported as a warning.
+
 ## officequarto 0.2.0
 
 Initial public release. Not yet on CRAN.

@@ -39,6 +39,10 @@
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="development version" id="officequarto-development-version">officequarto (development version)<a class="anchor" aria-label="anchor" href="#officequarto-development-version"></a></h2>
+<ul><li>Fixed officer style-name markers (<code>w:pstlname</code> / <code>w:tstlname</code>) reaching the final docx unresolved, which made Word ignore styles set through officer or officedown in Quarto (e.g. officedown’s <code>tab.style</code> chunk option and <code>fp_par(word_style = )</code>). They are now resolved to real style IDs during write-back; a style name that doesn’t exist in the document is reported as a warning.</li>
+</ul></div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.2.0" id="officequarto-020">officequarto 0.2.0<a class="anchor" aria-label="anchor" href="#officequarto-020"></a></h2>
 <p>Initial public release. Not yet on CRAN.</p>
 <ul><li>Converted the project into a proper R package (<code>officequarto</code>), with the Quarto extension it powers bundled inside it under <code>inst/_extensions/</code>. The R package is now a required runtime dependency: the extension’s post-render hook is a thin shim that calls the package’s exported <code><a href="../reference/oq_writeback.html">oq_writeback()</a></code>.</li>
@@ -58,7 +62,8 @@
 <li>Added support for using {officer}’s run/paragraph/block constructors (<code><a href="https://davidgohel.github.io/officer/reference/ftext.html" class="external-link">ftext()</a></code>, <code><a href="https://davidgohel.github.io/officer/reference/fp_par.html" class="external-link">fp_par()</a></code>, <code><a href="https://davidgohel.github.io/officer/reference/block_pour_docx.html" class="external-link">block_pour_docx()</a></code>, …) directly as inline R expressions in a <code>.qmd</code>, the same way {officedown} supports in an <code>.Rmd</code> — registers <code>knit_print</code> methods for {officer}’s S3 classes so this works without needing {officedown} itself. See <code><a href="../articles/officer-syntax.html">vignette("officer-syntax")</a></code>. <code><a href="https://davidgohel.github.io/officer/reference/fp_par.html" class="external-link">fp_par()</a></code>’s misplaced <code>w:pPr</code> fragment (a structural necessity of the inline mechanism, shared with {officedown}) is automatically merged back into the paragraph’s real <code>w:pPr</code> after render.</li>
 <li>Fixed: the rendered <code>.docx</code> could fail to open in Word entirely, from two independent causes, both only visible against real Word (not <code>python-docx</code>/XML well-formedness checks, which stayed silent): a scratch comparison directory (<code>__original__/</code>) was leaking into the final <code>.docx</code>’s zip archive, and any paragraph ending up with more than one <code>w:pPr</code> (from <code><a href="https://davidgohel.github.io/officer/reference/fp_par.html" class="external-link">fp_par()</a></code> inline syntax, or independently from Pandoc’s own caption-wrapper-cell paragraphs) is now detected and merged down to one, unconditionally, regardless of <code>officequarto.*</code> configuration.</li>
 </ul></div>
-  </main></div>
+  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+    </nav></aside></div>
 
 
     <footer><div class="pkgdown-footer-left">
