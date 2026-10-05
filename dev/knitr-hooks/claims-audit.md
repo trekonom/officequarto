@@ -38,5 +38,7 @@ Status: ✔ bestätigt · ✎ korrigiert · ◐ bestätigt mit Einschränkung.
 | 24 | Landscape-Größen-Override am STOP-Marker | E Exp. 11, `dev/fixtures/block-markers` | ✔ |
 | 25 | Quarto's Plot-Hook emittiert `![cap](pfad){#fig-x …}`, Numerierung folgt erst im Lua-Filter | Q installiertes `hooks.R:602 ff.` + E Exp. 15 (v3-Regex greift) | ✔ |
 | 26 | Ein knit_hook kann Live-`SEQ`-Figure-Captions erzeugen, ohne `@fig-x` zu verlieren | E Exp. 15 v2–v4 | ✎ **nein**; nur mit handgesetzten `REF`-Feldern (v3) |
+| 27 | Ein Lua-Filter kann `@fig-a` für Hook-Items in `REF`-Felder umsetzen, bevor Quarto's Crossref-Filter läuft | E Exp. 17 (Standard-`filters:` und `at: pre-quarto`; über die Extension geliefert; in Word „Figure 1“) | ✔ |
+| 28 | Hook-Items und native Items lassen sich mischen | E Exp. 17: nur mit `auto-number` (gemeinsame `SEQ`-Folge); ohne doppelte Nummern | ◐ Einschränkung |
 
 Offen (kein Beleg, bewusst nicht behauptet): Verhalten bei Quarto-Versionen ≠ 1.8.24; Unterabbildungen/Layouts/`fig-subcap` bei Hook-Varianten.
