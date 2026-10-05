@@ -89,6 +89,7 @@ Package-level checks (pure R logic, no `quarto render` needed):
 ```r
 devtools::document()   # (re-)generate NAMESPACE/man after any roxygen change
 devtools::test()       # runs every tests/testthat/test-*.R
+devtools::test(filter = "style-map")   # one test file (tests/testthat/test-style-map.R); or testthat::test_file(<path>)
 devtools::check()      # full R CMD check
 ```
 
@@ -96,7 +97,7 @@ Render the example project and verify the hook end-to-end (needs the package ins
 the extension shim's `library(officequarto)`/`officequarto::oq_writeback()` call resolves):
 
 ```bash
-Rscript -e 'devtools::document(quiet = TRUE); devtools::install(quiet = TRUE, upgrade = FALSE)'
+Rscript dev/install.R                   # devtools::document() + devtools::install(), from the repo root
 cd template
 quarto render report.qmd
 Rscript ../dev/check-writeback.R        # checks header/footer/body/metadata/style-mapping/style-pruning of the result
@@ -172,6 +173,16 @@ New features (and exploratory/spike work) should always be implemented on a feat
 directly on `main` — create the branch first, then do the work. Only merge to `main` once the
 feature/spike is complete and reviewed.
 
+## Background investigations
+
+`dev/knitr-hooks/` holds the investigation of which {officedown} mechanisms (knitr hooks,
+`knit_print`, comment markers, output-format processors) work in a Quarto docx render: `FINDINGS.md`
+(summary), `compatibility-matrix.md`, `quarto-knitr-internals.md`, and `experiments/NN-*/run.R` (each
+renders a minimal `.qmd` and asserts on `word/document.xml`). `claims-audit.md` lists which statements
+are experiment-backed vs. source-read and what was corrected — check it before trusting a claim about
+Quarto/officedown internals. `dev/officedown-analyse.md` maps {officedown}'s options to officequarto's
+(parity), and `dev/spike-notes.md` is the empirical trail behind the design decisions below.
+
 ## Architecture
 
 ```
@@ -219,9 +230,12 @@ R/                             package logic - oq_writeback()/oq_create_project(
 inst/_extensions/officequarto/  the Quarto extension itself - installed alongside the package,
 ├── _extension.yml               reachable via system.file("_extensions", package = "officequarto");
 │                                contributes: project: { project: { type: default,
-│                                post-render: [scripts/writeback.R] } }
+│                                post-render: [scripts/writeback.R] },
+│                                format: { docx: { filters: [scripts/markers.lua] } } }
 └── scripts/
-    └── writeback.R              thin shim: requireNamespace("officequarto") + officequarto::oq_writeback()
+    ├── writeback.R              thin shim: requireNamespace("officequarto") + officequarto::oq_writeback()
+    └── markers.lua              Pandoc Lua filter for the <!---BLOCK_*---> comment markers (see
+                                 "Block markers" below); no R code involved
 
 template/                       example/dev project
 ├── _quarto.yml                  project: type: officequarto; format.docx.reference-doc +
@@ -469,7 +483,7 @@ caption instead.
   a genuinely crossref-numbered caption (parent = a Pandoc wrapper cell, `w:tc`). A plain caption's
   parent is always `w:body` directly, so it's skipped entirely before parsing is ever attempted,
   regardless of its text — provably unreachable now, not just "harmless in practice." Regression
-  test: `dev/check-caption-parsing.R`.
+  test: `tests/testthat/test-caption-parsing.R`.
 - **The wrapper table itself is a trap for Gruppe 1/2**: `oq_apply_table_options()`'s table
   selector is `//w:tbl[not(.//w:tbl)]` (excludes any `w:tbl` containing a nested `w:tbl`) —
   discovered as a real bug during Gruppe 3 testing: without this filter, `style`/`layout`/`width`/
@@ -623,7 +637,7 @@ code path (built-in-role reuse rather than caption-structure generation). `offic
 `original.docx` test template happens to define no blockquote-equivalent style at all, so Pandoc
 falls back to its generic `BlockQuote` ID there — which is why the `vignette("options")`/
 here-documented `"Zitat ACME": [BlockQuote]` example "worked" without ever having been exercised
-end-to-end against real blockquote content in `template/report.qmd` (`check-style-map.R` only uses
+end-to-end against real blockquote content in `template/report.qmd` (`tests/testthat/test-style-map.R` only uses
 synthetic XML with made-up IDs; `check-writeback.R` only exercises the `Title` case). No code fix —
 `style-map`'s equality-match mechanism works exactly as designed; this is a documentation gap about
 Pandoc's own behavior, now called out in `vignette("options")` with a pointer to verify actual
@@ -658,7 +672,7 @@ with `w:type="separator"`/`"continuationSeparator"` (the always-present infrastr
 `w:id="-1"`/`"0"`) — their paragraph has no `w:pStyle` of its own (defaults to `"Normal"`), which
 would otherwise be falsely caught both by the body-role allowlist and by any `style-map` rule keyed
 on `Normal` (a realistic rule, since `Normal` is Pandoc's real no-pStyle fallback in `document.xml`
-too) — verified with a dedicated regression test in `dev/check-footnote-styling.R`, not just
+too) — verified with a dedicated regression test in `tests/testthat/test-footnote-styling.R`, not just
 reasoned about. Same xpath is reused by `oq_apply_style_mapping()`'s new optional `paragraph_xpath`
 parameter (default `"//w:body/w:p | //w:body//w:tbl//w:p"`, unchanged for `document.xml`) so
 `officequarto.lists.*`/`officequarto.pandoc-styles.code-block` also apply inside a footnote/endnote
@@ -831,7 +845,7 @@ belt-and-suspenders cached value of its own.
     orders them the other way around. Fixed by only incrementing the counter for captions with a
     real bookmark (`oq_caption_anchor_name()` non-`NA`) — plain captions no longer participate in
     counting or parsing at all.
-  - Both fixed with dedicated regression tests in `dev/check-auto-number.R` reproducing each
+  - Both fixed with dedicated regression tests in `tests/testthat/test-auto-number.R` reproducing each
     scenario synthetically, and re-verified end-to-end against `../hello-wordto`.
 - **REF crossref field** (`oq_apply_crossref_fields()`, `crossref-mapping.R`): replaces all runs
   inside a `w:hyperlink[@w:anchor]` whose anchor was field-ified with the 3-run REF field (` REF
@@ -844,7 +858,7 @@ belt-and-suspenders cached value of its own.
   `STYLEREF <level> \r` field prepended before the SEQ field) — flat, document-wide numbering only
   for now, matching Quarto's own current numbering scheme; a natural fast-follow now that real
   fields make heading-relative numbering Word's own problem to track, not officequarto's.
-- Test coverage: `dev/check-auto-number.R` (synthetic XML, mirrors `check-style-map.R`'s pattern)
+- Test coverage: `tests/testthat/test-auto-number.R` (synthetic XML, mirrors `test-style-map.R`'s pattern)
   plus a dedicated end-to-end fixture, `dev/fixtures/auto-number/` + `dev/check-auto-number-e2e.R`
   — kept separate from `template/` since `template/_quarto.yml` sets `crossref.numbered: false`,
   mutually exclusive with `auto-number` by design.
@@ -1029,9 +1043,6 @@ that is the one place left where the raw markdown is still addressable. Investig
   in `dev/spike-notes.md` (Spike B).
 - Reading resolved config always goes through `quarto inspect <project_dir>` (JSON), never manual
   YAML parsing — this is what makes nested keys like `format.docx.officequarto.tables` reliable.
-- Locating `style-mapping.R` from within `writeback.R` uses the `commandArgs(trailingOnly=FALSE)`
-  `--file=` trick (`get_script_dir()`), because Quarto's post-render invocation cwd cannot be
-  assumed to be the script's own directory.
 - xml2 attribute writes on OOXML nodes must use the namespaced attribute name, i.e.
   `xml_attr(node, "w:val") <- x`, not `xml_attr(node, "val") <- x` (the latter creates an
   unnamespaced attribute and silently produces invalid/ignored XML).
