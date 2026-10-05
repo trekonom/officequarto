@@ -74,9 +74,10 @@ copy, starter `.qmd`, RStudio open). `oq_create_quarto_yml()` is one of the full
 Testing goes through testthat/`R CMD check` like any other package, run in CI via GitHub Actions
 (`.github/workflows/R-CMD-check.yaml`, matrix of macOS/Windows/Ubuntu × release/devel/oldrel) on
 every push/PR to `main`; the pkgdown site (`.github/workflows/pkgdown.yaml`) also rebuilds and
-redeploys automatically on push to `main`. A small amount of ad-hoc `dev/` tooling remains for the
-two checks that need a live `quarto render` against the external `quarto` CLI (see Commands
-below) — neither is part of that automatic CI run.
+redeploys automatically on push to `main`. Some ad-hoc `dev/` tooling remains for the checks that
+need a live `quarto render` against the external `quarto` CLI — `template/` plus the three fixtures
+`auto-number`, `block-markers` and `numbering-hook` (see Commands below) — none of them is part of
+that automatic CI run.
 
 ## Commands
 
@@ -123,6 +124,10 @@ rm -f template/report.docx template/report.quarto-rendered.docx
 rm -rf template/.quarto template/report_files
 ```
 
+Every `quarto render` (in `template/`, the fixtures, experiment directories) also leaves a stray
+`.gitignore` and a `.quarto/` directory behind in the rendered directory; delete them before
+committing (`.quarto/` is gitignored, the stray `.gitignore` is not).
+
 `officequarto.crossref.auto-number` has its own dedicated end-to-end fixture,
 `dev/fixtures/auto-number/` (own `_quarto.yml`/`_extensions` symlink, now pointing at
 `../../../inst/_extensions`, mirroring `template/`'s), kept separate since `template/_quarto.yml`
@@ -152,6 +157,36 @@ quarto render
 (cd with-auto-number && quarto render)
 Rscript ../../check-numbering-hook-e2e.R
 ```
+
+**Verifying in real Word (macOS).** XML checks (`xmllint`, python-docx, xml2) have missed bugs that
+real Word caught — a corrupt docx, references losing their label — so changes that touch the
+docx structure or fields are opened in Word via AppleScript (save as `check.applescript`, run
+`osascript check.applescript`; Word must not already have the same file open while rendering):
+
+```applescript
+tell application "Microsoft Word"
+  open POSIX file "/abs/path/report.docx"
+  delay 9 -- the first open after Word was idle needs ~9 s (4 s timed out)
+  set d to active document
+  repeat with i from 1 to (count of fields of d)
+    try
+      update field (field i of d) -- "update fields of d" is not supported
+    end try
+  end repeat
+  set out to {}
+  repeat with i from 1 to (count of paragraphs of d)
+    set end of out to ((content of text object of (paragraph i of d)) as string)
+  end repeat
+  set nSections to count of sections of d
+  close d saving no
+  return {nSections, out}
+end tell
+```
+
+The `SEQ`/`REF` fields carry no cached result (see "Live numbering"), so updating them is what makes
+captions and references show their text. A `missing value` error on `close` means the document had
+not finished opening — raise the delay. Properties such as `bold of font object of (text object of
+(paragraph i of d))` answer formatting questions (e.g. whether a `REF` result inherits bold).
 
 Regenerate the sample template (`template/original.docx`), including the sixteen ACME custom
 paragraph styles used to test style-mapping (body/bullet/number/letter/code-block/table-caption/
@@ -198,7 +233,8 @@ Quarto/officedown internals. `dev/officedown-analyse.md` maps {officedown}'s opt
 
 ```
 R/                             package logic - oq_writeback()/oq_create_project()/
-│                               oq_create_quarto_yml() exported, everything else internal; a
+│                               oq_create_quarto_yml() and the numbering-hook API (oq_numbering()/
+│                               oq_fig_hook()/oq_tbl_hook()/oq_ref()) exported, everything else internal; a
 │                               package loads all of R/*.R into one namespace at once, so file
 │                               boundaries below are purely organizational
 ├── writeback.R                 oq_writeback() - post-render hook orchestration (exported)
@@ -1052,7 +1088,7 @@ that is the one place left where the raw markdown is still addressable. Investig
 - Coverage: `dev/fixtures/block-markers/` + `dev/check-block-markers-e2e.R` (TOC field, page break,
   section order/orientations, default and custom size). Verified in real Word (via AppleScript): 5
   sections in the expected portrait/landscape order. Fixture outputs are gitignored
-  (`dev/fixtures/*/report.docx`).
+  (`dev/fixtures/**/*.docx`).
 
 ### Numbering hook (`R/numbering-hook.R`: `oq_numbering()`, `oq_fig_hook()`, `oq_tbl_hook()`, `oq_ref()`)
 
