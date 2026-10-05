@@ -11,10 +11,16 @@ Details: `officedown-mechanisms.md`, `quarto-knitr-internals.md`, `experiments/`
   **Chaining** (`prototype/oq-hooks.R`) funktioniert.
 - `<!---BLOCK_*--->`-Marker brauchen einen Lua-Filter (`prototype/markers.lua`) – funktioniert.
 - flextable übergibt Captions in Quarto an Quarto (`tbl-cap`), statt Word-Feld.
+- **Figure-Captions als Live-`SEQ`-Feld per knit_hook (Exp. 15):** möglich, aber nur, indem der Hook Quarto's
+  Numerierung umgeht – dann ist `@fig-x` tot und Verweise müssen von Hand als `REF`-Feld gesetzt werden
+  (v3/v4); Hooks, die `@fig-x` erhalten, können keine Felder erzeugen (v1) oder zählen doppelt (v2). Live-Feld
+  **und** `@fig-x` liefert nur die Post-Render-Umwandlung (`crossref.auto-number`).
 
 ## Empfehlung
 Quarto-native Crossrefs plus officequarto (`auto-number` für Live-Felder) nutzen; officer-Objekte
-inline; Marker nur bei Bedarf per Lua-Filter. officedown's Plot-Hook nicht übernehmen.
+inline; Marker nur bei Bedarf per Lua-Filter. officedown's Plot-Hook nicht übernehmen; Figure-Captions als Felder über `crossref.auto-number`, nicht über Hooks.
+
+Siehe auch `claims-audit.md` (Prüfung aller Aussagen, Korrekturen) und Exp. 13–15.
 
 ## Geklärte Fragen (Exp. 9–11)
 - `fig.cap` aus `opts_hooks` löst Quarto-Nummerierung und Crossref aus (Exp. 9).

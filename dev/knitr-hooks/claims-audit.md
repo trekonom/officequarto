@@ -17,7 +17,7 @@ Status: ✔ bestätigt · ✎ korrigiert · ◐ bestätigt mit Einschränkung.
 | 3 | Zum Zeitpunkt des Setup-Chunks sind Quarto's Hooks bereits installiert | E Exp. 13 (`opts_hooks` = `code,collapse,echo,fig.show,output,renderings`; plot-/chunk-Hook sind Quarto's) | ✔ (vorher nur gefolgert) |
 | 4 | `rmarkdown::render` setzt Hooks vor `knit()` (mit „Zeilen 258–262/327“) | Nur Funktionsbeschreibung belegbar; die Zeilen waren Indizes in `deparse(render)` | ✎ Zeilenangaben entfernt |
 | 5 | Ersetzen von `plot`/`chunk` zerstört Crossrefs | E Exp. 3 – **nur** für Hooks, die den alten nicht aufrufen | ◐ präzisiert |
-| 6 | Chaining erhält Crossrefs | E prototype (Hook hängt nur Text an, ändert keine Caption) | ◐ → Exp. 15 prüft Caption-ändernde Hooks |
+| 6 | Chaining erhält Crossrefs | E prototype (nur Text angehängt) und Exp. 15 v1 (Caption-Text geändert): ja. Exp. 15 v2–v4: sobald der Hook Quarto's Numerierung ersetzt oder ergänzt, geht `@fig-x` verloren bzw. wird doppelt gezählt | ◐ gilt nur, wenn die Caption nur als Text verändert wird |
 | 7 | Eigene Hook-Namen / `opts_hooks` kollidieren nicht | E Exp. 1, 2, 9 | ✔ |
 | 8 | `knitr:`-YAML: `opts_knit`/`opts_chunk` werden gemergt | E Exp. 5, 13 | ✔ |
 | 9 | `knitr:`-YAML: `knit_hooks`/`opts_hooks` „werden nicht gelesen“ | E Exp. 13: **Schema-Validierung bricht den Render ab** (`property name knit_hooks is invalid`) | ✎ falsch formuliert |
@@ -37,5 +37,7 @@ Status: ✔ bestätigt · ✎ korrigiert · ◐ bestätigt mit Einschränkung.
 | 23 | `opts_hooks`-gesetzte `fig.cap` löst Quarto-Nummerierung aus | E Exp. 9 | ✔ |
 | 24 | Landscape-Größen-Override am STOP-Marker | E Exp. 11, `dev/fixtures/block-markers` | ✔ |
 
-Offen (kein Beleg, bewusst nicht behauptet): Verhalten bei Quarto-Versionen ≠ 1.8.24; ob ein Hook, der die
-Caption verändert, Crossrefs erhält (→ Exp. 15).
+| 25 | Quarto's Plot-Hook emittiert `![cap](pfad){#fig-x …}`, Numerierung folgt erst im Lua-Filter | Q installiertes `hooks.R:602 ff.` + E Exp. 15 (v3-Regex greift) | ✔ |
+| 26 | Ein knit_hook kann Live-`SEQ`-Figure-Captions erzeugen, ohne `@fig-x` zu verlieren | E Exp. 15 v2–v4 | ✎ **nein**; nur mit handgesetzten `REF`-Feldern (v3) |
+
+Offen (kein Beleg, bewusst nicht behauptet): Verhalten bei Quarto-Versionen ≠ 1.8.24; Unterabbildungen/Layouts/`fig-subcap` bei Hook-Varianten.

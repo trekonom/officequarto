@@ -1,0 +1,39 @@
+---
+format: docx
+---
+
+```{r setup}
+#| include: false
+source("hooks.R")
+## the hook takes over numbering: strips the fig- id so Quarto does not number/cross-reference the
+## figure, and builds the caption itself: bookmark + "Figure " + live SEQ field + ": " + text.
+.bm_id <- 900L
+chain_hook("plot", after = function(res, options) {
+  id <- options$label
+  m <- regmatches(res, regexec("!\\[([^]]*)\\]\\(([^)]*)\\)(\\{[^}]*\\})?", res))[[1]]
+  if (length(m) == 0) return(res)
+  field <- function(instr) paste0("`<w:r><w:fldChar w:fldCharType=\"begin\" w:dirty=\"true\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> ", instr, " </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>`{=openxml}")
+  .bm_id <<- .bm_id + 1L
+  bm_s <- sprintf("`<w:bookmarkStart w:id=\"%d\" w:name=\"%s\"/>`{=openxml}", .bm_id, id)
+  bm_e <- sprintf("`<w:bookmarkEnd w:id=\"%d\"/>`{=openxml}", .bm_id)
+  cap <- paste0("Figure ", bm_s, field("SEQ Figure \\* Arabic"), bm_e, ": ", m[2])
+  attrs <- gsub("#[A-Za-z0-9_-]+ *", "", m[4])           # keep width/align/alt, drop the fig- id
+  if (!nzchar(gsub("[{} ]", "", attrs))) attrs <- ""
+  sub(m[1], sprintf("![%s](%s)%s", cap, m[3], attrs), res, fixed = TRUE)
+})
+oq_ref <- function(id) knitr::asis_output(paste0("`<w:hyperlink w:anchor=\"", id, "\"><w:r><w:fldChar w:fldCharType=\"begin\" w:dirty=\"true\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> REF ", id, " \\h </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r></w:hyperlink>`{=openxml}"))
+```
+
+```{r}
+#| label: fig-a
+#| fig-cap: "CAP-A"
+plot(1:3)
+```
+
+```{r}
+#| label: fig-b
+#| fig-cap: "CAP-B"
+plot(3:1)
+```
+
+See Figure `r oq_ref("fig-a")` and `r oq_ref("fig-b")`.
