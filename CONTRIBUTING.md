@@ -15,6 +15,7 @@ officequarto is a real R package — the pure-logic unit tests run through testt
 ```r
 devtools::document()   # (re-)generate NAMESPACE/man after any roxygen change
 devtools::test()       # runs every tests/testthat/test-*.R
+devtools::test(filter = "style-map")   # a single test file (tests/testthat/test-style-map.R)
 devtools::check()      # full R CMD check
 ```
 
@@ -23,7 +24,7 @@ against a real `.docx` and the external `quarto` CLI (not appropriate for
 `R CMD check`, which must run in a clean, offline environment):
 
 ```bash
-Rscript -e 'devtools::document(quiet = TRUE); devtools::install(quiet = TRUE, upgrade = FALSE)'
+Rscript dev/install.R
 cd template
 quarto render report.qmd
 Rscript ../dev/check-writeback.R   # checks header/footer/body/metadata/style-mapping/pruning of the result
