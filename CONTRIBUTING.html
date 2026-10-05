@@ -49,9 +49,10 @@
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">devtools</span><span class="fu">::</span><span class="fu">document</span><span class="op">(</span><span class="op">)</span>   <span class="co"># (re-)generate NAMESPACE/man after any roxygen change</span></span>
 <span><span class="fu">devtools</span><span class="fu">::</span><span class="fu">test</span><span class="op">(</span><span class="op">)</span>       <span class="co"># runs every tests/testthat/test-*.R</span></span>
+<span><span class="fu">devtools</span><span class="fu">::</span><span class="fu">test</span><span class="op">(</span>filter <span class="op">=</span> <span class="st">"style-map"</span><span class="op">)</span>   <span class="co"># a single test file (tests/testthat/test-style-map.R)</span></span>
 <span><span class="fu">devtools</span><span class="fu">::</span><span class="fu">check</span><span class="op">(</span><span class="op">)</span>      <span class="co"># full R CMD check</span></span></code></pre></div>
 <p>Two checks stay outside that automatic suite, since they need a live <code>quarto render</code> against a real <code>.docx</code> and the external <code>quarto</code> CLI (not appropriate for <code>R CMD check</code>, which must run in a clean, offline environment):</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">'devtools::document(quiet = TRUE); devtools::install(quiet = TRUE, upgrade = FALSE)'</span></span>
+<div class="sourceCode" id="cb2"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="ex">Rscript</span> dev/install.R</span>
 <span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="bu">cd</span> template</span>
 <span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="ex">quarto</span> render report.qmd</span>
 <span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a><span class="ex">Rscript</span> ../dev/check-writeback.R   <span class="co"># checks header/footer/body/metadata/style-mapping/pruning of the result</span></span></code></pre></div>
