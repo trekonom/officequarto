@@ -2,4 +2,8 @@
 
 export(oq_create_project)
 export(oq_create_quarto_yml)
+export(oq_fig_hook)
+export(oq_numbering)
+export(oq_ref)
+export(oq_tbl_hook)
 export(oq_writeback)

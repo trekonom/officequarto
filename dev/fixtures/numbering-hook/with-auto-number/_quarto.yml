@@ -1,0 +1,15 @@
+project:
+  type: officequarto
+
+format:
+  docx:
+    reference-doc: ../../../../template/original.docx
+    officequarto:
+      keep-rendered: true
+      crossref:
+        auto-number: true
+
+knitr:
+  opts_chunk:
+    oq.fig.label: "Abbildung"
+    oq.tbl.label: "Tabelle"

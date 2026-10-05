@@ -1,0 +1,23 @@
+---
+title: "Numbering hook: custom hook"
+---
+
+```{r setup}
+#| include: false
+library(officequarto)
+## custom figure hook: the default behaviour, then a note paragraph after the figure
+oq_numbering(
+  fig_hook = function(res, options) {
+    paste0(oq_fig_hook()(res, options), "\n\nCUSTOM-NOTE for ", options$label, "\n\n")
+  }
+)
+```
+
+```{r}
+#| label: fig-c
+#| fig-cap: "FIG-C-CAP"
+#| echo: false
+plot(1:5)
+```
+
+Siehe `r oq_ref("fig-c")`.
