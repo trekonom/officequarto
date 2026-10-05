@@ -1,5 +1,10 @@
 # officequarto (development version)
 
+* Quarto notation now works for items numbered by `oq_numbering()`: the extension's new `refs.lua` Pandoc
+  filter turns `@fig-x`, `[@fig-x]`, `[@fig-x; @tbl-y]` and citations with prefix/suffix into Word `REF`
+  fields, while native Quarto items and literature citations are left alone. `oq_ref()` stays as the
+  explicit alternative. Mixing hook-numbered and native items needs `crossref.auto-number: true` so both
+  share one numbering sequence (`vignette("numbering-hook")`).
 * `officequarto.crossref.auto-number`: cross-references now keep their label ("Table 1", "Figure 1")
   after Word calculates the fields; they used to read just "1". The caption bookmark now spans label
   text and number (#30).

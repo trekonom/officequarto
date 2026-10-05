@@ -148,8 +148,9 @@ quarto render report.qmd
 Rscript ../../check-block-markers-e2e.R
 ```
 
-The knitr-hook numbering (`oq_numbering()`) has a fixture as well; the second render uses
-`officequarto.crossref.auto-number: true` on the same document:
+The knitr-hook numbering (`oq_numbering()`, including the `refs.lua` Quarto-notation filter) has a
+fixture as well; the second render uses `officequarto.crossref.auto-number: true` on the same document
+and additionally renders `mixed.qmd` (hook-numbered + native items):
 
 ```bash
 cd dev/fixtures/numbering-hook
@@ -184,8 +185,10 @@ end tell
 ```
 
 The `SEQ`/`REF` fields carry no cached result (see "Live numbering"), so updating them is what makes
-captions and references show their text. A `missing value` error on `close` means the document had
-not finished opening — raise the delay. Properties such as `bold of font object of (text object of
+captions and references show their text. A `missing value` error on `close`, or an empty result, means
+the document had not finished opening — raise the delay, or poll (`repeat … if (count of paragraphs
+of d) > 50 then exit repeat … delay 1`). Large documents (the UU template) make `open` itself exceed
+AppleScript's default timeout (`-1712`): wrap the whole script in `with timeout of 600 seconds … end timeout`. Properties such as `bold of font object of (text object of
 (paragraph i of d))` answer formatting questions (e.g. whether a `REF` result inherits bold).
 
 Regenerate the sample template (`template/original.docx`), including the sixteen ACME custom
@@ -281,11 +284,13 @@ inst/_extensions/officequarto/  the Quarto extension itself - installed alongsid
 ├── _extension.yml               reachable via system.file("_extensions", package = "officequarto");
 │                                contributes: project: { project: { type: default,
 │                                post-render: [scripts/writeback.R] },
-│                                format: { docx: { filters: [scripts/markers.lua] } } }
+│                                format: { docx: { filters: [scripts/markers.lua, scripts/refs.lua] } } }
 └── scripts/
     ├── writeback.R              thin shim: requireNamespace("officequarto") + officequarto::oq_writeback()
-    └── markers.lua              Pandoc Lua filter for the <!---BLOCK_*---> comment markers (see
-                                 "Block markers" below); no R code involved
+    ├── markers.lua              Pandoc Lua filter for the <!---BLOCK_*---> comment markers (see
+    │                            "Block markers" below); no R code involved
+    └── refs.lua                 Pandoc Lua filter: Quarto notation (@fig-x) for oq_numbering() items
+                                 (see "Numbering hook" below); no R code involved
 
 template/                       example/dev project
 ├── _quarto.yml                  project: type: officequarto; format.docx.reference-doc +
@@ -1102,10 +1107,24 @@ of post-render (the alternative to `officequarto.crossref.auto-number`). Evidenc
   change that markdown. Replacing a hook with `knit_hooks$set()` loses Quarto's cell handling
   (Exp. 3), so `oq_chain_hook()` runs the previous (Quarto) hook first and post-processes its output;
   adding a field *next to* Quarto's caption double-counts (Exp. 15 v2). Hence the hook-owned item
-  drops its id (`oq_strip_id_from_attrs()`), which means **`@fig-x`/`@tbl-x` do not resolve** for it —
-  `oq_ref()` (a `REF` field in a hyperlink to the bookmark) is the reference syntax. Replacing
-  `@fig-x` by REF fields automatically (Lua filter at `pre-quarto`) is a deliberately deferred
-  follow-up; it needs no hook API change because the bookmark is named like the Quarto label.
+  drops its id (`oq_strip_id_from_attrs()`), so **Quarto's own crossref filter cannot resolve
+  `@fig-x`/`@tbl-x`** for it. Two ways to reference: `oq_ref()` (a `REF` field in a hyperlink to the
+  bookmark) and the extension's `scripts/refs.lua` filter (below), which makes Quarto notation work.
+- **`refs.lua` (Quarto notation for hook items)**: a Pandoc Lua filter contributed next to `markers.lua`
+  (`contributes.project.format.docx.filters`). Pass 1 collects the bookmark names the hook emitted
+  (raw `openxml` inlines containing `w:bookmarkStart w:name="…"`); pass 2 replaces the `Cite`s whose
+  ids are in that set with the same `REF` hyperlink `oq_ref()` builds. Extension filters run before
+  Quarto's crossref filter by default (verified, also with an explicit `at: pre-quarto`; Exp. 17), so
+  Quarto never sees those citations. Prefix/suffix are kept (`[see @fig-a, p. 3]`), `-@fig-a` works,
+  and citations Quarto should still resolve (native items, unknown ids) stay a smaller `Cite`, also
+  within a mixed `[@hook; @native]`. A document without hook bookmarks is untouched. Coverage:
+  `dev/fixtures/numbering-hook/` (notation paragraph in `report.qmd`, mixed document
+  `with-auto-number/mixed.qmd`) and `dev/check-numbering-hook-e2e.R`; checked in real Word
+  ("Abbildung 1; Tabelle 1 … siehe Abbildung 2, S. 3"). Not checked: `Cite`s inside headings/captions.
+- **Mixed hook + native items need `crossref.auto-number`** (Exp. 17): both then share the `SEQ Figure`
+  sequence; without it a native item keeps Quarto's static "Figure 1" next to the hook's `SEQ` 1, and
+  the label text differs unless `crossref: fig-title` matches `oq.fig.label` (documented in the
+  vignette).
 - **Hook points**: figures = chained `plot` hook (post-processes `![cap](path){#fig-x …}`, regex in
   `oq_match_image()`; the `#id` there still carries Quarto's placeholder, the chunk hook's later
   placeholder substitution then finds nothing and is a harmless no-op); tables = chained `chunk` hook

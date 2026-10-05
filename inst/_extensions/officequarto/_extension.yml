@@ -12,3 +12,4 @@ contributes:
       docx:
         filters:
           - scripts/markers.lua
+          - scripts/refs.lua
