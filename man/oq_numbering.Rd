@@ -35,8 +35,10 @@ The hooks chain onto Quarto's own \code{plot} (figures) and \code{chunk} (tables
 structure, sizes and alignment are kept. For the numbered items Quarto's cross-reference id is
 removed, which has consequences:
 \itemize{
-\item \verb{@fig-x} / \verb{@tbl-x} no longer resolve for them. Reference them with \code{\link[=oq_ref]{oq_ref()}}, e.g.
-\code{`r oq_ref("fig-x")`}, which inserts a \code{REF} field showing "Figure 1".
+\item Quarto's own cross-reference resolution no longer knows them. In an officequarto project
+(\code{project: type: officequarto}) the extension's \code{refs.lua} filter turns Quarto notation
+(\verb{@fig-x}, \verb{[@fig-x]}, \verb{[@fig-x; @tbl-y]}, ...) into \code{REF} fields showing "Figure 1". Without
+the extension, reference them with \code{\link[=oq_ref]{oq_ref()}}, e.g. \code{`r oq_ref("fig-x")`}.
 \item Only figures and tables created by R chunks are handled (chunk label starting \verb{fig-} /
 \verb{tbl-} plus a \code{fig-cap} / \code{tbl-cap}). Markdown images and tables, sub-figures
 (\code{fig-subcap}) and \code{layout} chunks are left to Quarto.

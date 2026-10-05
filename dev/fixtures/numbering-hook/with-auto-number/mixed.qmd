@@ -1,0 +1,32 @@
+---
+title: "Mixed hook-numbered and native items"
+---
+
+Native items (markdown image/table with a Quarto crossref id) and hook-numbered items
+(`oq_numbering()`) in one document; `officequarto.crossref.auto-number` (see `_quarto.yml`) makes
+both use the same `SEQ` sequence. Quarto notation works for both kinds.
+
+```{r setup}
+#| include: false
+library(officequarto)
+oq_numbering()
+```
+
+```{r}
+#| label: fig-hook
+#| fig-cap: "HOOK-FIG"
+#| echo: false
+plot(1:3)
+```
+
+![NATIVE-FIG](../../../../template/plot.png){#fig-nat}
+
+| a | b |
+|---|---|
+| 1 | 2 |
+
+: NATIVE-TBL {#tbl-nat}
+
+Einzeln: @fig-hook, @fig-nat und @tbl-nat.
+
+Gemischt: [@fig-hook; @fig-nat].

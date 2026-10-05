@@ -44,3 +44,5 @@ knitr::kable(head(mtcars[, 1:2]))
 # Verweise
 
 Siehe `r oq_ref("fig-a")` und `r oq_ref("fig-b")` sowie `r oq_ref("tbl-a")` und `r oq_ref("tbl-b")`.
+
+Quarto-Notation: @fig-a, [@fig-b], [@fig-a; @tbl-a], [-@tbl-b] und [siehe @fig-b, S. 3].

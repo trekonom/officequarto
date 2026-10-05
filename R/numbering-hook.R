@@ -270,8 +270,10 @@ oq_check_hook_arg <- function(hook, arg) {
 #' The hooks chain onto Quarto's own `plot` (figures) and `chunk` (tables) hooks, so cell
 #' structure, sizes and alignment are kept. For the numbered items Quarto's cross-reference id is
 #' removed, which has consequences:
-#' * `@fig-x` / `@tbl-x` no longer resolve for them. Reference them with [oq_ref()], e.g.
-#'   `` `r oq_ref("fig-x")` ``, which inserts a `REF` field showing "Figure 1".
+#' * Quarto's own cross-reference resolution no longer knows them. In an officequarto project
+#'   (`project: type: officequarto`) the extension's `refs.lua` filter turns Quarto notation
+#'   (`@fig-x`, `[@fig-x]`, `[@fig-x; @tbl-y]`, ...) into `REF` fields showing "Figure 1". Without
+#'   the extension, reference them with [oq_ref()], e.g. `` `r oq_ref("fig-x")` ``.
 #' * Only figures and tables created by R chunks are handled (chunk label starting `fig-` /
 #'   `tbl-` plus a `fig-cap` / `tbl-cap`). Markdown images and tables, sub-figures
 #'   (`fig-subcap`) and `layout` chunks are left to Quarto.
@@ -327,6 +329,10 @@ oq_numbering <- function(figures = TRUE, tables = TRUE, fig_hook = NULL, tbl_hoo
 #' Inline helper that inserts a Word `REF` field (a clickable cross-reference) to a figure or
 #' table numbered with [oq_numbering()]. It displays what Quarto's `@fig-x` would: the label and
 #' number, for example "Figure 1". Use it in inline R code: `` `r oq_ref("fig-x")` ``.
+#'
+#' In an officequarto project you can usually write Quarto's `@fig-x` instead: the extension's
+#' `refs.lua` filter converts it to the same field. `oq_ref()` remains useful outside such a
+#' project and wherever an explicit R call is preferable.
 #'
 #' For output formats other than docx it returns Quarto's own notation (`@fig-x`), which Quarto
 #' resolves natively, so the same `.qmd` renders correctly to HTML.

@@ -18,6 +18,10 @@ table numbered with \code{\link[=oq_numbering]{oq_numbering()}}. It displays wha
 number, for example "Figure 1". Use it in inline R code: \code{`r oq_ref("fig-x")`}.
 }
 \details{
+In an officequarto project you can usually write Quarto's \verb{@fig-x} instead: the extension's
+\code{refs.lua} filter converts it to the same field. \code{oq_ref()} remains useful outside such a
+project and wherever an explicit R call is preferable.
+
 For output formats other than docx it returns Quarto's own notation (\verb{@fig-x}), which Quarto
 resolves natively, so the same \code{.qmd} renders correctly to HTML.
 }
