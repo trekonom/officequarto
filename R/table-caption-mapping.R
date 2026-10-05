@@ -268,17 +268,22 @@ oq_clone_rpr_with_bold <- function(run, orig_rpr, ns, number_bold = NULL) {
 ## w:updateFields in settings.xml at all (deliberately NOT set there,
 ## exactly like {officedown} - see README/CLAUDE.md).
 ##
-## Replaces the first run with: [prefix text run] [new bookmarkStart]
+## Replaces the first run with: [new bookmarkStart] [prefix text run]
 ## [3-run SEQ field: "SEQ <seq_id> \* Arabic"] [new bookmarkEnd]
 ## [separator+rest text run]. seq_id is "Table"/"Figure" (fixed, not
 ## configurable - as with {officedown}'s own convention; the visible
 ## prefix text remains independently configurable via $prefix). The
 ## bookmark is taken over from the existing (widely spanning) Pandoc
 ## bookmark (same name, same ID - see oq_find_caption_bookmark()), but
-## newly and tightly wrapped around just the digit (matching {officer}'s
-## run_autonum(bkm_all = FALSE) default behavior), so existing crossref
-## hyperlinks with @w:anchor pointing to the same name keep working
-## unchanged.
+## newly and tightly wrapped around prefix + number ("Table 1", i.e.
+## {officer}'s run_autonum(bkm_all = TRUE) / Word's own "Only label and
+## number" cross-reference), so existing crossref hyperlinks with
+## @w:anchor pointing to the same name keep working unchanged AND a REF
+## field to it yields what Quarto's `@tbl-x` rendered ("Table 1"). A
+## numeral-only bookmark (the original implementation, `bkm_all = FALSE`)
+## made every cross-reference read just "1" once Word calculated the
+## field, because oq_apply_crossref_fields() replaces the whole hyperlink
+## content (including the static "Table " text) with the REF (GH issue #30).
 ##
 ## The rPr of the original first run (if present) is cloned onto the
 ## prefix run and all three field runs (preserves the formatting of the
@@ -312,15 +317,15 @@ oq_convert_caption_to_field <- function(caption_p, ns, first_run, split, seq_id,
     anchor
   }
 
+  bookmark_start <- add_after("w:bookmarkStart")
+  xml2::xml_attr(bookmark_start, "w:id") <- bookmark$id
+  xml2::xml_attr(bookmark_start, "w:name") <- bookmark$name
+
   prefix_run <- add_after("w:r")
   prefix_t <- xml2::xml_add_child(prefix_run, "w:t")
   xml2::xml_attr(prefix_t, "xml:space") <- "preserve"
   xml2::xml_text(prefix_t) <- pre
   apply_pr(prefix_run)
-
-  bookmark_start <- add_after("w:bookmarkStart")
-  xml2::xml_attr(bookmark_start, "w:id") <- bookmark$id
-  xml2::xml_attr(bookmark_start, "w:name") <- bookmark$name
 
   begin_run <- add_after("w:r")
   apply_pr(begin_run)

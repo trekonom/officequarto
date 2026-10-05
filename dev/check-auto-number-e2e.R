@@ -46,6 +46,19 @@ check_seq_field <- function(bookmark_name, expected_seq_id, label) {
   }
   ok("%s: instrText is '%s'", label, expected_instr)
 
+  ## GH #30: the bookmark must wrap label + number ("Table 1"), not just the numeral, otherwise
+  ## the REF fields of the cross-references display only "1" once Word calculates them.
+  inside <- xml_find_all(
+    caption_p,
+    "./w:r[preceding-sibling::w:bookmarkStart and following-sibling::w:bookmarkEnd]",
+    ns
+  )
+  inside_text <- paste(xml_text(xml_find_all(inside, ".//w:t", ns)), collapse = "")
+  if (!nzchar(trimws(inside_text))) {
+    fail("%s: the bookmark '%s' wraps only the SEQ field, no label text (cross-references would read just the number)", label, bookmark_name)
+  }
+  ok("%s: bookmark wraps the label text '%s' plus the SEQ field", label, trimws(inside_text))
+
   fld_chars <- xml_find_all(caption_p, ".//w:fldChar", ns)
   if (length(fld_chars) != 2) fail("%s: expected 2 w:fldChar, got %d", label, length(fld_chars))
   if (!all(xml_attr(fld_chars, "dirty") == "true")) fail("%s: both w:fldChar should carry w:dirty='true'", label)

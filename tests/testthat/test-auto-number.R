@@ -31,7 +31,7 @@ test_that("SEQ field is built correctly (7 nodes, instrText, 2 dirty fldChars, o
 
   p_runs <- xml_find_all(p, "./w:r | ./w:bookmarkStart | ./w:bookmarkEnd", ns)
   expect_length(p_runs, 7)
-  expect_identical(xml_name(p_runs[[2]]), "bookmarkStart")
+  expect_identical(xml_name(p_runs[[1]]), "bookmarkStart")
   expect_identical(xml_name(p_runs[[6]]), "bookmarkEnd")
 
   instr_text <- xml_text(xml_find_first(p, ".//w:instrText", ns))
@@ -47,6 +47,27 @@ test_that("SEQ field is built correctly (7 nodes, instrText, 2 dirty fldChars, o
   ## paragraph)
   remaining_bookmarks <- xml_find_all(doc, "//w:bookmarkStart | //w:bookmarkEnd", ns)
   expect_length(remaining_bookmarks, 2)
+})
+
+test_that("the bookmark wraps prefix + number (so a REF reads 'Table 1', GH #30), not just the numeral", {
+  doc <- build_doc()
+  ns <- xml_ns(doc)
+  p <- get_caption_p(doc)
+  first_run <- xml_find_first(p, "./w:r", ns)
+  split <- oq_split_caption_text(xml_text(xml_find_first(first_run, "./w:t", ns)), 1)
+  oq_convert_caption_to_field(p, ns, first_run, split, "Table", list())
+
+  inside <- xml_find_all(
+    p,
+    "./w:r[preceding-sibling::w:bookmarkStart and following-sibling::w:bookmarkEnd]",
+    ns
+  )
+  expect_identical(xml_text(xml_find_first(inside[[1]], "./w:t", ns)), "Table ")
+  expect_match(xml_text(xml_find_first(p, ".//w:instrText", ns)), "SEQ Table", fixed = TRUE)
+  expect_true(any(xml_text(xml_find_all(inside, ".//w:instrText", ns)) == "SEQ Table \\* Arabic"))
+  ## separator + caption text stay OUTSIDE the bookmark
+  after_end <- xml_find_all(p, "./w:bookmarkEnd/following-sibling::w:r", ns)
+  expect_match(paste(xml_text(after_end), collapse = ""), "Meine Tabelle", fixed = TRUE)
 })
 
 test_that("bookmark name and ID are carried over from the removed original (repositioned, not reinvented)", {

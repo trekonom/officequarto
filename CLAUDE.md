@@ -831,9 +831,16 @@ belt-and-suspenders cached value of its own.
   `w:bookmarkEnd` are position markers, not containers, so a wide span is unremarkable — but it
   means `oq_find_caption_bookmark()` locates the matching `w:bookmarkEnd` by its `@id` (an XPath
   `@w:id`-predicate lookup), never by adjacency. The original (wide-spanning) pair is removed
-  entirely and replaced by a new, tight pair wrapping only the SEQ field's numeral (matching
-  {officer}'s `run_autonum(bkm_all = FALSE)` default) — reusing the same `w:name` (and `w:id`, now
-  freed by the removal), so every existing crossref hyperlink's `@w:anchor` stays valid unchanged.
+  entirely and replaced by a new, tight pair wrapping prefix text + SEQ field ("Table 1", matching
+  {officer}'s `run_autonum(bkm_all = TRUE)` and Word's "Only label and number" cross-reference) —
+  reusing the same `w:name` (and `w:id`, now freed by the removal), so every existing crossref
+  hyperlink's `@w:anchor` stays valid unchanged. **The bookmark deliberately includes the label
+  text** (GH issue #30): `oq_apply_crossref_fields()` replaces the *whole* hyperlink content, i.e.
+  Quarto's static "Table 1", with a `REF`, so a numeral-only bookmark made every reference read just
+  "1" once Word calculated the field (seen in real Word on `dev/fixtures/auto-number` and the UU
+  template). Checked in Word: references now read "Table 1"/"Figure 1", and with `number-bold: true`
+  the reference paragraph does not inherit the caption's bold. `dev/check-auto-number-e2e.R` and
+  `tests/testthat/test-auto-number.R` assert the bookmark spans the label text.
 - **Two real bugs found and fixed via a render against `../hello-wordto`** (Spike Q) — neither was
   reachable by any synthetic test, both needed real content variety (genuine heading bookmarks, a
   mix of plain and crossref-numbered captions of the same type) that `template/report.qmd` never
@@ -1072,9 +1079,8 @@ of post-render (the alternative to `officequarto.crossref.auto-number`). Evidenc
   and inline raw fields work; a fenced raw `<w:p>` would lose markdown, a pipe-table caption only
   works for kable — Exp. 16).
 - **Bookmark spans label + number** (`bkm_all`-style), so a REF yields "Figure 1" like `@fig-x` does
-  (the post-render `auto-number` bookmarks only the numeral, so — checked in real Word on
-  `dev/fixtures/auto-number` — its cross-references read just "1" after Word recalculates the fields
-  instead of "Table 1": a known, not yet fixed defect of that option). Ids come from a session counter starting at 100000 (`oq_next_bookmark_id()`) to avoid
+  (the post-render `auto-number` uses the same shape since GH #30; before that it bookmarked only the
+  numeral and its references read just "1"). Ids come from a session counter starting at 100000 (`oq_next_bookmark_id()`) to avoid
   Pandoc's own and duplicate ids; `fig.num > 1` gives `label-i` names like Quarto.
 - **Config**: only chunk options, read from the hook's `options` — `oq.fig.label`, `oq.tbl.label`,
   `oq.sep`, `oq.tbl.style` — so `knitr: opts_chunk:` in `_quarto.yml` works (verified route, Exp. 13;
