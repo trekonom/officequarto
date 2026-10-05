@@ -2,6 +2,11 @@
 
 ## officequarto (development version)
 
+- `officequarto.crossref.auto-number`: cross-references now keep their
+  label (“Table 1”, “Figure 1”) after Word calculates the fields; they
+  used to read just “1”. The caption bookmark now spans label text and
+  number ([\#30](https://github.com/trekonom/officequarto/issues/30)).
+
 - New
   [`oq_numbering()`](https://trekonom.github.io/officequarto/reference/oq_numbering.md)
   gives figures and tables created by R chunks native Word captions
