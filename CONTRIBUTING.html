@@ -61,7 +61,7 @@
 <div class="sourceCode" id="cb3"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="bu">cd</span> dev/fixtures/auto-number</span>
 <span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="ex">quarto</span> render report.qmd</span>
 <span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="ex">Rscript</span> ../../check-auto-number-e2e.R</span></code></pre></div>
-<p><code><a href="reference/oq_numbering.html">oq_numbering()</a></code> (knitr-hook figure/table numbering) has a fixture as well; the second command renders the same document with <code>officequarto.crossref.auto-number: true</code>:</p>
+<p><code><a href="reference/oq_numbering.html">oq_numbering()</a></code> (knitr-hook figure/table numbering, with the <code>refs.lua</code> Quarto-notation filter) has a fixture as well; the second command renders the same document with <code>officequarto.crossref.auto-number: true</code> and a mixed hook-numbered/native document:</p>
 <div class="sourceCode" id="cb4"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="bu">cd</span> dev/fixtures/numbering-hook</span>
 <span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a><span class="ex">quarto</span> render</span>
 <span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a><span class="kw">(</span><span class="bu">cd</span> with-auto-number <span class="kw">&amp;&amp;</span> <span class="ex">quarto</span> render<span class="kw">)</span></span>

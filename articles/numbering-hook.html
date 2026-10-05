@@ -101,7 +101,9 @@ static captions afterwards. The two differ in where they act:</p>
 <tr class="even">
 <td>Reference syntax</td>
 <td>
-<code>`r oq_ref(“fig-x”)`</code> (inline R)</td>
+<code>@fig-x</code> (converted by the extension), or <code>`r
+oq_ref(“fig-x”)`</code>
+</td>
 <td><code>@fig-x</code></td>
 </tr>
 <tr class="odd">
@@ -139,11 +141,24 @@ only exist inside the R session that knits the document):</p>
 <span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a></span>
 <span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a>As <span class="in">`r oq_ref("fig-sales")`</span> and <span class="in">`r oq_ref("tbl-top")`</span> show, ...</span></code></pre></div>
-<p><code><a href="../reference/oq_ref.html">oq_ref()</a></code> inserts a clickable Word <code>REF</code> field
-that displays the label and number, for example “Figure 1” — what
-<code>@fig-sales</code> would render. For other output formats it
-returns <code>@fig-sales</code>, so the same document still renders to
-HTML.</p>
+</div>
+<div class="section level2">
+<h2 id="referencing">Referencing<a class="anchor" aria-label="anchor" href="#referencing"></a>
+</h2>
+<p>In an officequarto project (<code>project: type: officequarto</code>)
+write Quarto’s usual notation: <code>@fig-sales</code>,
+<code>[@fig-sales]</code>, <code>[@fig-sales; @tbl-top]</code>,
+<code>[see @fig-sales, p. 3]</code>. The extension’s
+<code>refs.lua</code> filter finds the captions built by
+<code><a href="../reference/oq_numbering.html">oq_numbering()</a></code> and turns the matching citations into
+clickable Word <code>REF</code> fields that display the label and number
+(“Figure 1”). Citations to anything else (native Quarto figures and
+tables, literature, unknown ids) are left to Quarto, also inside a mixed
+citation.</p>
+<p><code>oq_ref("fig-sales")</code> produces the same field from inline
+R. It is the fallback when the extension is not active, and for other
+output formats it returns <code>@fig-sales</code>, so the same document
+still renders to HTML.</p>
 </div>
 <div class="section level2">
 <h2 id="label-text-and-separator">Label text and separator<a class="anchor" aria-label="anchor" href="#label-text-and-separator"></a>
@@ -203,18 +218,37 @@ point at them.</p>
 <code>fig-cap</code>/<code>tbl-cap</code>). Markdown images and tables,
 sub-figures (<code>fig-subcap</code>) and <code>layout</code> chunks are
 left to Quarto.</li>
-<li>Quarto no longer knows the numbered items, so <code>@fig-x</code> /
-<code>@tbl-x</code> do <strong>not</strong> resolve for them — use
-<code><a href="../reference/oq_ref.html">oq_ref()</a></code>. There is no list of figures or tables.</li>
+<li>Quarto no longer knows the numbered items, so its own
+<code>@fig-x</code> handling does not apply to them: they are resolved
+by the extension’s <code>refs.lua</code> filter, or by
+<code><a href="../reference/oq_ref.html">oq_ref()</a></code> without the extension. There is no list of figures
+or tables.</li>
 <li>Output other than docx is passed through unchanged.</li>
 <li>With <code>officequarto.crossref.auto-number: true</code> the
 hook-owned captions are skipped by the post-render conversion (no double
 conversion; checked in the test fixture).</li>
-<li>Table captions go in the paragraph style <code>Table Caption</code>
+</ul>
+</div>
+<div class="section level2">
+<h2 id="mixing-with-native-quarto-figures-and-tables">Mixing with native Quarto figures and tables<a class="anchor" aria-label="anchor" href="#mixing-with-native-quarto-figures-and-tables"></a>
+</h2>
+<p>Native items (markdown images and tables with a
+<code>#fig-</code>/<code>#tbl-</code> id) keep Quarto’s numbering, which
+is static text (“Figure 1”). Hook-numbered items are live
+<code>SEQ</code> fields, so without further settings both can show the
+same number. Turn on
+<code>officequarto.crossref.auto-number: true</code> in that case: it
+converts the native captions to <code>SEQ</code> fields in the same
+sequence, so hook-numbered and native items count together, and
+<code>@fig-x</code> works for both kinds. Make the label text agree as
+well — the hook uses <code>oq.fig.label</code> /
+<code>oq.tbl.label</code>, the native captions use Quarto’s
+<code>crossref: fig-title</code> / <code>tbl-title</code> — otherwise
+one item reads “Abbildung 1” and the next “Figure 2”. - Table captions
+go in the paragraph style <code>Table Caption</code>
 (<code>oq.tbl.style</code>); your <code>reference-doc</code> should
 define it, otherwise Pandoc’s fallback style is pruned and Word’s
-default is used.</li>
-</ul>
+default is used.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

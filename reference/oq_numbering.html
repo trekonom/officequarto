@@ -92,8 +92,10 @@ markdown to use instead. Wrap the default to extend it:
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>The hooks chain onto Quarto's own <code>plot</code> (figures) and <code>chunk</code> (tables) hooks, so cell
 structure, sizes and alignment are kept. For the numbered items Quarto's cross-reference id is
-removed, which has consequences:</p><ul><li><p><code>@fig-x</code> / <code>@tbl-x</code> no longer resolve for them. Reference them with <code><a href="oq_ref.html">oq_ref()</a></code>, e.g.
-<code>`r oq_ref("fig-x")`</code>, which inserts a <code>REF</code> field showing "Figure 1".</p></li>
+removed, which has consequences:</p><ul><li><p>Quarto's own cross-reference resolution no longer knows them. In an officequarto project
+(<code>project: type: officequarto</code>) the extension's <code>refs.lua</code> filter turns Quarto notation
+(<code>@fig-x</code>, <code>[@fig-x]</code>, <code>[@fig-x; @tbl-y]</code>, ...) into <code>REF</code> fields showing "Figure 1". Without
+the extension, reference them with <code><a href="oq_ref.html">oq_ref()</a></code>, e.g. <code>`r oq_ref("fig-x")`</code>.</p></li>
 <li><p>Only figures and tables created by R chunks are handled (chunk label starting <code>fig-</code> /
 <code>tbl-</code> plus a <code>fig-cap</code> / <code>tbl-cap</code>). Markdown images and tables, sub-figures
 (<code>fig-subcap</code>) and <code>layout</code> chunks are left to Quarto.</p></li>

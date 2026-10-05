@@ -48,10 +48,13 @@ The hooks chain onto Quarto's own `plot` (figures) and `chunk` (tables)
 hooks, so cell structure, sizes and alignment are kept. For the numbered
 items Quarto's cross-reference id is removed, which has consequences:
 
-- `@fig-x` / `@tbl-x` no longer resolve for them. Reference them with
+- Quarto's own cross-reference resolution no longer knows them. In an
+  officequarto project (`project: type: officequarto`) the extension's
+  `refs.lua` filter turns Quarto notation (`@fig-x`, `[@fig-x]`,
+  `[@fig-x; @tbl-y]`, ...) into `REF` fields showing "Figure 1". Without
+  the extension, reference them with
   [`oq_ref()`](https://trekonom.github.io/officequarto/reference/oq_ref.md),
-  e.g. `` `r oq_ref("fig-x")` ``, which inserts a `REF` field showing
-  "Figure 1".
+  e.g. `` `r oq_ref("fig-x")` ``.
 
 - Only figures and tables created by R chunks are handled (chunk label
   starting `fig-` / `tbl-` plus a `fig-cap` / `tbl-cap`). Markdown

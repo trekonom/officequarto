@@ -26,6 +26,11 @@ string (raw OpenXML for docx, `@id` otherwise).
 
 ## Details
 
+In an officequarto project you can usually write Quarto's `@fig-x`
+instead: the extension's `refs.lua` filter converts it to the same
+field. `oq_ref()` remains useful outside such a project and wherever an
+explicit R call is preferable.
+
 For output formats other than docx it returns Quarto's own notation
 (`@fig-x`), which Quarto resolves natively, so the same `.qmd` renders
 correctly to HTML.

@@ -70,7 +70,10 @@ number, for example "Figure 1". Use it in inline R code: <code>`r oq_ref("fig-x"
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>For output formats other than docx it returns Quarto's own notation (<code>@fig-x</code>), which Quarto
+    <p>In an officequarto project you can usually write Quarto's <code>@fig-x</code> instead: the extension's
+<code>refs.lua</code> filter converts it to the same field. <code>oq_ref()</code> remains useful outside such a
+project and wherever an explicit R call is preferable.</p>
+<p>For output formats other than docx it returns Quarto's own notation (<code>@fig-x</code>), which Quarto
 resolves natively, so the same <code>.qmd</code> renders correctly to HTML.</p>
     </div>
     <div class="section level2">

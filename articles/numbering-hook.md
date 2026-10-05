@@ -17,7 +17,7 @@ differ in where they act:
 |  | [`oq_numbering()`](https://trekonom.github.io/officequarto/reference/oq_numbering.md) (this vignette) | `crossref.auto-number` |
 |----|----|----|
 | Acts | while knitting (knitr hooks) | after rendering (on the docx) |
-| Reference syntax | `` `r oq_ref(“fig-x”)` `` (inline R) | `@fig-x` |
+| Reference syntax | `@fig-x` (converted by the extension), or `` `r oq_ref(“fig-x”)` `` | `@fig-x` |
 | Covers | figures/tables from R chunks | any Quarto-numbered caption |
 | Customisable | your own hook function | fixed |
 
@@ -51,11 +51,21 @@ knitr::kable(head(customers, 5))
 As `r oq_ref("fig-sales")` and `r oq_ref("tbl-top")` show, ...
 ````
 
-[`oq_ref()`](https://trekonom.github.io/officequarto/reference/oq_ref.md)
-inserts a clickable Word `REF` field that displays the label and number,
-for example “Figure 1” — what `@fig-sales` would render. For other
-output formats it returns `@fig-sales`, so the same document still
-renders to HTML.
+## Referencing
+
+In an officequarto project (`project: type: officequarto`) write
+Quarto’s usual notation: `@fig-sales`, `[@fig-sales]`,
+`[@fig-sales; @tbl-top]`, `[see @fig-sales, p. 3]`. The extension’s
+`refs.lua` filter finds the captions built by
+[`oq_numbering()`](https://trekonom.github.io/officequarto/reference/oq_numbering.md)
+and turns the matching citations into clickable Word `REF` fields that
+display the label and number (“Figure 1”). Citations to anything else
+(native Quarto figures and tables, literature, unknown ids) are left to
+Quarto, also inside a mixed citation.
+
+`oq_ref("fig-sales")` produces the same field from inline R. It is the
+fallback when the extension is not active, and for other output formats
+it returns `@fig-sales`, so the same document still renders to HTML.
 
 ## Label text and separator
 
@@ -114,14 +124,28 @@ to point at them.
 - Only R-chunk figures and tables are handled (label starting with
   `fig-`/`tbl-` plus `fig-cap`/`tbl-cap`). Markdown images and tables,
   sub-figures (`fig-subcap`) and `layout` chunks are left to Quarto.
-- Quarto no longer knows the numbered items, so `@fig-x` / `@tbl-x` do
-  **not** resolve for them — use
-  [`oq_ref()`](https://trekonom.github.io/officequarto/reference/oq_ref.md).
-  There is no list of figures or tables.
+- Quarto no longer knows the numbered items, so its own `@fig-x`
+  handling does not apply to them: they are resolved by the extension’s
+  `refs.lua` filter, or by
+  [`oq_ref()`](https://trekonom.github.io/officequarto/reference/oq_ref.md)
+  without the extension. There is no list of figures or tables.
 - Output other than docx is passed through unchanged.
 - With `officequarto.crossref.auto-number: true` the hook-owned captions
   are skipped by the post-render conversion (no double conversion;
   checked in the test fixture).
-- Table captions go in the paragraph style `Table Caption`
-  (`oq.tbl.style`); your `reference-doc` should define it, otherwise
-  Pandoc’s fallback style is pruned and Word’s default is used.
+
+## Mixing with native Quarto figures and tables
+
+Native items (markdown images and tables with a `#fig-`/`#tbl-` id) keep
+Quarto’s numbering, which is static text (“Figure 1”). Hook-numbered
+items are live `SEQ` fields, so without further settings both can show
+the same number. Turn on `officequarto.crossref.auto-number: true` in
+that case: it converts the native captions to `SEQ` fields in the same
+sequence, so hook-numbered and native items count together, and `@fig-x`
+works for both kinds. Make the label text agree as well — the hook uses
+`oq.fig.label` / `oq.tbl.label`, the native captions use Quarto’s
+`crossref: fig-title` / `tbl-title` — otherwise one item reads
+“Abbildung 1” and the next “Figure 2”. - Table captions go in the
+paragraph style `Table Caption` (`oq.tbl.style`); your `reference-doc`
+should define it, otherwise Pandoc’s fallback style is pruned and Word’s
+default is used.
