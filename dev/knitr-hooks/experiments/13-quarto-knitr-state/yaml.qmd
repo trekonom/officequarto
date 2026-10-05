@@ -1,0 +1,20 @@
+---
+format: docx
+knitr:
+  opts_chunk:
+    probe.opt: "from-yaml-opts-chunk"
+  opts_knit:
+    probe.knit: "from-yaml-opts-knit"
+---
+
+```{r setup}
+#| include: false
+writeLines(c(
+  paste("opts_chunk probe.opt=", knitr::opts_chunk$get("probe.opt")),
+  paste("opts_knit probe.knit=", knitr::opts_knit$get("probe.knit")),
+  paste("knit_hooks has probe_hook=", !is.null(knitr::knit_hooks$get("probe_hook"))),
+  paste("opts_hooks has probe_opt_hook=", "probe_opt_hook" %in% names(knitr::opts_hooks$get()))
+), "probe.txt")
+```
+
+Text.

@@ -1,0 +1,26 @@
+---
+format: docx
+---
+
+```{r setup}
+#| include: false
+h_plot <- knitr::knit_hooks$get("plot")
+h_chunk <- knitr::knit_hooks$get("chunk")
+lines <- c(
+  paste("pandoc.to=", knitr::opts_knit$get("rmarkdown.pandoc.to")),
+  paste("pandoc.from=", knitr::opts_knit$get("rmarkdown.pandoc.from")),
+  paste("pandoc.args=", paste(knitr::opts_knit$get("rmarkdown.pandoc.args"), collapse = " ")),
+  paste("pandoc_to()=", knitr::pandoc_to()),
+  paste("is_latex_output()=", knitr::is_latex_output()),
+  paste("quarto.version=", knitr::opts_knit$get("quarto.version")),
+  paste("runtime=", knitr::opts_knit$get("rmarkdown.runtime")),
+  paste("plot hook is Quarto's (cell-output-display in body)=",
+        any(grepl("cell-output-display", deparse(h_plot), fixed = TRUE))),
+  paste("chunk hook is Quarto's (delegating: calls default hook)=",
+        any(grepl("default_hooks", deparse(h_chunk), fixed = TRUE)) || any(grepl("hook\\(x, options\\)", deparse(h_chunk)))),
+  paste("opts_hooks present at setup time=", paste(sort(names(knitr::opts_hooks$get())), collapse = ","))
+)
+writeLines(lines, "probe.txt")
+```
+
+Text.

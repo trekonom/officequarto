@@ -1,0 +1,26 @@
+---
+format: docx
+---
+
+```{r setup}
+#| include: false
+source("hooks.R")
+chain_hook("plot", after = function(res, options) {
+  field <- "`<w:r><w:fldChar w:fldCharType=\"begin\" w:dirty=\"true\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> SEQ Figure \\* Arabic </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>`{=openxml}"
+  sub("(!\\[[^]]*)\\]\\(", paste0("\\1 ", gsub("\\\\", "\\\\\\\\", field), "](" ), res)
+})
+```
+
+```{r}
+#| label: fig-a
+#| fig-cap: "CAP-A"
+plot(1:3)
+```
+
+```{r}
+#| label: fig-b
+#| fig-cap: "CAP-B"
+plot(3:1)
+```
+
+See @fig-a and @fig-b.

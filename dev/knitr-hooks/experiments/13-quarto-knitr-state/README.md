@@ -1,0 +1,3 @@
+# 13 – Zustand von knitr/Quarto zur Laufzeit (Audit)
+**Fragen:** Welche `opts_knit`-Werte sieht ein Chunk beim docx-Render? Sind Quarto's Hooks beim Setup-Chunk schon installiert? Werden `knit_hooks`/`opts_hooks` im `knitr:`-YAML gelesen?
+**Ergebnis (`run.R`):** `pandoc.to = docx`, `pandoc_to() = docx`, `pandoc.from` leer, `pandoc.args = --to docx` (**nicht** leer), `runtime = static`, `quarto.version = 1`. Quarto's `opts_hooks` (`code, collapse, echo, fig.show, output, renderings`) und sein plot-/chunk-Hook sind beim Setup-Chunk bereits gesetzt. `opts_chunk`/`opts_knit` im YAML kommen an (`yaml.qmd`); `knit_hooks`/`opts_hooks` im YAML werden **von der Schema-Validierung abgelehnt** und brechen den Render ab (`yaml-hooks.qmd`).
