@@ -4,6 +4,7 @@
 <url><loc>https://trekonom.github.io/officequarto/articles/architecture.html</loc></url>
 <url><loc>https://trekonom.github.io/officequarto/articles/block-markers.html</loc></url>
 <url><loc>https://trekonom.github.io/officequarto/articles/index.html</loc></url>
+<url><loc>https://trekonom.github.io/officequarto/articles/numbering-hook.html</loc></url>
 <url><loc>https://trekonom.github.io/officequarto/articles/officer-syntax.html</loc></url>
 <url><loc>https://trekonom.github.io/officequarto/articles/options.html</loc></url>
 <url><loc>https://trekonom.github.io/officequarto/authors.html</loc></url>
@@ -12,6 +13,10 @@
 <url><loc>https://trekonom.github.io/officequarto/reference/index.html</loc></url>
 <url><loc>https://trekonom.github.io/officequarto/reference/oq_create_project.html</loc></url>
 <url><loc>https://trekonom.github.io/officequarto/reference/oq_create_quarto_yml.html</loc></url>
+<url><loc>https://trekonom.github.io/officequarto/reference/oq_fig_hook.html</loc></url>
+<url><loc>https://trekonom.github.io/officequarto/reference/oq_numbering.html</loc></url>
+<url><loc>https://trekonom.github.io/officequarto/reference/oq_ref.html</loc></url>
+<url><loc>https://trekonom.github.io/officequarto/reference/oq_tbl_hook.html</loc></url>
 <url><loc>https://trekonom.github.io/officequarto/reference/oq_writeback.html</loc></url>
 </urlset>
 

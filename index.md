@@ -97,6 +97,12 @@ properties/custom styles) + `report.qmd` + `_quarto.yml`.
 - [`vignette("block-markers", package = "officequarto")`](https://trekonom.github.io/officequarto/articles/block-markers.md)
   — officedown-style `<!---BLOCK_TOC--->` / page-break / landscape
   markers for docx output.
+- [`vignette("numbering-hook", package = "officequarto")`](https://trekonom.github.io/officequarto/articles/numbering-hook.md)
+  — native Word figure/table numbering from R chunks via
+  [`oq_numbering()`](https://trekonom.github.io/officequarto/reference/oq_numbering.md)
+  (knitr hooks), with
+  [`oq_ref()`](https://trekonom.github.io/officequarto/reference/oq_ref.md)
+  references and your own hook.
 
 ## Known limitations
 

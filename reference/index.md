@@ -20,3 +20,17 @@ usethis::create_project().
   :
 
   Create a standalone, reusable officequarto-ready `_quarto.yml`
+
+## Native numbering
+
+Live Word SEQ captions and REF references created by knitr hooks while
+knitting.
+
+- [`oq_numbering()`](https://trekonom.github.io/officequarto/reference/oq_numbering.md)
+  : Native Word numbering for R-chunk figures and tables
+- [`oq_fig_hook()`](https://trekonom.github.io/officequarto/reference/oq_fig_hook.md)
+  : Default figure numbering hook
+- [`oq_tbl_hook()`](https://trekonom.github.io/officequarto/reference/oq_tbl_hook.md)
+  : Default table numbering hook
+- [`oq_ref()`](https://trekonom.github.io/officequarto/reference/oq_ref.md)
+  : Reference a numbered figure or table

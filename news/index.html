@@ -21,6 +21,7 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/options.html">Configuring officequarto</a></li>
     <li><a class="dropdown-item" href="../articles/officer-syntax.html">Using officer syntax inline</a></li>
     <li><a class="dropdown-item" href="../articles/block-markers.html">Block markers: TOC, page breaks and landscape sections</a></li>
+    <li><a class="dropdown-item" href="../articles/numbering-hook.html">Native figure and table numbering with knitr hooks</a></li>
     <li><a class="dropdown-item" href="../articles/architecture.html">Package architecture</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -41,11 +42,9 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="officequarto-development-version">officequarto (development version)<a class="anchor" aria-label="anchor" href="#officequarto-development-version"></a></h2>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="0.3.0" id="officequarto-030">officequarto 0.3.0<a class="anchor" aria-label="anchor" href="#officequarto-030"></a></h2>
-<ul><li>The extension now ships a Pandoc Lua filter, <code>scripts/markers.lua</code>, that revives {officedown}’s HTML-comment markers for docx output: <code>&lt;!---BLOCK_TOC---&gt;</code>, <code>&lt;!---BLOCK_PAGEBREAK---&gt;</code> and <code>&lt;!---BLOCK_LANDSCAPE_START---&gt;</code> / <code>&lt;!---BLOCK_LANDSCAPE_STOP---&gt;</code> (optional custom size). See <code><a href="../articles/block-markers.html">vignette("block-markers")</a></code>.</li>
-<li>Fixed officer style-name markers (<code>w:pstlname</code> / <code>w:tstlname</code>) reaching the final docx unresolved, which made Word ignore styles set through officer or officedown in Quarto (e.g. officedown’s <code>tab.style</code> chunk option and <code>fp_par(word_style = )</code>). They are now resolved to real style IDs during write-back; a style name that doesn’t exist in the document is reported as a warning.</li>
+<ul><li><p>New <code><a href="../reference/oq_numbering.html">oq_numbering()</a></code> gives figures and tables created by R chunks native Word captions (live <code>SEQ</code> fields in a bookmark, set up with knitr hooks while knitting) as an opt-in alternative to <code>officequarto.crossref.auto-number</code>. <code><a href="../reference/oq_ref.html">oq_ref()</a></code> inserts the matching <code>REF</code> cross-reference, <code><a href="../reference/oq_fig_hook.html">oq_fig_hook()</a></code> / <code><a href="../reference/oq_tbl_hook.html">oq_tbl_hook()</a></code> expose the default hooks, and <code>fig_hook</code> / <code>tbl_hook</code> accept your own replacement hook. Label text and separator are chunk options (<code>oq.fig.label</code>, <code>oq.tbl.label</code>, <code>oq.sep</code>) that can be set under <code>knitr: opts_chunk:</code> in <code>_quarto.yml</code>. See <code><a href="../articles/numbering-hook.html">vignette("numbering-hook")</a></code>. # officequarto 0.3.0</p></li>
+<li><p>The extension now ships a Pandoc Lua filter, <code>scripts/markers.lua</code>, that revives {officedown}’s HTML-comment markers for docx output: <code>&lt;!---BLOCK_TOC---&gt;</code>, <code>&lt;!---BLOCK_PAGEBREAK---&gt;</code> and <code>&lt;!---BLOCK_LANDSCAPE_START---&gt;</code> / <code>&lt;!---BLOCK_LANDSCAPE_STOP---&gt;</code> (optional custom size). See <code><a href="../articles/block-markers.html">vignette("block-markers")</a></code>.</p></li>
+<li><p>Fixed officer style-name markers (<code>w:pstlname</code> / <code>w:tstlname</code>) reaching the final docx unresolved, which made Word ignore styles set through officer or officedown in Quarto (e.g. officedown’s <code>tab.style</code> chunk option and <code>fp_par(word_style = )</code>). They are now resolved to real style IDs during write-back; a style name that doesn’t exist in the document is reported as a warning.</p></li>
 </ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.2.0" id="officequarto-020">officequarto 0.2.0<a class="anchor" aria-label="anchor" href="#officequarto-020"></a></h2>

@@ -97,6 +97,12 @@ properties/custom styles) + `report.qmd` + `_quarto.yml`.
 - [`vignette("block-markers", package = "officequarto")`](https://trekonom.github.io/officequarto/articles/block-markers.md)
   — officedown-style `<!---BLOCK_TOC--->` / page-break / landscape
   markers for docx output.
+- [`vignette("numbering-hook", package = "officequarto")`](https://trekonom.github.io/officequarto/articles/numbering-hook.md)
+  — native Word figure/table numbering from R chunks via
+  [`oq_numbering()`](https://trekonom.github.io/officequarto/reference/oq_numbering.md)
+  (knitr hooks), with
+  [`oq_ref()`](https://trekonom.github.io/officequarto/reference/oq_ref.md)
+  references and your own hook.
 
 ## Known limitations
 
@@ -150,6 +156,20 @@ usethis::create_project().
 
   Create a standalone, reusable officequarto-ready `_quarto.yml`
 
+## Native numbering
+
+Live Word SEQ captions and REF references created by knitr hooks while
+knitting.
+
+- [`oq_numbering()`](https://trekonom.github.io/officequarto/reference/oq_numbering.md)
+  : Native Word numbering for R-chunk figures and tables
+- [`oq_fig_hook()`](https://trekonom.github.io/officequarto/reference/oq_fig_hook.md)
+  : Default figure numbering hook
+- [`oq_tbl_hook()`](https://trekonom.github.io/officequarto/reference/oq_tbl_hook.md)
+  : Default table numbering hook
+- [`oq_ref()`](https://trekonom.github.io/officequarto/reference/oq_ref.md)
+  : Reference a numbered figure or table
+
 # Articles
 
 ### Articles
@@ -160,5 +180,7 @@ usethis::create_project().
   inline](https://trekonom.github.io/officequarto/articles/officer-syntax.md):
 - [Block markers: TOC, page breaks and landscape
   sections](https://trekonom.github.io/officequarto/articles/block-markers.md):
+- [Native figure and table numbering with knitr
+  hooks](https://trekonom.github.io/officequarto/articles/numbering-hook.md):
 - [Package
   architecture](https://trekonom.github.io/officequarto/articles/architecture.md):

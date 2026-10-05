@@ -2,7 +2,23 @@
 
 ## officequarto (development version)
 
-## officequarto 0.3.0
+- New
+  [`oq_numbering()`](https://trekonom.github.io/officequarto/reference/oq_numbering.md)
+  gives figures and tables created by R chunks native Word captions
+  (live `SEQ` fields in a bookmark, set up with knitr hooks while
+  knitting) as an opt-in alternative to
+  `officequarto.crossref.auto-number`.
+  [`oq_ref()`](https://trekonom.github.io/officequarto/reference/oq_ref.md)
+  inserts the matching `REF` cross-reference,
+  [`oq_fig_hook()`](https://trekonom.github.io/officequarto/reference/oq_fig_hook.md)
+  /
+  [`oq_tbl_hook()`](https://trekonom.github.io/officequarto/reference/oq_tbl_hook.md)
+  expose the default hooks, and `fig_hook` / `tbl_hook` accept your own
+  replacement hook. Label text and separator are chunk options
+  (`oq.fig.label`, `oq.tbl.label`, `oq.sep`) that can be set under
+  `knitr: opts_chunk:` in `_quarto.yml`. See
+  [`vignette("numbering-hook")`](https://trekonom.github.io/officequarto/articles/numbering-hook.md).
+  \# officequarto 0.3.0
 
 - The extension now ships a Pandoc Lua filter, `scripts/markers.lua`,
   that revives {officedown}’s HTML-comment markers for docx output:
@@ -10,6 +26,7 @@
   `<!---BLOCK_LANDSCAPE_START--->` / `<!---BLOCK_LANDSCAPE_STOP--->`
   (optional custom size). See
   [`vignette("block-markers")`](https://trekonom.github.io/officequarto/articles/block-markers.md).
+
 - Fixed officer style-name markers (`w:pstlname` / `w:tstlname`)
   reaching the final docx unresolved, which made Word ignore styles set
   through officer or officedown in Quarto (e.g. officedown’s `tab.style`
