@@ -1,0 +1,22 @@
+---
+format: docx
+toc: true
+---
+
+# One
+
+Text.
+
+{{< pagebreak >}}
+
+# Two
+
+::: {.landscape}
+
+Wide part.
+
+:::
+
+# Three
+
+End.
