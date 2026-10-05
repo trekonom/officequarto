@@ -67,9 +67,9 @@ reference_doc_basename, overwrite)` (`#' @noRd`, also `R/create-quarto-yml.R`) t
 (never does) call — keeping `oq_quarto_yml_template()`'s pure content generation, the
 file-write/overwrite-guard logic, and the public no-reference_doc surface all cleanly separated in
 their own file, distinct from `oq_create_project()`'s own project-scaffolding concerns (extension
-copy, starter `.qmd`, RStudio open). `oq_create_quarto_yml()` is one of only three fully
-`@param`/`@return`-documented exported functions, alongside `oq_writeback()`/`oq_create_project()`,
-matching the "roxygen is minimal except for exported functions" convention below.
+copy, starter `.qmd`, RStudio open). `oq_create_quarto_yml()` is one of the fully
+`@param`/`@return`-documented exported functions (see the roxygen note below), matching the
+"roxygen is minimal except for exported functions" convention.
 
 Testing goes through testthat/`R CMD check` like any other package, run in CI via GitHub Actions
 (`.github/workflows/R-CMD-check.yaml`, matrix of macOS/Windows/Ubuntu × release/devel/oldrel) on
@@ -143,6 +143,16 @@ quarto render report.qmd
 Rscript ../../check-block-markers-e2e.R
 ```
 
+The knitr-hook numbering (`oq_numbering()`) has a fixture as well; the second render uses
+`officequarto.crossref.auto-number: true` on the same document:
+
+```bash
+cd dev/fixtures/numbering-hook
+quarto render
+(cd with-auto-number && quarto render)
+Rscript ../../check-numbering-hook-e2e.R
+```
+
 Regenerate the sample template (`template/original.docx`), including the sixteen ACME custom
 paragraph styles used to test style-mapping (body/bullet/number/letter/code-block/table-caption/
 plot/plot-caption/title/footnote-text):
@@ -161,8 +171,9 @@ There is no linter/formatter configured for the R scripts in this repo; version 
 and must touch both `DESCRIPTION`'s `Version:` and `inst/_extensions/officequarto/_extension.yml`'s
 `version:` together — no automated sync exists between them.
 
-Roxygen documentation is intentionally minimal for now: only the three exported functions
-(`oq_writeback()`, `oq_create_project()`, `oq_create_quarto_yml()`) carry full `@param`/`@return`
+Roxygen documentation is intentionally minimal for now: only the exported functions
+(`oq_writeback()`, `oq_create_project()`, `oq_create_quarto_yml()` and the numbering-hook API
+`oq_numbering()`/`oq_fig_hook()`/`oq_tbl_hook()`/`oq_ref()`) carry full `@param`/`@return`
 docs. Every internal helper (~40 functions across `R/`) carries a bare `#' @noRd` placeholder — a
 deliberate, scoped starting point (this was a structural migration, not a documentation pass), not
 an oversight; fleshing these out is a natural, separate follow-up.
@@ -225,6 +236,9 @@ R/                             package logic - oq_writeback()/oq_create_project(
 ├── style-name-markers.R          oq_resolve_style_name_markers() - turns officer's w:pstlname/
 │                                w:tstlname style-name markers into real w:val styleIds (see
 │                                "officer inline syntax" below)
+├── numbering-hook.R              oq_numbering()/oq_fig_hook()/oq_tbl_hook()/oq_ref() - native
+│                                Word figure/table numbering via knitr hooks, installed inside the
+│                                knitting R session (exported; see "Numbering hook" below)
 └── zzz.R                         .onLoad(): conditional knit_print S3 registration
 
 inst/_extensions/officequarto/  the Quarto extension itself - installed alongside the package,
@@ -1032,6 +1046,52 @@ that is the one place left where the raw markdown is still addressable. Investig
   section order/orientations, default and custom size). Verified in real Word (via AppleScript): 5
   sections in the expected portrait/landscape order. Fixture outputs are gitignored
   (`dev/fixtures/*/report.docx`).
+
+### Numbering hook (`R/numbering-hook.R`: `oq_numbering()`, `oq_fig_hook()`, `oq_tbl_hook()`, `oq_ref()`)
+
+Opt-in native Word numbering for figures/tables created by **R chunks**, done while knitting instead
+of post-render (the alternative to `officequarto.crossref.auto-number`). Evidence trail:
+`dev/knitr-hooks/experiments/15-fig-caption-hooks` (variant v3, verified in real Word) and
+`16-table-hook-spike`; claims audit in `dev/knitr-hooks/claims-audit.md` (rows 5, 6, 25, 26).
+
+- **Why chaining, why the id is stripped**: Quarto's static "Figure 1" and `@fig-x` resolution are
+  added by its Lua filter *after* knitr, from the `fig-`/`tbl-` id in the markdown. A hook can only
+  change that markdown. Replacing a hook with `knit_hooks$set()` loses Quarto's cell handling
+  (Exp. 3), so `oq_chain_hook()` runs the previous (Quarto) hook first and post-processes its output;
+  adding a field *next to* Quarto's caption double-counts (Exp. 15 v2). Hence the hook-owned item
+  drops its id (`oq_strip_id_from_attrs()`), which means **`@fig-x`/`@tbl-x` do not resolve** for it —
+  `oq_ref()` (a `REF` field in a hyperlink to the bookmark) is the reference syntax. Replacing
+  `@fig-x` by REF fields automatically (Lua filter at `pre-quarto`) is a deliberately deferred
+  follow-up; it needs no hook API change because the bookmark is named like the Quarto label.
+- **Hook points**: figures = chained `plot` hook (post-processes `![cap](path){#fig-x …}`, regex in
+  `oq_match_image()`; the `#id` there still carries Quarto's placeholder, the chunk hook's later
+  placeholder substitution then finds nothing and is a harmless no-op); tables = chained `chunk` hook
+  (post-processes the whole cell `::: {#tbl-x .cell tbl-cap='…'}`, `oq_match_table_cell()`; apostrophes
+  in the attribute are escaped `\'`). The table caption is a markdown paragraph in a
+  `custom-style="Table Caption"` div before `.cell-output-display` (any table producer; inline markdown
+  and inline raw fields work; a fenced raw `<w:p>` would lose markdown, a pipe-table caption only
+  works for kable — Exp. 16).
+- **Bookmark spans label + number** (`bkm_all`-style), so a REF yields "Figure 1" like `@fig-x` does
+  (the post-render `auto-number` bookmarks only the numeral, so — checked in real Word on
+  `dev/fixtures/auto-number` — its cross-references read just "1" after Word recalculates the fields
+  instead of "Table 1": a known, not yet fixed defect of that option). Ids come from a session counter starting at 100000 (`oq_next_bookmark_id()`) to avoid
+  Pandoc's own and duplicate ids; `fig.num > 1` gives `label-i` names like Quarto.
+- **Config**: only chunk options, read from the hook's `options` — `oq.fig.label`, `oq.tbl.label`,
+  `oq.sep`, `oq.tbl.style` — so `knitr: opts_chunk:` in `_quarto.yml` works (verified route, Exp. 13;
+  `knit_hooks`/`opts_hooks` in that YAML key are *rejected* by Quarto's schema, so a user hook can only be
+  passed as an R function argument: `oq_numbering(fig_hook=, tbl_hook=)` = full replacement of the built-in
+  post-processing, still chained on Quarto's hook; `oq_fig_hook()`/`oq_tbl_hook()` return the defaults to
+  wrap).
+- **Scope guards** (hook returns `res` unchanged): non-docx target (`oq_is_docx_target()`), label without
+  `fig-`/`tbl-`, no caption, `fig.subcap`/layout chunks. Markdown-authored images/tables never pass
+  through hooks at all.
+- **Interplay with `auto-number`**: hook-owned captions have no Pandoc wrapper cell/bookmark, so
+  `oq_apply_captions()` takes its plain-caption path (counted "found", 0 converted) — verified in the
+  e2e check's `with-auto-number` variant. `knitr` and `withr` (tests) are `Suggests`; `oq_numbering()`
+  guards with `requireNamespace("knitr")`.
+- Tests: `tests/testthat/test-numbering-hook.R` (pure R), `dev/fixtures/numbering-hook/` +
+  `dev/check-numbering-hook-e2e.R`; also opened in real Word (captions "Abbildung 1: …"/"Tabelle 1: …",
+  `oq_ref()` fields read "Abbildung 1" etc.).
 
 ### Key constraints/gotchas
 

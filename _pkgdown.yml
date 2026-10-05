@@ -14,6 +14,14 @@ reference:
   - oq_create_project
   - oq_create_quarto_yml
 
+- title: Native numbering
+  desc: Live Word SEQ captions and REF references created by knitr hooks while knitting.
+  contents:
+  - oq_numbering
+  - oq_fig_hook
+  - oq_tbl_hook
+  - oq_ref
+
 articles:
 - title: Articles
   navbar: ~
@@ -21,4 +29,5 @@ articles:
   - options
   - officer-syntax
   - block-markers
+  - numbering-hook
   - architecture

@@ -14,7 +14,9 @@ Details: `officedown-mechanisms.md`, `quarto-knitr-internals.md`, `experiments/`
 - **Figure-Captions als Live-`SEQ`-Feld per knit_hook (Exp. 15):** möglich, aber nur, indem der Hook Quarto's
   Numerierung umgeht – dann ist `@fig-x` tot und Verweise müssen von Hand als `REF`-Feld gesetzt werden
   (v3/v4); Hooks, die `@fig-x` erhalten, können keine Felder erzeugen (v1) oder zählen doppelt (v2). Live-Feld
-  **und** `@fig-x` liefert nur die Post-Render-Umwandlung (`crossref.auto-number`).
+  **und** `@fig-x` liefert nur die Post-Render-Umwandlung (`crossref.auto-number`). Die Hook-Variante gibt es
+  seit der Folge-Arbeit als opt-in `oq_numbering()` (Figuren **und** Tabellen, Exp. 16; `oq_ref()` für Verweise,
+  eigener Hook per `fig_hook`/`tbl_hook`) – siehe `vignette("numbering-hook")`.
 
 ## Empfehlung
 Quarto-native Crossrefs plus officequarto (`auto-number` für Live-Felder) nutzen; officer-Objekte

@@ -84,6 +84,8 @@ with its own header/footer/custom properties/custom styles) + `report.qmd` +
   run/paragraph/block constructors directly inline in a `.qmd`.
 - `vignette("block-markers", package = "officequarto")` — officedown-style
   `<!---BLOCK_TOC--->` / page-break / landscape markers for docx output.
+- `vignette("numbering-hook", package = "officequarto")` — native Word figure/table numbering
+  from R chunks via `oq_numbering()` (knitr hooks), with `oq_ref()` references and your own hook.
 
 ## Known limitations
 

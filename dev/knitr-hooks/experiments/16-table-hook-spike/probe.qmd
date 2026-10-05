@@ -1,0 +1,19 @@
+---
+format:
+  docx:
+    keep-md: true
+---
+
+```{r}
+#| label: tbl-a
+#| tbl-cap: "TBL-A-CAP"
+knitr::kable(head(mtcars[, 1:3]))
+```
+
+```{r}
+#| label: tbl-b
+#| tbl-cap: "TBL-B-CAP"
+head(mtcars[, 1:3])
+```
+
+See @tbl-a and @tbl-b.

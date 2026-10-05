@@ -15,5 +15,4 @@ vignettes/*.R
 /Meta/
 plans
 vendor/
-dev/fixtures/*/report.docx
-dev/fixtures/*/*.quarto-rendered.docx
+dev/fixtures/**/*.docx

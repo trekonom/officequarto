@@ -40,6 +40,16 @@ quarto render report.qmd
 Rscript ../../check-auto-number-e2e.R
 ```
 
+`oq_numbering()` (knitr-hook figure/table numbering) has a fixture as well; the second command renders
+the same document with `officequarto.crossref.auto-number: true`:
+
+```bash
+cd dev/fixtures/numbering-hook
+quarto render
+(cd with-auto-number && quarto render)
+Rscript ../../check-numbering-hook-e2e.R
+```
+
 The `<!---BLOCK_*--->` markers (the extension's `markers.lua` filter) have a fixture too:
 
 ```bash

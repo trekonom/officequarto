@@ -1,0 +1,18 @@
+project:
+  type: officequarto
+  render:
+    - report.qmd
+    - custom.qmd
+
+format:
+  docx:
+    reference-doc: ../../../template/original.docx
+    officequarto:
+      keep-rendered: true
+
+# label text / separator for oq_numbering(), read from the chunk options (verified route:
+# dev/knitr-hooks/experiments/13-quarto-knitr-state)
+knitr:
+  opts_chunk:
+    oq.fig.label: "Abbildung"
+    oq.tbl.label: "Tabelle"

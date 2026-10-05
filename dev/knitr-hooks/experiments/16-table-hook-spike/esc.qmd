@@ -1,0 +1,25 @@
+---
+format:
+  docx:
+    keep-md: true
+---
+
+```{r}
+#| label: tbl-q
+#| tbl-cap: "It's a *test* with \"quotes\" and a } brace"
+#| echo: false
+knitr::kable(head(mtcars[, 1:2], 2))
+```
+
+```{r}
+#| label: tbl-nocap
+#| echo: false
+knitr::kable(head(mtcars[, 1:2], 2))
+```
+
+```{r}
+#| label: tbl-ft
+#| tbl-cap: "FT-CAP"
+#| echo: true
+flextable::flextable(head(mtcars[, 1:2], 2))
+```

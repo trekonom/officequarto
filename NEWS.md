@@ -1,5 +1,12 @@
 # officequarto (development version)
 
+* New `oq_numbering()` gives figures and tables created by R chunks native Word captions (live `SEQ`
+  fields in a bookmark, set up with knitr hooks while knitting) as an opt-in alternative to
+  `officequarto.crossref.auto-number`. `oq_ref()` inserts the matching `REF` cross-reference,
+  `oq_fig_hook()` / `oq_tbl_hook()` expose the default hooks, and `fig_hook` / `tbl_hook` accept your own
+  replacement hook. Label text and separator are chunk options (`oq.fig.label`, `oq.tbl.label`,
+  `oq.sep`) that can be set under `knitr: opts_chunk:` in `_quarto.yml`. See
+  `vignette("numbering-hook")`.
 # officequarto 0.3.0
 
 * The extension now ships a Pandoc Lua filter, `scripts/markers.lua`, that revives {officedown}'s
