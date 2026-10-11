@@ -925,6 +925,10 @@ belt-and-suspenders cached value of its own.
   — kept separate from `template/` since `template/_quarto.yml` sets `crossref.numbered: false`,
   mutually exclusive with `auto-number` by design.
 
+### Caption wrapper unwrapping (`R/caption-unwrap.R`, always on)
+
+Quarto's 1x1 caption wrapper tables (see "Table captions") are removed as the last caption-related step in `writeback.R` (`oq_unwrap_caption_tables()`), unconditionally and without an option (confirmed with the user, triggered by `../oq-fancy`). The wrapper nodes are collected up front by `oq_find_caption_wrappers()` because the `ImageCaption`/`TableCaption` signature disappears once caption styles are remapped; everything else (caption detection, bookmark lookup via the `w:tc` parent, table options) still runs against the wrapper first. The cell content is moved into the body, Pandoc's trailing empty paragraph is dropped (kept if the next sibling is a table) and `w:keepNext` is set on the first paragraph so caption and figure/table stay together. Quarto callouts are also tables but not caption wrappers and are left alone. Tests: `tests/testthat/test-caption-unwrap.R`; verified with `template/` and the three fixtures. Not yet re-checked in real Word.
+
 ### Style pruning (always on by default)
 
 Pandoc's docx writer unconditionally adds its own style definitions on top of whatever

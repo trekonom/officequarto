@@ -445,7 +445,8 @@ oq_writeback <- function() {
       file.copy(custom_from_path, file.path(work_dir, "docProps", "custom.xml"), overwrite = TRUE)
     }
 
-    if (!is.null(style_config) || !is.null(lists_config) || !is.null(code_block_config) || !is.null(table_config) || !is.null(plot_config) || !is.null(style_map_config) || !is.null(page_config) || crossref_rewrite_needed || crossref_auto_number_needed) {
+    ## Unconditional: unwrapping Quarto's caption wrapper tables needs no config.
+    {
       styles_path <- file.path(work_dir, "word", "styles.xml")
       document_path <- file.path(work_dir, "word", "document.xml")
       numbering_path <- file.path(work_dir, "word", "numbering.xml")
@@ -456,6 +457,9 @@ oq_writeback <- function() {
       ## by the table caption style mapping (Gruppe 3), so it's computed
       ## centrally once here instead of in both blocks.
       name_to_id <- oq_style_name_to_id(styles_doc)
+
+      ## Must be collected before anything remaps the caption styles.
+      caption_wrappers <- oq_find_caption_wrappers(document_doc)
 
       ## Footnotes/endnotes (word/footnotes.xml, word/endnotes.xml) only
       ## exist if the rendered document actually contains any
@@ -601,6 +605,9 @@ oq_writeback <- function() {
         n_crossref_fields <- oq_apply_crossref_fields(document_doc, crossref_converted_anchors)
         log_msg("cross-references switched to SEQ/REF fields (officequarto.crossref.auto-number: true): %d.", n_crossref_fields)
       }
+
+      n_unwrapped <- oq_unwrap_caption_tables(document_doc, caption_wrappers)
+      log_msg("caption wrapper tables unwrapped: %d.", n_unwrapped)
 
       ## Deliberately the last step (see style-map.R): by default this
       ## therefore only touches paragraphs left untouched by the steps
